@@ -1,0 +1,40 @@
+name: wpi-refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "11 4 2 * *"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build official WPI candidate layer
+        run: python scripts/build_wpi_artifacts.py | tee wpi-run.json
+      - name: Publish summary
+        if: always()
+        run: |
+          echo "# NGA World Port Index refresh" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f generated/wpi/summary.json ]; then
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat generated/wpi/summary.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload WPI artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geowatch-wpi-${{ github.run_id }}
+          path: |
+            generated/wpi/
+            wpi-run.json
+          if-no-files-found: warn
+          retention-days: 30
