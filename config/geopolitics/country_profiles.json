@@ -1,0 +1,68 @@
+{
+  "schema_version": "geowatch-country-profiles-v1",
+  "as_of": "2026-08-24",
+  "governance": {
+    "structural_not_current_officeholders": true,
+    "volatile_fields_require_refresh": true,
+    "context_not_evidence": true,
+    "numeric_capabilities_require_dated_source": true
+  },
+  "profiles": [
+    {
+      "country_id":"USA","name":"United States","regions":["North America","Atlantic","Pacific","global"],
+      "strategic_themes":["global alliance network","sea power","air and space power","nuclear deterrence","global finance","technology","energy production","sanctions and export controls"],
+      "exposures":["global maritime trade","alliance credibility","industrial supply chains","cyber and space infrastructure"],
+      "questions":["which commitments are treaty-based versus political","where are capability and attention constraints binding","how do domestic politics affect external commitments"],
+      "source_ids":["nato_members","sipri_milex","unctad_rmt","imf_geoeconomic_fragmentation"]
+    },
+    {
+      "country_id":"CHN","name":"China","regions":["East Asia","Indo-Pacific","Eurasia"],
+      "strategic_themes":["great-power competition","industrial capacity","maritime trade","technology","energy and commodity imports","Taiwan Strait","South China Sea","Belt and Road connectivity"],
+      "exposures":["maritime chokepoints","external demand","critical imports","technology controls"],
+      "questions":["which dependencies are substitutable","how are coercion and reassurance combined","which disputes are status, sovereignty, or access problems"],
+      "source_ids":["unctad_rmt","wto_trade","imf_geoeconomic_fragmentation","sipri_milex"]
+    },
+    {
+      "country_id":"RUS","name":"Russia","regions":["Eurasia","Arctic","Black Sea","Caspian"],
+      "strategic_themes":["nuclear deterrence","land power","energy exports","strategic depth","Arctic access","Black Sea access","sanctions adaptation"],
+      "exposures":["hydrocarbon export routes","sanctions and technology controls","Black Sea logistics","demographic and industrial constraints"],
+      "questions":["how do economic constraints interact with military priorities","which routes and markets absorb redirected trade","where does escalation management depend on nuclear signaling"],
+      "source_ids":["sipri_milex","imf_geoeconomic_fragmentation","unctad_rmt","unsc_sanctions"]
+    },
+    {
+      "country_id":"IND","name":"India","regions":["South Asia","Indian Ocean","Indo-Pacific"],
+      "strategic_themes":["Indian Ocean security","continental rivalry","strategic autonomy","energy security","industrial development","nuclear deterrence"],
+      "exposures":["imported energy","maritime chokepoints","border security","external technology and capital"],
+      "questions":["where does strategic autonomy permit cooperation with competing blocs","how do continental and maritime priorities trade off","what dependencies constrain crisis choices"],
+      "source_ids":["unctad_rmt","wto_trade","sipri_milex","imf_geoeconomic_fragmentation"]
+    },
+    {
+      "country_id":"BRA","name":"Brazil","regions":["South America","South Atlantic"],
+      "strategic_themes":["food security","energy","critical minerals","South Atlantic","Amazon","trade diversification","regional stability"],
+      "exposures":["commodity demand","fertilizer imports","maritime exports","global finance and exchange rates"],
+      "questions":["how do global conflicts transmit through commodities and fertilizers","which maritime routes are systemically important","how does strategic autonomy interact with economic interdependence"],
+      "source_ids":["wto_trade","unctad_rmt","imf_geoeconomic_fragmentation"]
+    },
+    {
+      "country_id":"JPN","name":"Japan","regions":["East Asia","Indo-Pacific","Pacific"],
+      "strategic_themes":["maritime security","alliance deterrence","sea-lane security","technology","energy import security","East Asian balance of power"],
+      "exposures":["imported energy","maritime chokepoints","regional missile threats","technology supply chains"],
+      "questions":["how do alliance commitments shape deterrence","which sea lanes are least substitutable","how do energy and industrial dependencies affect resilience"],
+      "source_ids":["japan_us_security","unctad_rmt","sipri_milex"]
+    },
+    {
+      "country_id":"IRN","name":"Iran","regions":["Middle East","Persian Gulf","Caspian"],
+      "strategic_themes":["Hormuz","energy","regional influence networks","sanctions","missile and drone capabilities","nuclear diplomacy"],
+      "exposures":["sanctions","energy export routes","regional escalation","maritime access"],
+      "questions":["what is direct state action versus partner or proxy action","how do sanctions alter economic incentives and evasion networks","which steps change the risk to Hormuz and Gulf shipping"],
+      "source_ids":["unsc_sanctions","unctad_rmt","sipri_milex"]
+    },
+    {
+      "country_id":"TUR","name":"Türkiye","regions":["Europe","Black Sea","Eastern Mediterranean","Middle East"],
+      "strategic_themes":["Bosporus and Dardanelles","NATO","Black Sea security","Eastern Mediterranean","regional connectivity","energy transit"],
+      "exposures":["Black Sea instability","energy imports and transit","regional conflicts","maritime trade"],
+      "questions":["how does chokepoint control affect bargaining leverage","where do alliance obligations and regional autonomy diverge","which energy and trade routes create leverage or vulnerability"],
+      "source_ids":["nato_members","unctad_rmt","sipri_milex"]
+    }
+  ]
+}
