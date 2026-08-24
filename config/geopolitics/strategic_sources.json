@@ -1,0 +1,12 @@
+{
+  "schema_version": "geowatch-strategic-sources-v1",
+  "sources": [
+    {"source_id":"nato_members","class":"primary_official","title":"NATO member countries","url":"https://www.nato.int/en/about-us/organization/nato-member-countries","as_of_checked":"2026-08-24","refresh":"quarterly","topics":["alliances","collective_defense","membership"]},
+    {"source_id":"japan_us_security","class":"primary_official","title":"Japan-U.S. Security Arrangements — Ministry of Foreign Affairs of Japan","url":"https://www.mofa.go.jp/region/n-america/us/security/index.html","as_of_checked":"2026-08-24","refresh":"quarterly","topics":["alliances","deterrence","indo_pacific","japan"]},
+    {"source_id":"unsc_sanctions","class":"primary_official","title":"UN Security Council sanctions regimes","url":"https://main.un.org/securitycouncil/en/sanctions/information","as_of_checked":"2026-08-24","refresh":"monthly","topics":["sanctions","targeted_measures"]},
+    {"source_id":"sipri_milex","class":"specialist_data","title":"SIPRI Military Expenditure Database","url":"https://www.sipri.org/databases/milex","refresh":"annual","topics":["military_expenditure","capability_inputs"]},
+    {"source_id":"unctad_rmt","class":"official_analysis","title":"UNCTAD Review of Maritime Transport","url":"https://unctad.org/RMT","refresh":"annual","topics":["shipping","ports","chokepoints","maritime_trade"]},
+    {"source_id":"wto_trade","class":"official_data","title":"WTO trade statistics","url":"https://www.wto.org/english/res_e/statis_e/statis_e.htm","refresh":"periodic","topics":["trade","dependencies","restrictions"]},
+    {"source_id":"imf_geoeconomic_fragmentation","class":"official_analysis","title":"IMF Geoeconomic Fragmentation","url":"https://www.imf.org/en/Topics/Geoeconomic-Fragmentation","refresh":"periodic","topics":["fragmentation","finance","trade","technology"]}
+  ]
+}
