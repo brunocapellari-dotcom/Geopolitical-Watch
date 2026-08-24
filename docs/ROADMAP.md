@@ -39,41 +39,64 @@
 
 - GDACS institutional context adapter
 - ACLED OAuth adapter with cursor pagination
-- PostgreSQL/PostGIS production schema and store
-- SQLite/PostgreSQL backend factory
-- durable RAW abstraction with filesystem/GCS backends
-- API v2 episode/event/change query surfaces
-- operational JSON and Prometheus metrics
-- production image extras
-- Cloud Run API/job + Cloud Scheduler + GCS deployment assets
+- PostgreSQL/PostGIS production schema/store
+- durable filesystem/GCS RAW abstraction
+- API v2 operational surfaces
+- Prometheus metrics
+- Cloud Run deployment assets
 
-Live GCP deployment remains an external execution gate: repository assets do not prove that a Cloud Run service, database or scheduler is running.
+Live GCP deployment remains an external execution gate.
 
 ## v0.7 — product and alert layer — complete
 
-- dashboard/map
-- episode timelines
+- dashboard/map and episode timelines
 - deterministic alert policies
-- alert outbox with delivery retry
-- consumer filters
-- webhook delivery
+- deduplicated outbox/retry delivery
 - consumer-specific feeds
-- AgroLog MT read-only consumer profile
-- API map/alerts/consumer endpoints
-- CLI dispatcher and consumer feed commands
-- regression tests for alert dedupe/filtering and product surfaces
-- GitHub Actions release gate passed in PR #4
+- AgroLog MT read-only profile
+- webhook dispatcher
+- product regression suite
 
-## v0.8 — validation and operational hardening — next
+## v0.8 — geopolitical knowledge and validation — implemented pending release gate
 
-- real GCP deployment and end-to-end smoke tests
-- Cloud SQL/PostGIS backup/PITR validation
-- historical multi-source backfill inventory
-- larger real-world labeled episode corpus
-- analyst review queue and episode merge/split lineage
-- alert precision/recall/fatigue calibration
-- load/chaos/restore/cost/SLO testing
+- advanced geopolitics curriculum
+- structured geopolitical knowledge graph seed
+- canonical legal/data/academic source registry
+- strict `context_not_evidence` boundary
+- strategic context attached to episode reports/API
+- multi-theory context retrieval
+- regional context retrieval
+- historical analogy prompts with mandatory analogy limits
+- source coverage inventory endpoint
+- analyst review queue generation
+- episode-quality flags
+- alert precision/recall/FPR calibration framework
+- auditable episode merge lineage
+- safe split planning with forced recomputation
+- v0.8 regression suite
+
+## v0.9 — validation, historical learning and strategic graph — next
+
+- production deployment and restore drill when GCP credentials/infrastructure are available
+- real multi-source historical coverage inventory/backfill
+- labeled real-world episode corpus at scale
+- persisted analyst review decisions
+- apply/revert merge/split workflow with durable review state
+- historical forecast/outcome calibration
+- country strategic profiles
+- rivalry/alliance graph
+- larger strategic infrastructure graph
+- sanctions and export-control context layer
+- official maritime notice layer
+- geoeconomic dependency metrics
+- escalation indicator library
+- competing-hypotheses analysis objects
+- knowledge proposals generated from resolved analyst reviews
+
+## v1.0 gate
+
+v1.0 requires demonstrated production reliability, restore capability, empirically validated alert/convergence quality, stable API contracts, security/cost review, source-rights review and documented knowledge governance.
 
 ## Later
 
-Sanctions, maritime notices, AIS/ADS-B, additional official sensor/context feeds, prediction markets and other contextual layers enter only after terms, cost, stability, privacy and false-positive risks are reviewed.
+AIS/ADS-B, prediction markets and additional sensor/context layers enter only after terms, cost, privacy, stability and false-positive risks are reviewed.

@@ -1,0 +1,69 @@
+{
+  "schema_version": "geowatch-geopolitics-knowledge-v1",
+  "principles": {
+    "separate_context_from_evidence": true,
+    "multi_theory_required": true,
+    "historical_analogy_requires_limits": true,
+    "normative_claims_must_be_labeled": true,
+    "current_claims_require_current_sources": true
+  },
+  "schools": [
+    {"id":"realism","name":"Realism","focus":["power","security","national_interest","anarchy","balance_of_power"],"cautions":["does_not_make_war_inevitable","variants_disagree_on_state_behavior"]},
+    {"id":"neorealism","name":"Structural Realism","focus":["polarity","distribution_of_capabilities","security_competition","balancing"],"cautions":["domestic_politics_often_underweighted"]},
+    {"id":"liberalism","name":"Liberal and Institutional Approaches","focus":["institutions","interdependence","domestic_preferences","cooperation"],"cautions":["institutions_do_not_remove_power_asymmetry"]},
+    {"id":"constructivism","name":"Constructivism","focus":["identity","norms","ideas","social_construction_of_interest"],"cautions":["identity_and_norms_are_not_directly_observable_variables"]},
+    {"id":"english_school","name":"English School","focus":["international_society","order","institutions","sovereignty","great_powers"],"cautions":["order_and_justice_can_conflict"]},
+    {"id":"critical_geopolitics","name":"Critical Geopolitics","focus":["discourses","maps","identity","representation","power_knowledge"],"cautions":["avoid_treating_geographic_labels_as_natural_facts"]},
+    {"id":"geoeconomics","name":"Geoeconomics","focus":["trade","finance","technology","sanctions","industrial_policy","economic_statecraft"],"cautions":["economic_costs_and_security_benefits_must_be_separated"]}
+  ],
+  "concepts": [
+    {"id":"balance_of_power","name":"Balance of power","keywords":["balancing","counterweight","coalition","power balance"],"mechanisms":["internal_balancing","external_balancing"],"questions":["who_is_balancing_whom","are_capabilities_or_intentions_driving_behavior"]},
+    {"id":"security_dilemma","name":"Security dilemma","keywords":["arms buildup","rearmament","security dilemma","military buildup"],"mechanisms":["defensive_steps_appear_offensive","reciprocal_escalation"],"questions":["can_offense_and_defense_be_distinguished","are signals credible"]},
+    {"id":"deterrence","name":"Deterrence","keywords":["deterrence","red line","retaliation","credible threat"],"mechanisms":["capability","credibility","communication"],"questions":["what_behavior_is_being_deterred","is the threatened response credible"]},
+    {"id":"compellence","name":"Compellence and coercive diplomacy","keywords":["ultimatum","coercion","compel","deadline"],"mechanisms":["threat","limited force","bargaining"],"questions":["what_concession_is_demanded","what_exit_is_available"]},
+    {"id":"escalation","name":"Escalation dynamics","keywords":["escalation","retaliation","counterstrike","mobilization"],"mechanisms":["action_reaction","horizontal_escalation","vertical_escalation"],"questions":["is escalation deliberate or inadvertent","what thresholds are changing"]},
+    {"id":"power_transition","name":"Power transition","keywords":["rising power","declining power","revisionist","hegemonic competition"],"mechanisms":["shifts_in_relative_capabilities","status_dissatisfaction"],"questions":["is the power shift material, perceived, or both"]},
+    {"id":"polarity","name":"Polarity","keywords":["unipolar","bipolar","multipolar","great power competition"],"mechanisms":["systemic_constraints","alliance_options"],"questions":["which capabilities define the poles"]},
+    {"id":"alliance_dynamics","name":"Alliance dynamics","keywords":["alliance","treaty ally","security guarantee","collective defense"],"mechanisms":["balancing","bandwagoning","entrapment","abandonment"],"questions":["are commitments automatic or conditional","what is the credibility of support"]},
+    {"id":"proxy_warfare","name":"Proxy warfare","keywords":["proxy","militia","armed group","sponsor","support to rebels"],"mechanisms":["delegation","deniability","cost_shifting"],"questions":["what evidence links sponsor and proxy","how much control exists"]},
+    {"id":"gray_zone","name":"Gray-zone competition","keywords":["gray zone","hybrid","below threshold","covert pressure"],"mechanisms":["ambiguity","incrementalism","deniability"],"questions":["what threshold is being avoided","what attribution standard is justified"]},
+    {"id":"economic_statecraft","name":"Economic statecraft","keywords":["sanction","export control","embargo","tariff","asset freeze","economic coercion"],"mechanisms":["denial","punishment","leverage","signaling"],"questions":["what is the target mechanism","what evasion or substitution paths exist"]},
+    {"id":"geoeconomic_fragmentation","name":"Geoeconomic fragmentation","keywords":["friendshoring","decoupling","de-risking","bloc trade","fragmentation"],"mechanisms":["trade_reorientation","investment_relocation","technology_restrictions"],"questions":["is fragmentation observed or merely announced","which sectors are strategic"]},
+    {"id":"weaponized_interdependence","name":"Weaponized interdependence","keywords":["financial network","payment system","technology chokepoint","supply chain leverage"],"mechanisms":["panopticon_effect","chokepoint_effect"],"questions":["which network node creates asymmetric leverage"]},
+    {"id":"sea_power","name":"Sea power","keywords":["sea lanes","fleet","maritime trade","naval power","SLOC"],"mechanisms":["command_of_sea","sea_denial","commerce_protection"],"questions":["which routes and bases sustain power projection"]},
+    {"id":"land_power","name":"Land power and strategic depth","keywords":["buffer state","strategic depth","land corridor","continental power"],"mechanisms":["depth","access","buffers","interior_lines"],"questions":["is geography a constraint, resource, or political narrative"]},
+    {"id":"chokepoints","name":"Strategic chokepoints","keywords":["Suez","Hormuz","Bab el-Mandeb","Malacca","Bosporus","Panama Canal","chokepoint"],"mechanisms":["route_concentration","rerouting_cost","bottleneck_risk"],"questions":["what share of relevant flows depend on the node","what substitutes exist"]},
+    {"id":"energy_security","name":"Energy security","keywords":["oil","gas","LNG","pipeline","refinery","OPEC","energy security"],"mechanisms":["supply_disruption","spare_capacity","inventory","route_risk"],"questions":["is the shock physical, financial, regulatory, or expected"]},
+    {"id":"resource_security","name":"Resource and food security","keywords":["grain corridor","food security","fertilizer","critical minerals","resource security"],"mechanisms":["supply_concentration","export_controls","logistics_disruption"],"questions":["is scarcity local, regional, or global"]},
+    {"id":"domestic_politics","name":"Domestic politics and foreign policy","keywords":["election","coalition","regime survival","public opinion","elite split"],"mechanisms":["audience_costs","diversion","bureaucratic_politics","regime_security"],"questions":["what domestic constituency or institution constrains leaders"]},
+    {"id":"nationalism_identity","name":"Nationalism and identity","keywords":["nationalism","identity","ethnic","religious","historical claim"],"mechanisms":["mobilization","boundary_definition","legitimacy"],"questions":["is identity causal, instrumental, or both"]},
+    {"id":"civil_war","name":"Civil war dynamics","keywords":["insurgency","civil war","rebel","counterinsurgency","separatist"],"mechanisms":["territorial_control","recruitment","external_support","state_capacity"],"questions":["who controls territory and population","what external sponsors matter"]},
+    {"id":"state_capacity","name":"State capacity and fragility","keywords":["state capacity","fragile state","governance","institutional collapse"],"mechanisms":["revenue","coercive_capacity","administrative_reach","legitimacy"],"questions":["which dimension of capacity is weak"]},
+    {"id":"nuclear_stability","name":"Nuclear deterrence and strategic stability","keywords":["nuclear","strategic stability","second strike","first strike","arms control"],"mechanisms":["assured_retaliation","crisis_stability","arms_race_stability"],"questions":["are capabilities survivable","are escalation channels clear"]},
+    {"id":"international_law","name":"International law, sovereignty and use of force","keywords":["sovereignty","self-defense","UN Charter","Article 51","use of force"],"mechanisms":["legal_claim","collective_security","self_defense"],"questions":["what legal basis is asserted","what facts would be required to evaluate it"]},
+    {"id":"ihl","name":"International humanitarian law","keywords":["Geneva Convention","IHL","civilian protection","prisoner of war","proportionality"],"mechanisms":["distinction","proportionality","precautions","protected_persons"],"questions":["is the classification of conflict established","what rule is relevant"]},
+    {"id":"information_warfare","name":"Information operations and strategic narratives","keywords":["disinformation","propaganda","information operation","strategic narrative"],"mechanisms":["agenda_setting","legitimacy","confusion","mobilization"],"questions":["what is the source chain","what independent evidence exists"]}
+  ],
+  "regions": [
+    {"id":"europe_eurasia","countries":["Ukraine","Russia","Belarus","Moldova","Georgia","Armenia","Azerbaijan"],"themes":["buffer_zones","NATO_Russia_security","Black_Sea","energy_routes","sanctions"]},
+    {"id":"middle_east","countries":["Israel","Palestine","Lebanon","Syria","Iraq","Iran","Jordan","Saudi Arabia","Yemen","United Arab Emirates","Qatar","Oman"],"themes":["regional_deterrence","proxy_networks","energy_security","Hormuz","Bab_el_Mandeb"]},
+    {"id":"indo_pacific","countries":["China","Taiwan","Japan","South Korea","North Korea","Philippines","Vietnam","India","Pakistan","Australia"],"themes":["maritime_power","alliances","Taiwan_Strait","South_China_Sea","Malacca","technology_competition"]},
+    {"id":"africa_sahel_horn","countries":["Sudan","South Sudan","Ethiopia","Eritrea","Somalia","Djibouti","Mali","Niger","Burkina Faso","Chad"],"themes":["state_capacity","civil_war","external_sponsors","Red_Sea","resource_security"]},
+    {"id":"latin_america","countries":["Brazil","Venezuela","Guyana","Colombia","Argentina","Chile","Peru","Bolivia","Mexico"],"themes":["resource_security","regional_diplomacy","organized_violence","great_power_economic_competition"]},
+    {"id":"arctic","countries":["Russia","United States","Canada","Norway","Denmark","Finland","Sweden","Iceland"],"themes":["sea_routes","resources","military_access","climate_change"]},
+    {"id":"global_commons","countries":[],"themes":["sea_lanes","space","cyber","financial_networks","subsea_cables","satellites"]}
+  ],
+  "case_studies": [
+    {"id":"peloponnesian_war","period":"431-404 BCE","themes":["power_transition","alliances","security_dilemma"],"analogy_limits":["ancient_political_system","technology_and_economy_not_comparable"]},
+    {"id":"world_war_one","period":"1914-1918","themes":["alliances","mobilization","misperception","escalation"],"analogy_limits":["do_not_reduce_causation_to_one_mechanism"]},
+    {"id":"world_war_two","period":"1939-1945","themes":["revisionism","deterrence_failure","industrial_power","alliances"],"analogy_limits":["unique_ideological_and_genocidal_context"]},
+    {"id":"cuban_missile_crisis","period":"1962","themes":["nuclear_stability","coercive_diplomacy","signaling","escalation_control"],"analogy_limits":["bipolar_context","archival_knowledge_exceeds_real_time_information"]},
+    {"id":"suez_crisis","period":"1956","themes":["chokepoints","imperial_decline","alliance_constraints","financial_pressure"],"analogy_limits":["decolonization_context"]},
+    {"id":"oil_shock_1973","period":"1973-1974","themes":["energy_security","economic_statecraft","interdependence"],"analogy_limits":["different_energy_market_structure"]},
+    {"id":"soviet_afghanistan","period":"1979-1989","themes":["proxy_warfare","insurgency","external_support"],"analogy_limits":["Cold_War_system"]},
+    {"id":"gulf_war","period":"1990-1991","themes":["collective_security","coalition_warfare","energy_security"],"analogy_limits":["specific_post_Cold_War_moment"]},
+    {"id":"yugoslav_wars","period":"1991-2001","themes":["state_fragmentation","nationalism_identity","external_intervention"],"analogy_limits":["post_socialist_federal_breakup_specificity"]},
+    {"id":"crimea_2014","period":"2014","themes":["gray_zone","sanctions","territorial_change","information_warfare"],"analogy_limits":["do_not_project_2014_conditions_unchanged_into_later_war"]},
+    {"id":"red_sea_disruptions","period":"2023-present","themes":["chokepoints","shipping","proxy_warfare","economic_spillover"],"analogy_limits":["ongoing_case_requires_continuous_updates"]}
+  ]
+}
