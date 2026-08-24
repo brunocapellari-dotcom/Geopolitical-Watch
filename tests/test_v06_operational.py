@@ -56,7 +56,10 @@ class V06OperationalTests(unittest.TestCase):
                     with urlopen(base+"/health") as r: health=json.load(r)
                     with urlopen(base+"/v2/episodes?country=Ukraine") as r: listing=json.load(r)
                     with urlopen(base+f"/v2/episodes/{episodes[0].episode_id}") as r: detail=json.load(r)
-                self.assertEqual("0.7.0",health["version"]); self.assertEqual(1,len(listing["episodes"])); self.assertEqual(episodes[0].episode_id,detail["episode"]["episode_id"])
+                    with urlopen(base+"/v2/review-queue") as r: review=json.load(r)
+                    with urlopen(base+"/v2/coverage") as r: coverage=json.load(r)
+                self.assertEqual("0.8.0",health["version"]); self.assertEqual(1,len(listing["episodes"])); self.assertEqual(episodes[0].episode_id,detail["episode"]["episode_id"])
+                self.assertTrue(detail["strategic_context"]["context_not_evidence"]); self.assertEqual("geowatch-review-queue-v1",review["schema_version"]); self.assertEqual("geowatch-coverage-inventory-v1",coverage["schema_version"])
             finally:
                 os.environ.pop("GEOWATCH_DB",None) if old is None else os.environ.__setitem__("GEOWATCH_DB",old)
 
