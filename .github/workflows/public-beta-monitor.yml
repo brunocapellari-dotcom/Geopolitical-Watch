@@ -16,6 +16,8 @@ jobs:
   public-beta:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,14 +35,10 @@ jobs:
           set -o pipefail
           mkdir -p data/raw reports
           python -m geowatch collect --config config/sources.public-beta.json --db data/beta.db --raw data/raw --reports reports | tee beta-run.json
+      - name: Assert beta run health
+        run: python scripts/assert_beta_run.py --run beta-run.json --db data/beta.db --reports reports
       - name: Build source coverage summary
-        if: always()
-        run: |
-          if [ -f data/beta.db ]; then
-            python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json
-          else
-            echo "beta database missing; coverage summary skipped"
-          fi
+        run: python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json
       - name: Publish situational summary
         if: always()
         run: |
@@ -74,6 +72,7 @@ jobs:
           path: |
             beta-run.json
             data/beta.db
+            data/raw/
             reports/
           if-no-files-found: warn
           retention-days: 14
