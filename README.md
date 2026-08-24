@@ -132,4 +132,4 @@ Strategic mutations remain CLI/internal operations rather than public HTTP write
 - v0.6 operational data layer — complete in code/CI; live deployment external.
 - v0.7 product/alert layer — complete.
 - v0.8 geopolitical knowledge + validation — complete.
-- v0.9 strategic intelligence + historical learning — implemented in this branch pending release gate.
+- v0.9 strategic intelligence + historical learning — **complete, CI passed and merged in PR #8**.
