@@ -34,13 +34,14 @@ def main() -> int:
     actor_rows, actor_url = download_rows("actor_26_1")
     actors = aggregate_actor_profiles(actor_rows)
 
-    forecasts = build_base_rate_forecasts(cases)
     outcome_counts = Counter(tag for case in cases for tag in case.get("outcome_tags", []))
+    supported_outcomes = tuple(sorted(outcome_counts))
+    forecasts = build_base_rate_forecasts(cases, outcome_tags=supported_outcomes)
     current_like = [case for case in cases if case.get("active_at_dataset_end")]
     matched_terminations = sum(1 for case in cases if "ucdp_termination_4_2024" in set(case.get("source_ids", [])))
     years = [year for case in cases for year in case.get("active_years", [])]
     summary = {
-        "schema_version": "geowatch-ucdp-bulk-build-v2",
+        "schema_version": "geowatch-ucdp-bulk-build-v3",
         "dataset_versions": {
             "armed_conflict": "26.1",
             "actor": "26.1",
@@ -58,6 +59,7 @@ def main() -> int:
         "termination_matches": matched_terminations,
         "termination_unmatched_episode_count": len(cases) - matched_terminations,
         "outcome_tag_counts": dict(sorted(outcome_counts.items())),
+        "forecast_supported_outcomes": list(supported_outcomes),
         "historical_year_min": min(years) if years else None,
         "historical_year_max": max(years) if years else None,
         "identity_labels": label_summary(labels),
@@ -75,6 +77,8 @@ def main() -> int:
             "active_at_dataset_end_is_dataset_state_not_live_confirmation": True,
             "identity_labels_are_not_human_gold": True,
             "baseline_forecasts_are_retroactive_benchmarks_not_historical_live_predictions": True,
+            "forecast_labels_limited_to_observed_termination_outcomes": True,
+            "unsupported_outcomes_are_not_scored_as_negatives": True,
         },
     }
 
@@ -88,7 +92,7 @@ def main() -> int:
         json.dumps({"schema_version":"geowatch-ucdp-identity-labels-v1","labels":labels,"human_gold":False}, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (out / "baseline_forecasts.json").write_text(
-        json.dumps({"schema_version":"geowatch-historical-baseline-v1","forecasts":forecasts}, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps({"schema_version":"geowatch-historical-baseline-v2","supported_outcomes":list(supported_outcomes),"forecasts":forecasts}, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))

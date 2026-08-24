@@ -4,10 +4,12 @@ on:
   pull_request:
     paths:
       - "geowatch/ucdp_bulk.py"
+      - "geowatch/empirical_history.py"
       - "geowatch/wpi.py"
       - "geowatch/worldbank.py"
       - "geowatch/sanctions_feed.py"
       - "scripts/build_ucdp_bulk_artifacts.py"
+      - "scripts/build_empirical_history_artifacts.py"
       - "scripts/build_wpi_artifacts.py"
       - "scripts/build_worldbank_artifacts.py"
       - "scripts/build_sanctions_artifacts.py"
@@ -33,6 +35,10 @@ jobs:
         run: |
           set -o pipefail
           python scripts/build_ucdp_bulk_artifacts.py | tee ucdp-live.json
+      - name: Build layered empirical history
+        run: |
+          set -o pipefail
+          python scripts/build_empirical_history_artifacts.py | tee empirical-live.json
       - name: Build NGA World Port Index artifacts
         run: |
           set -o pipefail
@@ -53,7 +59,7 @@ jobs:
         if: always()
         run: |
           echo "# Geopolitical Watch — live public bootstrap" >> "$GITHUB_STEP_SUMMARY"
-          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/wpi/summary.json generated/worldbank/summary.json generated/sanctions/summary.json; do
+          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/empirical/summary.json generated/wpi/summary.json generated/worldbank/summary.json generated/sanctions/summary.json; do
             if [ -f "$file" ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "## $file" >> "$GITHUB_STEP_SUMMARY"

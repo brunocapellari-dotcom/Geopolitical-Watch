@@ -39,14 +39,14 @@ class ReadinessModel:
 
 
 def current_code_readiness_estimate()->dict:
-    """Conservative v0.11 project-state estimate; external evidence gates remain false."""
+    """Conservative v0.12 project-state estimate; external evidence gates remain false."""
     scores={
-        "core_architecture":0.98,"evidence_governance":0.985,"source_coverage":0.72,"historical_coverage":0.72,
-        "strategic_knowledge":0.90,"empirical_validation":0.64,"forecast_calibration":0.50,"production_operations":0.58,
-        "security_source_rights":0.76,"documentation_recovery":0.96,
+        "core_architecture":0.985,"evidence_governance":0.99,"source_coverage":0.78,"historical_coverage":0.86,
+        "strategic_knowledge":0.91,"empirical_validation":0.72,"forecast_calibration":0.58,"production_operations":0.64,
+        "security_source_rights":0.78,"documentation_recovery":0.97,
     }
     gates={
         "live_production_smoke_passed":False,"database_restore_drill_passed":False,"source_credentials_and_terms_reviewed":False,
         "historical_out_of_sample_validation_completed":False,"security_and_source_rights_audit_completed":False,
     }
-    model=ReadinessModel.from_json(); result=model.evaluate(scores,gates); result["estimate_type"]="conservative_v0.11_project_state_estimate"; result["assessed_at"]="2026-08-24"; return result
+    model=ReadinessModel.from_json(); result=model.evaluate(scores,gates); result["estimate_type"]="conservative_v0.12_project_state_estimate"; result["assessed_at"]="2026-08-24"; return result

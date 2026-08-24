@@ -6,72 +6,99 @@ The standalone baseline, history/quality, convergence engine, operational data l
 
 ## v0.11 — accelerated production and empirical validation — complete
 
-Delivered in this code wave:
+Delivered:
 
 1. production deployment assets retained and live smoke gate added;
 2. non-destructive Cloud SQL restore-drill workflow added;
-3. UCDP activation/backfill made source-scoped and executable when token/terms pass;
+3. UCDP activation/backfill made source-scoped;
 4. ReliefWeb bounded historical range pagination added, activation remains appname-gated;
 5. FIRMS production policy moved to regional bounding boxes with sensor-attribution safeguards;
 6. UCDP × ACLED reconciliation added without forcing provider agreement;
 7. UN/OFAC/UK sanctions normalization/official-source registry expanded;
 8. IHO/NAVAREA registry and web-vs-broadcast governance formalized;
-9. Tier-1 country profiles accelerated to roughly 25 priority countries;
-10. actor registry expanded across international/security/economic organizations and armed actors;
-11. graph integrity audit added; relation/source/validity governance remains mandatory;
-12. critical-infrastructure graph expanded beyond chokepoints into ports, energy terminals, pipelines and cable corridors;
-13. historical crisis corpus expanded from ~40 to ~78 cases with layered source enrichment;
-14. rolling out-of-sample forecast/alert/convergence reporting added;
-15. source-rights/release/recovery audits consolidated for a v1 go/no-go gate;
-16. GitHub Actions cumulative release gate passed in PR #12.
+9. Tier-1 country profiles accelerated;
+10. actor and critical-infrastructure registries expanded;
+11. rolling out-of-sample framework and source-rights/release/recovery audits added.
 
-The conservative weighted project-readiness estimate is now approximately **0.77**. This is project readiness, not analytical accuracy. The target cannot reach 0.95 until all external hard gates pass.
+## v0.12 — reliable public Beta and empirical history — complete
+
+Delivered in the acceleration wave:
+
+1. credential-free public Beta separated from production configuration;
+2. hourly Beta persistence via a versioned SQLite cache with concurrency control;
+3. fail-closed workflow execution using `pipefail` and explicit script bootstrap;
+4. live PR integration smoke against GDELT + GDACS;
+5. transient HTTP retry/backoff for 429/5xx/network failures;
+6. Beta health split between transient degradation and structural parser/schema/configuration failure;
+7. explicit conflict-coverage availability separate from generic pipeline health;
+8. context-only policy: GDACS and sensor signals cannot seed `ConflictEpisode` or conflict claims;
+9. context-only signals cannot refresh conflict state or raise EvidenceStrength by themselves;
+10. pre-fix Beta cache invalidated to prevent contaminated episode persistence;
+11. concise operator digest with health, freshness, priority episodes and change flags;
+12. live public-data integration gate for UCDP bulk, WPI, World Bank and official sanctions;
+13. UCDP 26.1 parsing corrected against current codebooks, including continuous-episode reconstruction;
+14. live UCDP bootstrap validated at 2,816 conflict-year rows, 628 continuous episodes, 303 conflict IDs and 1,928 actors;
+15. layered empirical-history catalog added, keeping project-curated and UCDP research-coded cases distinct;
+16. UCDP historical outcomes hidden when replay cutoff precedes resolution;
+17. UCDP forecasting baseline restricted to outcome classes actually represented by the termination dataset;
+18. deterministic identity labels remain explicitly pre-gold, never human-gold;
+19. NGA World Port Index live validation produces 3,807 source rows and 300 structural candidates;
+20. World Bank live validation covers 217 countries and 4,860 recent observations across five indicators;
+21. sanctions normalization separates raw/name rows from unique provider IDs;
+22. validated public snapshots contain 1,011 UN consolidated IDs and 6,334 UK Unique IDs;
+23. scheduled UCDP/WPI/World Bank/sanctions refreshes hardened against false-green `tee` behavior;
+24. public data and Beta artifacts retain RAW/report/database evidence for audit;
+25. package/API version promoted to 0.12.0 from a canonical package version;
+26. readiness dimensions recalculated conservatively to approximately 0.82 while all external hard gates remain false;
+27. final cumulative tests, public-data integration and live Beta integration passed on the v0.12 release head.
+
+The public Beta is an initial usable operating path, not a substitute for final production. A run may remain operational while temporarily degraded by provider rate limiting, but it must state when conflict-source coverage is unavailable.
 
 ## External hard gates still open
 
 - live GCP production smoke evidence;
 - Cloud SQL restore/PITR drill evidence;
 - credentials/terms approval for every enabled restricted source;
-- large source-backed historical out-of-sample validation;
+- large source-backed historical out-of-sample validation with reviewed gold labels;
 - final security, cost and source-rights audit evidence.
 
-## Next 30 — accelerated path to v1.0
+## Accelerated path to v1.0
 
-### Wave A — live data and recovery
-1. Execute real GCP preflight with the target project and least-privilege identities.
+### Wave A — production and restricted sources
+1. Execute real GCP preflight with target project and least-privilege identities.
 2. Provision/validate Cloud SQL PostgreSQL/PostGIS production instance.
 3. Execute authenticated Cloud Run API deployment and `production_smoke.sh`.
 4. Execute collector Cloud Run Job against production storage/database.
 5. Execute isolated Cloud SQL restore/PITR drill and record reconciliation evidence.
-6. Activate UCDP after token + terms review; run first bounded backfill windows.
-7. Activate ReliefWeb after approved appname; run bounded historical coverage audit.
-8. Activate FIRMS MAP_KEY using regional areas; measure sensor false-context rate.
-9. Activate ACLED after license/OAuth review; run bounded historical backfill.
-10. Turn UN/OFAC/UK sanctions snapshots into scheduled change jobs with durable diffs.
+6. Activate tokenized UCDP API only if needed after terms review; public bulk history remains available independently.
+7. Activate ReliefWeb after approved appname and run bounded historical coverage audit.
+8. Activate FIRMS MAP_KEY using regional areas and quantify false-context rate.
+9. Activate ACLED after license/OAuth review and run bounded reconciliation/backfill.
+10. Validate a concrete OFAC SLS export/API endpoint before automated ingestion.
 
-### Wave B — empirical validation and historical depth
-11. Build source-coverage dashboard with first/last reference date and gap detection.
-12. Expand historical crisis corpus to at least 150 source-backed cases.
-13. Enrich the first 100 cases with dated chronologies and explicit sources.
-14. Build gold labels for episode merge/split decisions on historical data.
-15. Run rolling convergence validation by year, region and source mix.
-16. Run alert-policy precision/recall/FPR analysis by policy and region.
-17. Build at least 200 resolved historical forecast questions from frozen templates.
-18. Run Brier/calibration analysis by 1/7/30/90-day horizon.
-19. Measure leading-indicator detection lead time and false-positive rates.
-20. Produce mandatory postmortems for material false positives/negatives and forecast misses.
+### Wave B — empirical validation and model quality
+11. Persist long-run source-coverage/gap history instead of bounded-run summaries only.
+12. Enrich the layered empirical corpus with dated source-backed chronologies.
+13. Build reviewed human-gold labels for episode merge/split and conflict-vs-context decisions.
+14. Run rolling convergence validation by year, region and source mix.
+15. Run alert-policy precision/recall/FPR and alert-fatigue analysis.
+16. Build at least 200 resolved historical forecast questions from frozen templates.
+17. Run Brier/calibration analysis by supported outcome and forecast horizon.
+18. Measure leading-indicator lead time and false-positive rates.
+19. Add mandatory postmortems for material false positives/negatives and forecast misses.
+20. Backtest source-degradation behavior and stale-data handling.
 
-### Wave C — global strategic model and v1 release candidate
+### Wave C — strategic coverage and v1 release candidate
 21. Reach Tier-2 country-profile enrichment target of at least 80%.
-22. Expand actor profiles to at least 50 strategically relevant organizations/groups.
-23. Expand official alliance/security-treaty graph with sourced validity intervals.
-24. Add sourced territorial-dispute/rivalry relationships without encoding advocacy or legal conclusions.
+22. Expand reviewed actor profiles to at least 50 strategically relevant organizations/groups beyond bulk aliases.
+23. Expand sourced alliance/security-treaty graph with validity intervals.
+24. Add sourced territorial-dispute/rivalry relationships without advocacy or legal conclusions.
 25. Link sanctions regimes/designations to graph entities with jurisdiction/date semantics.
-26. Expand critical-infrastructure graph toward 250+ strategic nodes with source metadata.
+26. Promote WPI candidates into a reviewed critical-infrastructure layer using additional authoritative sources.
 27. Attach dated trade/energy/agriculture observations to geoeconomic dependency calculations.
 28. Produce chokepoint scenario packs with route-share exposure, alternatives and uncertainty bands.
 29. Run load, cost, security, recovery and source-rights audits and close every v1 hard gate.
-30. Cut a v1.0 release candidate only if readiness >=0.95 **and** every hard gate has evidence.
+30. Cut v1.0 release candidate only if readiness >=0.95 **and** every hard gate has evidence.
 
 ## v1.0 gate
 

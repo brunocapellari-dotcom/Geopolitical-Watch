@@ -12,13 +12,17 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Build World Bank country/geoeconomic artifacts
-        run: python scripts/build_worldbank_artifacts.py | tee worldbank-run.json
+        run: |
+          set -o pipefail
+          python scripts/build_worldbank_artifacts.py | tee worldbank-run.json
       - name: Publish summary
         if: always()
         run: |

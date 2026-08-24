@@ -13,6 +13,7 @@ from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef, Evidence
 
 _ESCALATION_CLAIMS = {"attack", "ceasefire_collapse", "mobilization", "territorial_change"}
 _DEESCALATION_CLAIMS = {"ceasefire", "infrastructure_restoration"}
+_CONTEXT_ONLY_SOURCE_IDS = {"gdacs_context"}
 
 
 def converge_events(
@@ -41,9 +42,15 @@ def converge_events(
     for event in sorted(event_rows, key=lambda row: (row.reference_at, row.event_id)):
         if any(event.event_id in ep.event_ids for ep in episodes.values()):
             continue
+        context_only = is_context_only_event(event)
         event_entities = resolver.entities_in_event(event)
         candidate_id, score = _best_episode(event, event_entities, episodes.values(), episode_titles, episode_claim_types, now)
-        if candidate_id is None or score < attach_threshold:
+        effective_threshold = max(attach_threshold, 0.55) if context_only else attach_threshold
+        if candidate_id is None or score < effective_threshold:
+            if context_only:
+                for entity in event_entities:
+                    resolver.entities[entity.entity_id] = entity
+                continue
             episode_id = _new_episode_id(event)
             actors, infrastructure, other = split_entities(event_entities)
             episode = ConflictEpisode(
@@ -72,7 +79,7 @@ def converge_events(
             actors, infrastructure, other = split_entities(event_entities)
             episode = replace(
                 episode,
-                last_updated_at=max(episode.last_updated_at, event.reference_at),
+                last_updated_at=episode.last_updated_at if context_only else max(episode.last_updated_at, event.reference_at),
                 countries=tuple(sorted(set(episode.countries) | ({event.country} if event.country else set()))),
                 regions=tuple(sorted(set(episode.regions) | ({event.region} if event.region else set()))),
                 event_ids=tuple(sorted(set(episode.event_ids) | {event.event_id})),
@@ -83,7 +90,17 @@ def converge_events(
                 version=episode.version + 1,
             )
             episodes[episode_id] = episode
-            episode_titles.setdefault(episode_id, []).append(event.title)
+            if not context_only:
+                episode_titles.setdefault(episode_id, []).append(event.title)
+
+        for entity in event_entities:
+            resolver.entities[entity.entity_id] = entity
+
+        if context_only:
+            # Context/sensor events may enrich the episode event trail after a strong
+            # match, but they do not create claims/evidence, refresh conflict state,
+            # or increase EvidenceStrength.
+            continue
 
         claim, evd, claim_entities = extract_claim(event, episode_id, resolver)
         existing = claims.get(claim.claim_id)
@@ -128,10 +145,19 @@ def converge_events(
     )
 
 
+def is_context_only_event(event: Event) -> bool:
+    return (
+        event.verification_level == "sensor_signal"
+        or event.source_kind == "sensor"
+        or event.source_id in _CONTEXT_ONLY_SOURCE_IDS
+        or event.event_type.startswith("gdacs_")
+    )
+
+
 def derive_episode_state(episode: ConflictEpisode, claims: Iterable[Claim], events: Iterable[Event], *, now: datetime | None = None) -> str:
     now = now or datetime.now(timezone.utc)
     claims = [claim for claim in claims if claim.status != "retracted"]
-    event_rows = list(events)
+    event_rows = [event for event in events if not is_context_only_event(event)]
     last = parse_utc(episode.last_updated_at)
     stale_days = max(0.0, (now - last).total_seconds() / 86400)
     if stale_days >= 30:
@@ -153,7 +179,8 @@ def derive_episode_state(episode: ConflictEpisode, claims: Iterable[Claim], even
     if stale_days >= 7:
         return "stable"
     providers = {event.publisher or event.source_id for event in event_rows}
-    if len(episode.event_ids) >= 2 or len(providers) >= 2:
+    conflict_event_count = len(event_rows)
+    if conflict_event_count >= 2 or len(providers) >= 2:
         return "active"
     return "emerging"
 
@@ -173,7 +200,7 @@ def calculate_evidence_strength(
     now: datetime | None = None,
 ) -> EvidenceStrength:
     now = now or datetime.now(timezone.utc)
-    events = list(events)
+    events = [event for event in events if not is_context_only_event(event)]
     claims = list(claims)
     evidence = [row for row in evidence if row.evidence_id in episode.evidence_ids]
     entity_ids = set(episode.actor_entity_ids) | set(episode.infrastructure_entity_ids) | set(episode.other_entity_ids)
@@ -228,9 +255,6 @@ def _best_episode(event: Event, entities: Iterable[Entity], episodes: Iterable[C
         event_claim_type = infer_claim_type(event.title, event.event_type)
         claim_overlap = 1.0 if event_claim_type in episode_claim_types.get(episode.episode_id, set()) else 0.0
         temporal = max(0.0, 1.0 - delta_days / 45.0)
-        # Entity identity is deliberately stronger than headline wording. This allows
-        # multilingual and paraphrased reporting to converge without relaxing the
-        # system into broad same-country clustering.
         score = (
             country_score * 0.08 + actor_overlap * 0.25 + infra_overlap * 0.30
             + other_overlap * 0.22 + claim_overlap * 0.08 + title_score * 0.03 + temporal * 0.04

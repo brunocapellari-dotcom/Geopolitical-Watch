@@ -12,6 +12,8 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,9 +27,11 @@ jobs:
           restore-keys: |
             sanctions-
       - name: Build official UNSC and UK snapshots/diffs
-        run: python scripts/build_sanctions_artifacts.py | tee sanctions-run.json
+        run: |
+          set -o pipefail
+          python scripts/build_sanctions_artifacts.py | tee sanctions-run.json
       - name: Save current sanctions snapshot cache
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: .sanctions-cache

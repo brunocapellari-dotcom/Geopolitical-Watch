@@ -8,28 +8,47 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: geowatch-public-beta
+  cancel-in-progress: false
+
 jobs:
   public-beta:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Restore persistent beta database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/beta.db
+          key: geowatch-public-beta-v2-${{ github.run_id }}
+          restore-keys: |
+            geowatch-public-beta-v2-
       - name: Run public-source monitor
         run: |
+          set -o pipefail
           mkdir -p data/raw reports
           python -m geowatch collect --config config/sources.public-beta.json --db data/beta.db --raw data/raw --reports reports | tee beta-run.json
+      - name: Assert beta run health
+        run: python scripts/assert_beta_run.py --run beta-run.json --db data/beta.db --reports reports
       - name: Build source coverage summary
-        if: always()
-        run: python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json || true
+        run: python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json
+      - name: Build concise operator digest
+        run: python scripts/build_beta_digest.py | tee beta-digest-run.json
       - name: Publish situational summary
         if: always()
         run: |
           echo "# Geopolitical Watch public beta" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f reports/episodes/latest.md ]; then
+          if [ -f reports/beta_digest.md ]; then
+            cat reports/beta_digest.md >> "$GITHUB_STEP_SUMMARY"
+          elif [ -f reports/episodes/latest.md ]; then
             cat reports/episodes/latest.md >> "$GITHUB_STEP_SUMMARY"
           elif [ -f reports/latest.md ]; then
             cat reports/latest.md >> "$GITHUB_STEP_SUMMARY"
@@ -43,6 +62,12 @@ jobs:
             cat reports/beta_coverage.json >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Save persistent beta database
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: data/beta.db
+          key: geowatch-public-beta-v2-${{ github.run_id }}
       - name: Upload public beta artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,6 +75,9 @@ jobs:
           name: geowatch-public-beta-${{ github.run_id }}
           path: |
             beta-run.json
+            beta-digest-run.json
+            data/beta.db
+            data/raw/
             reports/
           if-no-files-found: warn
           retention-days: 14
