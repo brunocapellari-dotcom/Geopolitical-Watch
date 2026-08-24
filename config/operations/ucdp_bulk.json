@@ -1,0 +1,17 @@
+{
+  "schema_version": "geowatch-ucdp-bulk-v1",
+  "as_of_checked": "2026-08-24",
+  "license": "CC BY 4.0; preserve UCDP citations and dataset version",
+  "sources": {
+    "ged_26_1": "https://ucdp.uu.se/downloads/ged/ged261-csv.zip",
+    "armed_conflict_26_1": "https://ucdp.uu.se/downloads/ucdpprio/ucdp-prio-acd-261-csv.zip",
+    "actor_26_1": "https://ucdp.uu.se/downloads/actor/ucdp-actor-261-csv.zip",
+    "termination_4_2024": "https://ucdp.uu.se/downloads/monadterm/UCDPConflictTerminationDataset_v4_2024_Conflict.csv"
+  },
+  "governance": {
+    "bulk_download_does_not_require_api_token": true,
+    "dataset_version_must_be_preserved": true,
+    "citation_required": true,
+    "historical_dataset_not_current_event_confirmation": true
+  }
+}
