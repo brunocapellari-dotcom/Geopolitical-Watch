@@ -21,6 +21,9 @@ jobs:
         run: |
           mkdir -p data/raw reports
           python -m geowatch collect --config config/sources.public-beta.json --db data/beta.db --raw data/raw --reports reports | tee beta-run.json
+      - name: Build source coverage summary
+        if: always()
+        run: python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json || true
       - name: Publish situational summary
         if: always()
         run: |
@@ -32,6 +35,13 @@ jobs:
             cat reports/latest.md >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No report was generated. Inspect beta-run.json and job logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f reports/beta_coverage.json ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "## Coverage" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat reports/beta_coverage.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload public beta artifacts
         if: always()
