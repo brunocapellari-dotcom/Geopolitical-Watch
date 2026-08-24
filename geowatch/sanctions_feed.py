@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, asdict
 from typing import Iterable
@@ -60,23 +61,100 @@ def parse_ofac_json(payload: bytes, *, collected_at: str, source_url: str | None
 
 
 def parse_uk_csv(payload: bytes, *, collected_at: str, source_url: str | None = None) -> list[SanctionsDesignation]:
-    """Parse current UK Sanctions List CSV while tolerating heading changes/aliases."""
-    text=payload.decode("utf-8-sig")
+    """Parse the current UK Sanctions List CSV defensively.
+
+    FCDO documents wide-format headings including ``Unique ID``, ``Name 1`` …
+    ``Name 6``, ``Regime Name`` and ``Individual, Entity, Ship``. The downloadable
+    file may include a short preamble and its delimiter should not be assumed, so
+    the parser locates the real heading row and sniffs common CSV delimiters.
+    Each CSV name row is retained with the UK Unique ID; consumers can group rows
+    by that ID when they need designation-level rather than name-level counts.
+    """
+    text = payload.decode("utf-8-sig", errors="replace")
+    lines = text.splitlines()
+    header_index = _uk_header_index(lines)
+    if header_index is None:
+        return []
+    table = "\n".join(lines[header_index:])
+    sample = table[:20000]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+    except csv.Error:
+        dialect = csv.excel
+    reader = csv.DictReader(io.StringIO(table), dialect=dialect)
     rows=[]
-    for item in csv.DictReader(io.StringIO(text)):
-        normalized={str(k or "").strip().casefold().replace(" ","_"): str(v or "").strip() for k,v in item.items()}
-        ref=normalized.get("unique_id") or normalized.get("unique_id_/_group_id") or normalized.get("group_id") or None
-        name=(normalized.get("name") or normalized.get("name_1") or normalized.get("primary_name") or "").strip()
+    for item in reader:
+        if not isinstance(item, dict):
+            continue
+        normalized={_header_key(k): str(v or "").strip() for k,v in item.items() if k is not None}
+        ref=(normalized.get("unique_id") or normalized.get("uk_sanctions_list_ref") or normalized.get("group_id") or "").strip() or None
+        parts=[normalized.get(f"name_{idx}", "") for idx in range(1,7)]
+        # UKSL documents Name 6 as entity/ship full name or individual surname.
+        name=" ".join(part for part in parts if part).strip()
         if not name:
-            parts=[normalized.get(k,"") for k in ("name_1","name_2","name_3","name_4","name_5","name_6")]
-            name=" ".join(x for x in parts if x).strip()
-        if not name: continue
-        regime=normalized.get("regime_name") or normalized.get("regime") or normalized.get("sanctions_regime") or ""
-        entity_type=normalized.get("type") or normalized.get("individual,_entity,_ship") or normalized.get("designation_type") or "unknown"
-        listed=normalized.get("date_designated") or normalized.get("date_designated_/_specified") or normalized.get("last_updated") or None
-        did="sanc_"+hashlib.sha256(f"UK|{ref}|{name}|{regime}".encode()).hexdigest()[:20]
-        rows.append(SanctionsDesignation(did,"UK-FCDO","UK Sanctions List",ref,name,entity_type,tuple([regime] if regime else []),listed,source_url,collected_at))
+            name=(normalized.get("name") or normalized.get("primary_name") or "").strip()
+        if not name:
+            continue
+        regime=(normalized.get("regime_name") or normalized.get("regime") or normalized.get("sanctions_regime") or "").strip()
+        entity_type=(
+            normalized.get("individual_entity_ship")
+            or normalized.get("designation_type")
+            or normalized.get("group_type")
+            or normalized.get("type")
+            or "unknown"
+        ).strip()
+        listed=(
+            normalized.get("date_designated")
+            or normalized.get("date_designated_specified")
+            or normalized.get("last_updated")
+            or None
+        )
+        name_type=(normalized.get("name_type") or "").strip()
+        identity_seed=f"UK|{ref}|{name}|{name_type}|{regime}"
+        did="sanc_"+hashlib.sha256(identity_seed.encode()).hexdigest()[:20]
+        programs=tuple(value for value in [regime] if value)
+        rows.append(SanctionsDesignation(did,"UK-FCDO","UK Sanctions List",ref,name,entity_type,programs,listed,source_url,collected_at))
     return rows
+
+
+def uk_csv_diagnostics(payload: bytes) -> dict:
+    """Return non-sensitive structural diagnostics for schema monitoring."""
+    text=payload.decode("utf-8-sig", errors="replace")
+    lines=text.splitlines()
+    header_index=_uk_header_index(lines)
+    if header_index is None:
+        return {"header_found":False,"line_count":len(lines)}
+    table="\n".join(lines[header_index:])
+    try:
+        dialect=csv.Sniffer().sniff(table[:20000], delimiters=",;\t|")
+        delimiter=dialect.delimiter
+    except csv.Error:
+        dialect=csv.excel; delimiter=","
+    reader=csv.DictReader(io.StringIO(table),dialect=dialect)
+    fieldnames=[str(value or "").strip() for value in (reader.fieldnames or [])]
+    return {
+        "header_found":True,
+        "header_line_index":header_index,
+        "delimiter":delimiter,
+        "field_count":len(fieldnames),
+        "fieldnames":fieldnames,
+        "line_count":len(lines),
+    }
+
+
+def _uk_header_index(lines: list[str]) -> int | None:
+    for index,line in enumerate(lines[:50]):
+        folded=line.casefold()
+        if "unique id" in folded and ("regime name" in folded or "name 6" in folded or "name 1" in folded):
+            return index
+    return None
+
+
+def _header_key(value: object) -> str:
+    text=str(value or "").strip().casefold()
+    text=text.replace("(/ies)", "ies")
+    text=re.sub(r"[^a-z0-9]+", "_", text)
+    return text.strip("_")
 
 
 def diff_designations(previous: Iterable[SanctionsDesignation], current: Iterable[SanctionsDesignation]) -> dict:
