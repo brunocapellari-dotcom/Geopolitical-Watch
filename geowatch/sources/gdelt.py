@@ -11,15 +11,22 @@ DEFAULT_URL = "https://api.gdeltproject.org/api/v2/doc/doc"
 DEFAULT_QUERY = '(war OR conflict OR airstrike OR missile OR shelling OR invasion OR "drone strike" OR ceasefire OR blockade)'
 
 
-def collect(*, query: str = DEFAULT_QUERY, timespan: str = "24H", maxrecords: int = 250, timeout: int = 60) -> tuple[bytes, str]:
-    response = get(DEFAULT_URL, timeout=timeout, query={
+def collect(*, query: str = DEFAULT_QUERY, timespan: str = "24H", maxrecords: int = 250, timeout: int = 60, start_datetime: str | None = None, end_datetime: str | None = None) -> tuple[bytes, str]:
+    params: dict[str, str | int] = {
         "query": query,
         "mode": "ArtList",
-        "maxrecords": maxrecords,
+        "maxrecords": min(max(maxrecords, 1), 250),
         "format": "json",
-        "timespan": timespan,
         "sort": "DateDesc",
-    })
+    }
+    if start_datetime or end_datetime:
+        if start_datetime:
+            params["startdatetime"] = start_datetime
+        if end_datetime:
+            params["enddatetime"] = end_datetime
+    else:
+        params["timespan"] = timespan
+    response = get(DEFAULT_URL, timeout=timeout, query=params)
     return response.payload, response.url
 
 

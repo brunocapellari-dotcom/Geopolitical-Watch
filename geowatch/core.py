@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
+from .geo import canonicalize_event, haversine_km, normalize_country
 from .models import Event, ImpactArea
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
@@ -68,7 +69,7 @@ def stable_event_id(source_id: str, source_event_id: str | None, title: str, ref
         (source_event_id or "").strip().casefold(),
         normalize_text(title),
         reference_at[:10],
-        (country or "").strip().casefold(),
+        (normalize_country(country) or "").strip().casefold(),
     ])
     return hashlib.sha256(key.encode("utf-8")).hexdigest()[:24]
 
@@ -95,15 +96,31 @@ def title_similarity(left: str, right: str) -> float:
     return len(lt & rt) / len(lt | rt)
 
 
-def cluster_events(events: list[Event], threshold: float = 0.78) -> list[EventCluster]:
+def cluster_events(
+    events: list[Event],
+    threshold: float = 0.78,
+    *,
+    max_time_delta_hours: float = 36.0,
+    max_distance_km: float = 250.0,
+    country_aliases: dict[str, str] | None = None,
+) -> list[EventCluster]:
     if not 0 <= threshold <= 1:
         raise ValueError("threshold must be between 0 and 1")
+    if max_time_delta_hours <= 0 or max_distance_km <= 0:
+        raise ValueError("time and distance thresholds must be positive")
+
+    normalized_events = [canonicalize_event(event, country_aliases) for event in events]
     clusters: list[list[Event]] = []
-    for event in events:
+    for event in normalized_events:
         matched = None
         for group in clusters:
             canonical = choose_canonical(group)
-            if same_event_window(canonical, event) and title_similarity(canonical.title, event.title) >= threshold:
+            if same_event_window(
+                canonical,
+                event,
+                max_time_delta_hours=max_time_delta_hours,
+                max_distance_km=max_distance_km,
+            ) and title_similarity(canonical.title, event.title) >= threshold:
                 matched = group
                 break
         if matched is None:
@@ -134,15 +151,44 @@ def score_cluster(cluster: EventCluster) -> int:
 
 
 def choose_canonical(events: list[Event]) -> Event:
-    return max(events, key=lambda e: (_VERIFICATION_RANK[e.verification_level], e.fatalities_best or 0, len(e.title)))
+    return max(
+        events,
+        key=lambda e: (
+            _VERIFICATION_RANK[e.verification_level],
+            e.fatalities_best or 0,
+            1 if e.country else 0,
+            1 if e.latitude is not None and e.longitude is not None else 0,
+            len(e.title),
+        ),
+    )
 
 
-def same_event_window(left: Event, right: Event) -> bool:
-    if left.reference_at[:10] != right.reference_at[:10]:
+def same_event_window(
+    left: Event,
+    right: Event,
+    *,
+    max_time_delta_hours: float = 36.0,
+    max_distance_km: float = 250.0,
+) -> bool:
+    left_country = normalize_country(left.country)
+    right_country = normalize_country(right.country)
+    if left_country and right_country and left_country.casefold() != right_country.casefold():
         return False
-    if left.country and right.country and left.country.casefold() != right.country.casefold():
+
+    if (
+        left.latitude is not None and left.longitude is not None
+        and right.latitude is not None and right.longitude is not None
+        and haversine_km(left.latitude, left.longitude, right.latitude, right.longitude) > max_distance_km
+    ):
         return False
-    return True
+
+    left_dt = _parse_reference(left.reference_at)
+    right_dt = _parse_reference(right.reference_at)
+    if left_dt is not None and right_dt is not None:
+        delta_hours = abs((left_dt - right_dt).total_seconds()) / 3600
+        return delta_hours <= max_time_delta_hours
+
+    return left.reference_at[:10] == right.reference_at[:10]
 
 
 def corroboration_status(cluster: EventCluster) -> str:
@@ -178,6 +224,19 @@ def publisher_from_url(url: str | None) -> str | None:
         return None
     host = (urlparse(url).hostname or "").casefold()
     return host[4:] if host.startswith("www.") else host or None
+
+
+def _parse_reference(value: str) -> datetime | None:
+    text = value.strip()
+    try:
+        if len(text) == 10:
+            return datetime.fromisoformat(text).replace(tzinfo=timezone.utc)
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except ValueError:
+        return None
 
 
 def _provider_key(event: Event) -> str:
