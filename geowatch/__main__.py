@@ -4,7 +4,7 @@ import argparse
 import json
 
 from .api import main as api_main
-from .evaluation import replay_fixture
+from .evaluation import replay_episode_fixture, replay_fixture
 from .pipeline import backfill, run
 
 
@@ -30,6 +30,10 @@ def main() -> int:
     evaluate = sub.add_parser("evaluate")
     evaluate.add_argument("--fixture", default="tests/fixtures/clustering_eval.json")
 
+    evaluate_episodes = sub.add_parser("evaluate-episodes")
+    evaluate_episodes.add_argument("--fixture", default="tests/fixtures/episode_eval.json")
+    evaluate_episodes.add_argument("--entities", default="config/entities.json")
+
     sub.add_parser("serve")
     args = parser.parse_args()
 
@@ -37,6 +41,9 @@ def main() -> int:
         return api_main()
     if args.command == "evaluate":
         print(json.dumps(replay_fixture(args.fixture), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "evaluate-episodes":
+        print(json.dumps(replay_episode_fixture(args.fixture, entity_catalog=args.entities), ensure_ascii=False, indent=2))
         return 0
     if args.command == "backfill":
         result = backfill(

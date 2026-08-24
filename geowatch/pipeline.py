@@ -7,6 +7,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from .core import cluster_events
+from .convergence import converge_events
+from .entities import EntityResolver
+from .episode_reports import build_episode_report, render_episode_markdown
 from .geo import canonicalize_event
 from .history import TimeWindow, iter_windows, overlap_start, parse_utc
 from .quality import load_profiles
@@ -85,7 +88,7 @@ def run(
                 request=request_meta,
             )
             source_results.append({"source_id": source_id, "status": "ok", "records": len(source_events), "urls": urls})
-        except Exception as exc:
+        except Exception as exc:  # collection failures must be recorded per source
             finished_at = datetime.now(timezone.utc).isoformat()
             error = f"{type(exc).__name__}: {exc}"
             store.record_run(
@@ -121,8 +124,41 @@ def run(
     markdown = render_markdown(report)
     store.upsert_clusters(clusters, collected_at)
     store.upsert_report(report, markdown)
+
+    convergence_cfg = config.get("convergence", {})
+    episode_lookback_days = int(convergence_cfg.get("episode_lookback_days", 180))
+    episode_since = (now - timedelta(days=max(30, episode_lookback_days))).isoformat()
+    episode_events = store.load_events_since(episode_since)
+    seed_resolver = EntityResolver.from_json(convergence_cfg.get("entity_catalog", "config/entities.json"))
+    stored_entities = store.load_entities()
+    resolver = EntityResolver([*seed_resolver.entities.values(), *stored_entities])
+    existing_episodes = store.load_episodes(since=episode_since)
+    existing_claims = store.load_claims()
+    existing_evidence = store.load_evidence()
+    episodes, claims, evidence, entities, changes = converge_events(
+        episode_events,
+        existing_episodes=existing_episodes,
+        existing_claims=existing_claims,
+        existing_evidence=existing_evidence,
+        resolver=resolver,
+        attach_threshold=float(convergence_cfg.get("attach_threshold", 0.43)),
+        now=now,
+    )
+    store.upsert_entities(entities)
+    store.upsert_evidence(evidence)
+    store.upsert_claims(claims)
+    store.upsert_episodes(episodes)
+    store.record_changes(changes)
+
+    episode_report = build_episode_report(
+        episodes, claims=claims, evidence=evidence, entities=entities, events=episode_events,
+        generated_at=collected_at, max_episodes=int(convergence_cfg.get("max_report_episodes", 50)),
+    )
+    episode_markdown = render_episode_markdown(episode_report)
+    store.upsert_report(episode_report, episode_markdown)
     store.close()
     _write_reports(reports_root, collected_at, report, markdown)
+    _write_episode_reports(reports_root, collected_at, episode_report, episode_markdown)
 
     return {
         "generated_at": collected_at,
@@ -130,6 +166,9 @@ def run(
         "analysis_events": len(analysis_events),
         "clusters": len(clusters),
         "report_id": report["report_id"],
+        "episodes": len(episodes),
+        "episode_report_id": episode_report["report_id"],
+        "episode_changes": len(changes),
     }
 
 
@@ -264,6 +303,18 @@ def _persist_backfill_payload(store: SQLiteStore, raw_root: Path, spec: dict, pa
 
 def _write_reports(reports_root: str | Path, collected_at: str, report: dict, markdown: str) -> None:
     root = Path(reports_root)
+    day_dir = root / collected_at[:10]
+    day_dir.mkdir(parents=True, exist_ok=True)
+    stamp = collected_at.replace(":", "-").replace("+", "_")
+    (day_dir / f"{stamp}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (day_dir / f"{stamp}.md").write_text(markdown, encoding="utf-8")
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "latest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (root / "latest.md").write_text(markdown, encoding="utf-8")
+
+
+def _write_episode_reports(reports_root: str | Path, collected_at: str, report: dict, markdown: str) -> None:
+    root = Path(reports_root) / "episodes"
     day_dir = root / collected_at[:10]
     day_dir.mkdir(parents=True, exist_ok=True)
     stamp = collected_at.replace(":", "-").replace("+", "_")

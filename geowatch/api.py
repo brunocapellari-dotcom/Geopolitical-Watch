@@ -22,7 +22,7 @@ class Handler(BaseHTTPRequestHandler):
         if API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
             return self._send(401, {"error": "unauthorized"})
         store = SQLiteStore(DB_PATH)
-        report = store.latest_report()
+        report = store.latest_report("situational")
         store.close()
         if report is None:
             return self._send(404, {"error": "no report available"})
