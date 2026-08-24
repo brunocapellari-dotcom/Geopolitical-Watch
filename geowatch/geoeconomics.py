@@ -13,7 +13,8 @@ def concentration_hhi(shares: Iterable[float]) -> float:
 
 
 def effective_suppliers(shares: Iterable[float]) -> float | None:
-    hhi = concentration_hhi(shares)
+    values = tuple(float(x) for x in shares)
+    hhi = concentration_hhi(values)
     return round(1.0 / hhi, 3) if hhi > 0 else None
 
 
@@ -22,15 +23,17 @@ def dependency_score(*, import_share_of_consumption: float, supplier_shares: Ite
     for value in (import_share_of_consumption, substitution_score):
         if not 0 <= value <= 1:
             raise ValueError("shares/scores must be in [0,1]")
-    supplier_hhi = concentration_hhi(supplier_shares)
-    route_hhi = concentration_hhi(route_shares) if list(route_shares) else 0.0
+    suppliers = tuple(float(x) for x in supplier_shares)
+    routes = tuple(float(x) for x in route_shares)
+    supplier_hhi = concentration_hhi(suppliers)
+    route_hhi = concentration_hhi(routes) if routes else 0.0
     scarcity = 1.0 - substitution_score
     raw = import_share_of_consumption * (0.45 + 0.30 * supplier_hhi + 0.15 * route_hhi + 0.10 * scarcity)
     return {
         "dependency_index": round(min(1.0, raw), 4),
         "supplier_hhi": supplier_hhi,
         "route_hhi": route_hhi,
-        "effective_suppliers": effective_suppliers(supplier_shares),
+        "effective_suppliers": effective_suppliers(suppliers),
         "substitution_score": substitution_score,
         "methodology_notes": [
             "This is a structural exposure index, not a forecast of disruption or economic loss.",
