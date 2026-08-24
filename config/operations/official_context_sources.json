@@ -1,0 +1,14 @@
+{
+  "schema_version":"geowatch-official-context-sources-v1",
+  "as_of":"2026-08-24",
+  "sanctions":[
+    {"source_id":"unsc_sanctions","authority":"UNSC","format":"xml","url":"https://scsanctions.un.org/resources/xml/en/name/consolidated.xml","current":true,"change_history":"https://main.un.org/securitycouncil/en/content/list-updates-unsc-consolidated-list"},
+    {"source_id":"ofac_sanctions","authority":"US-OFAC","format":"service","url":"https://ofac.treasury.gov/sanctions-list-service","current":true,"notes":"SLS is the primary public delivery surface; concrete export/API endpoint must be validated before automated production pull."},
+    {"source_id":"uk_sanctions","authority":"UK-FCDO","format":"csv","url":"https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv","current":true,"notes":"UK Sanctions List is the only current UK designation list since 2026-01-28."}
+  ],
+  "navarea_registry":{
+    "authority":"IHO-WWNWS","url":"https://iho.int/en/navigation-warnings-on-the-web","operational_navareas":21,
+    "web_not_official_broadcast_replacement":true,
+    "priority_areas":["I","II","III","IV","V","VI","VII","VIII","IX","X","XI","XII","XIV","XV","XVI","XVII","XVIII","XIX"]
+  }
+}
