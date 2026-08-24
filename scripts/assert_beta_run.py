@@ -5,8 +5,26 @@ import json
 from pathlib import Path
 
 
+_TRANSIENT_MARKERS = (
+    "HTTP Error 429",
+    "HTTP Error 500",
+    "HTTP Error 502",
+    "HTTP Error 503",
+    "HTTP Error 504",
+    "timed out",
+    "TimeoutError",
+    "Temporary failure",
+    "Connection reset",
+)
+
+
 def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _is_transient(row: dict) -> bool:
+    error = str(row.get("error") or "")
+    return any(marker.casefold() in error.casefold() for marker in _TRANSIENT_MARKERS)
 
 
 def main() -> int:
@@ -34,11 +52,20 @@ def main() -> int:
         "passed": len(source_results) >= 2,
         "detail": f"sources={len(source_results)}",
     })
+    successful = [row for row in source_results if row.get("status") == "ok"]
     errors = [row for row in source_results if row.get("status") != "ok"]
+    transient = [row for row in errors if _is_transient(row)]
+    structural = [row for row in errors if not _is_transient(row)]
+
     checks.append({
-        "check": "all_enabled_sources_ok",
-        "passed": not errors,
-        "detail": "; ".join(f"{row.get('source_id')}={row.get('error') or row.get('status')}" for row in errors) or "ok",
+        "check": "minimum_operational_source_succeeded",
+        "passed": bool(successful),
+        "detail": f"successful={len(successful)} attempted={len(source_results)}",
+    })
+    checks.append({
+        "check": "no_structural_source_errors",
+        "passed": not structural,
+        "detail": "; ".join(f"{row.get('source_id')}={row.get('error') or row.get('status')}" for row in structural) or "ok",
     })
 
     checks.append({
@@ -70,11 +97,21 @@ def main() -> int:
 
     passed = all(row["passed"] for row in checks)
     output = {
-        "schema_version": "geowatch-public-beta-health-v1",
+        "schema_version": "geowatch-public-beta-health-v2",
         "passed": passed,
+        "degraded": bool(transient),
+        "successful_sources": [row.get("source_id") for row in successful],
+        "transient_source_errors": [
+            {"source_id": row.get("source_id"), "error": row.get("error")} for row in transient
+        ],
+        "structural_source_errors": [
+            {"source_id": row.get("source_id"), "error": row.get("error")} for row in structural
+        ],
         "checks": checks,
-        "zero_events_is_allowed_if_sources_succeeded": True,
-        "source_http_or_parser_errors_fail_the_beta_run": True,
+        "zero_events_is_allowed_if_at_least_one_source_succeeded": True,
+        "transient_rate_limit_or_5xx_can_degrade_without_faking_source_success": True,
+        "parser_schema_and_configuration_errors_fail_the_beta_run": True,
+        "failed_source_checkpoint_is_not_advanced_by_pipeline": True,
         "beta_health_does_not_close_v1_production_hard_gates": True,
     }
     print(json.dumps(output, ensure_ascii=False, indent=2))
