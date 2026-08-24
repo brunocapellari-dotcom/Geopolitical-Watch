@@ -81,4 +81,4 @@ Cloud Run, Cloud Scheduler, GCS and PostgreSQL/PostGIS deployment assets exist. 
 - v0.8 geopolitical knowledge + validation — complete.
 - v0.9 strategic intelligence + historical learning — complete.
 - v0.10 empirical intelligence + production readiness — complete.
-- v0.11 accelerated production/empirical validation — implemented in this branch pending the release CI gate.
+- v0.11 accelerated production/empirical validation — **complete, GitHub Actions passed and PR #12 merged**.
