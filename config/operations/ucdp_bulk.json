@@ -1,17 +1,30 @@
 {
   "schema_version": "geowatch-ucdp-bulk-v1",
   "as_of_checked": "2026-08-24",
-  "license": "CC BY 4.0; preserve UCDP citations and dataset version",
+  "license": "CC BY 4.0; preserve UCDP citations, dataset version, and publication attribution",
   "sources": {
     "ged_26_1": "https://ucdp.uu.se/downloads/ged/ged261-csv.zip",
     "armed_conflict_26_1": "https://ucdp.uu.se/downloads/ucdpprio/ucdp-prio-acd-261-csv.zip",
     "actor_26_1": "https://ucdp.uu.se/downloads/actor/ucdp-actor-261-csv.zip",
     "termination_4_2024": "https://ucdp.uu.se/downloads/monadterm/UCDPConflictTerminationDataset_v4_2024_Conflict.csv"
   },
+  "codebooks": {
+    "armed_conflict_26_1": "https://ucdp.uu.se/downloads/ucdpprio/ucdp-prio-acd-261.pdf",
+    "actor_26_1": "https://ucdp.uu.se/downloads/actor/ucdp-actor-codebook-261.pdf",
+    "termination_4_2024": "https://ucdp.uu.se/downloads/monadterm/UCDPConflictTerminationDataset_v4_2024_Codebook.pdf"
+  },
+  "compatibility": {
+    "armed_conflict_26_1": "current conflict-year layer through 2025",
+    "actor_26_1": "current actor layer accompanying UCDP 26.1",
+    "termination_4_2024": "older termination layer; enrich only matching conflict episodes and never infer an outcome from a missing match"
+  },
   "governance": {
     "bulk_download_does_not_require_api_token": true,
+    "api_token_is_separate_from_bulk_download": true,
     "dataset_version_must_be_preserved": true,
     "citation_required": true,
-    "historical_dataset_not_current_event_confirmation": true
+    "historical_dataset_not_current_event_confirmation": true,
+    "missing_termination_record_is_not_an_outcome": true,
+    "same_conflict_id_can_have_multiple_activity_episodes": true
   }
 }
