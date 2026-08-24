@@ -1,0 +1,10 @@
+{
+  "schema_version":"geowatch-profile-priorities-v1",
+  "tiers":[
+    {"tier":1,"countries":["USA","CHN","RUS","IND","JPN","DEU","FRA","GBR","ITA","CAN","BRA","MEX","ARG","ZAF","SAU","TUR","IDN","KOR","AUS","IRN","ISR","UKR","PAK","EGY","ARE"],"rationale":"G20, nuclear powers, active conflicts, energy/chokepoint importance"},
+    {"tier":2,"countries":["POL","ROU","GRC","ESP","NLD","NOR","SWE","FIN","IRQ","QAT","KWT","OMN","YEM","JOR","LBN","SYR","AZE","ARM","KAZ","UZB","VNM","PHL","MYS","SGP","THA","PRK","TWN"],"rationale":"alliance frontiers, transit, energy, maritime and regional flashpoints"},
+    {"tier":3,"countries":["DZA","MAR","LBY","SDN","SSD","ETH","ERI","SOM","DJI","KEN","NGA","NER","MLI","BFA","COD","VEN","COL","CHL","PER","PAN","CUB","NZL"],"rationale":"regional instability, commodities, strategic routes and emerging risks"}
+  ],
+  "actor_priorities":["UN","NATO","EU","AU","ASEAN","GCC","OPEC","OPEC+","CSTO","SCO","BRICS","Houthis","Hezbollah","Hamas","Taliban","ISIS","Al-Qaeda"],
+  "target":{"tier1_enriched_ratio":1.0,"tier2_enriched_ratio":0.8,"tier3_enriched_ratio":0.6}
+}
