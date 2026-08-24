@@ -11,6 +11,8 @@ license = {text = "Proprietary project scaffold; review upstream source terms be
 
 [project.optional-dependencies]
 postgres = ["psycopg[binary]>=3.2"]
+gcp = ["google-cloud-storage>=2.18"]
+production = ["psycopg[binary]>=3.2", "google-cloud-storage>=2.18"]
 
 [tool.setuptools.packages.find]
 include = ["geowatch*"]
