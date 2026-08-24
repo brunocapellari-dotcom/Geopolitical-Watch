@@ -5,6 +5,7 @@ import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from . import __version__
 from .actor_profiles import ActorProfiles
 from .backfill_planner import BackfillPlanner
 from .consumers import build_consumer_feed, consumer_profile_path, load_profile
@@ -37,7 +38,7 @@ def _reviewed_terms() -> set[str]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "GeopoliticalWatch/0.11"
+    server_version = f"GeopoliticalWatch/{__version__}"
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -45,7 +46,7 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
 
         if path == "/health":
-            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.11.0", "storage_backend": backend_name()})
+            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": __version__, "storage_backend": backend_name()})
         if path == "/dashboard":
             return self._send_text(200, dashboard_html(), "text/html; charset=utf-8")
         if API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
@@ -193,8 +194,8 @@ class Handler(BaseHTTPRequestHandler):
             "forecasts": [row for row in list_forecasts(store, limit=5000) if row.get("subject_type") == "episode" and row.get("subject_id") == episode_id],
         })
 
-    def _report_or_404(self, report: dict | None) -> None:
-        return self._send_json(200, report) if report is not None else self._send_json(404, {"error": "no report available"})
+    def _report_or_404(self, store_report: dict | None) -> None:
+        return self._send_json(200, store_report) if store_report is not None else self._send_json(404, {"error": "no report available"})
 
     def log_message(self, format: str, *args) -> None:
         return
