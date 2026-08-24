@@ -3,10 +3,7 @@
 ## v0.3 — standalone baseline — complete
 
 - independent package
-- GDELT news ingestion
-- UCDP pagination-ready authenticated ingestion
-- ReliefWeb authenticated appname ingestion
-- FIRMS contextual sensor ingestion
+- GDELT, UCDP, ReliefWeb and FIRMS adapters
 - normalized event model
 - provider-aware corroboration
 - priority scoring
@@ -15,46 +12,53 @@
 - versioned feed API
 - AgroLog consumer boundary
 
-## v0.4 — historical and quality layer — implemented
+## v0.4 — historical and quality layer — complete
 
-- source checkpoint tables
-- collector-run and raw-artifact audit metadata
-- configurable incremental lookback with overlap
-- bounded historical backfill for GDELT, UCDP and FIRMS
-- canonical country aliases
-- cross-midnight temporal clustering
-- geospatial distance guardrails
-- descriptive publisher/source quality metadata
-- reports built from recent persisted history, not only the current fetch
-- replay tests from stored fixtures
-- false-positive and duplicate pairwise evaluation
+- source checkpoints and run audit
+- RAW SHA-256 metadata
+- bounded historical backfill
+- canonical countries
+- temporal/geospatial clustering
+- source-quality metadata
+- replay evaluation
 
-Known limits retained intentionally in v0.4:
+## v0.5 — convergence engine — complete
 
-- ReliefWeb historical backfill is not automated.
-- GDELT backfill can hit the per-window result cap in dense periods and may require narrower/partitioned queries.
-- FIRMS world-scale historical pulls should be replaced by bounded regional requests when operational regions are defined.
+- persistent `ConflictEpisode`
+- Claim -> Evidence lineage
+- multilingual entity resolution
+- strategic infrastructure/route catalog
+- decomposed evidence strength
+- contradictions, corrections and restoration/supersession
+- deterministic episode states
+- change lineage
+- `geowatch-feed-v2` with v1 compatibility
+- convergence regression suite
 
-## v0.5 — convergence engine
+## v0.6 — operational data layer — implemented
 
-- correlate coded events, news, institutional reports and sensors
-- persistent conflict episode IDs
-- infrastructure/route entity resolution
-- confidence decomposition by evidence class
-- escalation/change detection
-- analyst review queue
-- source/event lineage graph
-- improved multilingual entity matching
+- GDACS institutional context adapter
+- ACLED OAuth adapter with cursor pagination
+- PostgreSQL/PostGIS production schema and store
+- SQLite/PostgreSQL backend factory
+- durable RAW abstraction with filesystem/GCS backends
+- API v2 episode/event/change query surfaces
+- operational JSON and Prometheus metrics
+- production image extras
+- Cloud Run API/job + Cloud Scheduler + GCS deployment script
 
-## v0.6 — operational intelligence
+Live GCP deployment remains an external execution gate: repository assets do not prove that a Cloud Run service, database or scheduler is running.
 
-- authenticated dashboard/map
-- saved filters and regions
-- event timelines
-- alert policies
-- webhook/feed consumers
-- downstream impact adapters
+## v0.7 — product and alert layer — next
+
+- dashboard/map
+- episode timelines
+- alert policies and outbox delivery
+- saved/consumer filters
+- webhook delivery
+- consumer-specific feeds
+- AgroLog read-only consumer profile
 
 ## Later
 
-AIS/ADS-B, sanctions, prediction markets and other contextual layers only after terms, cost, stability, privacy and false-positive risks are reviewed.
+AIS/ADS-B, sanctions, maritime notices, prediction markets and additional sensor/context layers enter only after terms, cost, stability, privacy and false-positive risks are reviewed.
