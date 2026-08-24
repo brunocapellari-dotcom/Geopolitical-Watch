@@ -3,21 +3,23 @@ from __future__ import annotations
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from .consumers import build_consumer_feed, consumer_profile_path, load_profile
 from .dashboard import dashboard_html, map_points
 from .episode_reports import build_episode_feed
+from .geopolitics import GeopoliticalKnowledge
 from .metrics import operational_snapshot, prometheus_text
 from .reports import build_feed
+from .review import build_review_queue
 from .storage_factory import backend_name, open_store
+from .validation import source_coverage_inventory
 
 API_TOKEN = os.environ.get("GEOWATCH_API_TOKEN")
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "GeopoliticalWatch/0.7"
+    server_version = "GeopoliticalWatch/0.8"
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -25,7 +27,7 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
 
         if path == "/health":
-            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.7.0", "storage_backend": backend_name()})
+            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.8.0", "storage_backend": backend_name()})
         if path == "/dashboard":
             return self._send_text(200, dashboard_html(), "text/html; charset=utf-8")
         if API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
@@ -37,6 +39,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_text(200, prometheus_text(operational_snapshot(store)), "text/plain; version=0.0.4; charset=utf-8")
             if path == "/v2/operational":
                 return self._send_json(200, operational_snapshot(store))
+            if path == "/v2/coverage":
+                return self._send_json(200, source_coverage_inventory(store, run_limit=_int(query, "limit", 5000) or 5000))
+            if path == "/v2/review-queue":
+                episodes = store.load_episodes(limit=_int(query, "episode_limit", 500) or 500)
+                event_ids = sorted({event_id for episode in episodes for event_id in episode.event_ids})
+                items = build_review_queue(
+                    episodes,
+                    claims=store.load_claims(),
+                    events=store.load_events_by_ids(event_ids),
+                    evidence=store.load_evidence(),
+                    limit=_int(query, "limit", 200) or 200,
+                )
+                return self._send_json(200, {
+                    "schema_version": "geowatch-review-queue-v1",
+                    "items": [item.to_dict() for item in items],
+                })
             if path == "/v2/map":
                 return self._send_json(200, {"schema_version": "geowatch-map-v1", "points": map_points(store, limit=_int(query, "limit", 500) or 500)})
             if path == "/v2/alerts/pending":
@@ -94,10 +112,17 @@ class Handler(BaseHTTPRequestHandler):
         entity_ids = set(episode.actor_entity_ids) | set(episode.infrastructure_entity_ids) | set(episode.other_entity_ids)
         entities = [row for row in store.load_entities() if row.entity_id in entity_ids]
         changes = [row for row in store.changes_since(episode.started_at, limit=5000) if row.get("episode_id") == episode_id]
+        try:
+            context = GeopoliticalKnowledge.from_files().context_for_episode(
+                episode, claims=claim_rows, entities=entities, events=event_rows
+            )
+        except (FileNotFoundError, json.JSONDecodeError):
+            context = {"context_not_evidence": True, "status": "knowledge_layer_unavailable"}
         return self._send_json(200, {
             "schema_version": "geowatch-episode-detail-v2", "episode": episode.to_dict(),
             "claims": [row.to_dict() for row in claim_rows], "evidence": [row.to_dict() for row in evidence_rows],
-            "entities": [row.to_dict() for row in entities], "events": [row.to_dict() for row in event_rows], "changes": changes,
+            "entities": [row.to_dict() for row in entities], "events": [row.to_dict() for row in event_rows],
+            "changes": changes, "strategic_context": context,
         })
 
     def _report_or_404(self, report: dict | None) -> None:
