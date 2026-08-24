@@ -1,0 +1,45 @@
+name: public-beta-monitor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  public-beta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run public-source monitor
+        run: |
+          mkdir -p data/raw reports
+          python -m geowatch collect --db data/beta.db --raw data/raw --reports reports | tee beta-run.json
+      - name: Publish situational summary
+        if: always()
+        run: |
+          echo "# Geopolitical Watch public beta" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f reports/episodes/latest.md ]; then
+            cat reports/episodes/latest.md >> "$GITHUB_STEP_SUMMARY"
+          elif [ -f reports/latest.md ]; then
+            cat reports/latest.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No report was generated. Inspect beta-run.json and job logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload public beta artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geowatch-public-beta-${{ github.run_id }}
+          path: |
+            beta-run.json
+            reports/
+          if-no-files-found: warn
+          retention-days: 14
