@@ -1,64 +1,79 @@
 # Geopolitical Watch
 
-Standalone public-source geopolitical conflict monitoring and intelligence platform.
+Standalone public-source geopolitical conflict monitoring and strategic intelligence platform.
 
 ## Status
 
-Version **0.8.0** adds a permanent geopolitical knowledge and validation layer above the v0.7 product stack. Conflict episodes can now retrieve structured strategic context from international-relations theory, geoeconomics, strategic geography, regional systems and historical cases while preserving a hard boundary between **knowledge context** and **factual evidence**.
+Version **0.9.0** adds the Strategic Intelligence & Historical Learning layer above v0.8: persistent analyst decisions, reversible episode corrections, country strategic profiles, a sourced temporal strategic graph, escalation indicators, competing hypotheses, probabilistic forecasts/calibration, geoeconomic dependency metrics, sanctions context and official maritime-warning context.
+
+The project remains independent from AgroLog MT. AgroLog MT is a downstream read-only consumer of published feeds.
 
 ## Architecture
 
-`sources -> durable RAW/checkpoints -> normalized events -> entity resolution -> claims/evidence -> persistent conflict episodes -> convergence/state/change detection -> geopolitical knowledge context -> validation/review -> alerts/dashboard/API -> consumers`
+`sources -> durable RAW -> normalized events -> entities -> claims/evidence -> ConflictEpisodes -> geopolitical knowledge -> strategic graph/indicators -> review/hypotheses/forecasts -> outcomes/learning proposals -> API/dashboard/consumers`
 
-- `Event` remains the preserved evidence record.
-- `ConflictEpisode` remains the persistent analytical unit.
-- `strategic_context` is analytical knowledge and always carries `context_not_evidence=true`.
-- Knowledge context cannot increase evidence strength or verify an event/claim.
-- SQLite remains the local/test backend; PostgreSQL/PostGIS remains the production backend.
+Permanent rules:
 
-## Geopolitical learning layer
+- `Event` is preserved evidence.
+- `ConflictEpisode` is the persistent analytical unit.
+- knowledge context is not factual evidence;
+- indicator scores are not probabilities;
+- forecast probabilities do not change `EvidenceStrength`;
+- analyst corrections preserve lineage and snapshots;
+- learning proposals never auto-apply.
 
-The permanent study program is documented in `docs/GEOPOLITICS_CURRICULUM.md` and covers:
+## Geopolitical knowledge
 
-- realism, structural realism, liberal approaches, constructivism, English School and critical geopolitics;
-- deterrence, coercion, escalation, alliances, security dilemma and power transition;
-- sea power, land power, strategic depth, chokepoints and infrastructure geopolitics;
-- sanctions, geoeconomic fragmentation, energy, trade, finance, technology and economic statecraft;
-- international law, UN Charter and international humanitarian law;
-- domestic politics, state capacity, nationalism and civil-military relations;
-- information operations, OSINT uncertainty, competing hypotheses and forecast calibration;
-- Europe/Eurasia, Middle East, Indo-Pacific, Africa, Latin America, Arctic and global commons;
-- structured historical case studies with explicit analogy limits.
+The advanced study program in `docs/GEOPOLITICS_CURRICULUM.md` covers international-relations theory, strategic studies, geoeconomics, political geography, international law, regional systems, information/OSINT uncertainty and historical cases.
 
-Structured knowledge lives in `config/geopolitics/knowledge.json`; canonical-source metadata lives in `config/geopolitics/sources.json`. Copyrighted books/research are bibliographic references and original summaries only, not mirrored text.
+v0.9 adds:
 
-## Validation and learning loop
+- `config/geopolitics/country_profiles.json` — structural country profiles;
+- `config/geopolitics/strategic_graph.json` — sourced, time-bounded relationships and chokepoint exposure context;
+- `config/geopolitics/escalation_indicators.json` — escalation/de-escalation observables;
+- `config/geopolitics/sanctions_sources.json` — official sanctions source registry;
+- `config/geopolitics/maritime_notice_sources.json` — official navigational-warning registry;
+- `docs/STRATEGIC_INTELLIGENCE_MODEL.md` — learning/forecast/review governance.
 
-v0.8 adds:
+Copyrighted academic/books material remains bibliographic reference + original synthesis only.
 
-- `/v2/coverage` — observed collector coverage inventory;
-- `/v2/review-queue` — deterministic analyst-review candidates for uncertain/contradictory episodes;
-- geopolitical context in `/v2/episodes/{episode_id}` and episode reports;
-- alert precision/recall/false-positive calibration utilities;
-- quality flags for low evidence, single-provider dependence, unresolved geography, contradiction/retraction and emerging episodes;
-- auditable episode merge operations and safe split plans that preserve lineage and force recomputation instead of silently rewriting history.
+## Strategic learning loop
 
-## Sources
+`review -> decision -> versioned operation/forecast -> observed outcome -> calibration -> knowledge proposal -> human/source review -> versioned knowledge change`
 
-Operational source adapters remain:
+The strategic ledger stores:
 
-- GDELT DOC 2.0 — enabled high-frequency publication signal.
-- GDACS — enabled institutional disaster/context signal; never conflict attribution by itself.
+- review decisions;
+- merge/split/revert operations;
+- forecasts and resolutions;
+- knowledge proposals.
+
+Repeated reviewed corrections may generate proposals, but `auto_apply=false` is permanent.
+
+## Forecasting and competing hypotheses
+
+Forecasts preserve original question, probability, timestamp, horizon and rationale. Resolutions are appended later. Historical calibration uses Brier score and probability bins.
+
+Competing hypotheses store supporting, opposing and discriminating indicators. Their diagnostic score is not a posterior probability.
+
+## Geoeconomic context
+
+Initial quantitative tools include supplier HHI, effective supplier count, structural dependency index, route concentration and chokepoint exposure share. These are exposure measures, not loss forecasts.
+
+## Sanctions and maritime context
+
+Sanctions records preserve issuing authority, regime, target, measure, effective date and revocation. Legal applicability requires specialist review.
+
+Navigational warnings are kept separate from future AIS context. An official warning can establish navigation-safety context within its scope but does not establish conflict attribution or intent.
+
+## Operational sources
+
+- GDELT DOC 2.0 — enabled publication signal.
+- GDACS — enabled institutional disaster/context signal.
 - UCDP GED — supported, disabled until token/config review.
 - ReliefWeb V2 — supported, disabled until approved appname.
 - NASA FIRMS — supported, disabled until MAP_KEY and operational regions are configured.
 - ACLED — supported with OAuth/cursor pagination, disabled until credentials and terms review.
-
-The geopolitical knowledge source registry additionally includes primary legal texts, official datasets/analysis and canonical academic references.
-
-## Evidence discipline
-
-A publication proves publication observation, not automatic confirmation of the reported event. A sensor or disaster alert is contextual evidence, not attack attribution. `EvidenceStrength.overall_index` is an evidence-strength/triage index, not probability. Geopolitical theory, historical analogy and regional context are **never evidence**.
 
 ## Quick start
 
@@ -66,26 +81,26 @@ A publication proves publication observation, not automatic confirmation of the 
 2. `python -m geowatch collect`
 3. `python -m geowatch serve`
 4. `python -m geowatch metrics`
-5. `python -m geowatch consumer-feed --consumer agrolog`
-6. `python -m geowatch dispatch-alerts`
+5. `python -m geowatch country-profile --country Japan`
+6. `python -m geowatch forecast --subject-type episode --subject-id <id> --question "..." --probability 0.6 --horizon <ISO>`
+7. `python -m geowatch forecast-summary`
 
 Optional PostgreSQL/GCS dependencies: `pip install '.[production]'`.
 
 ## API
 
-Compatibility endpoints remain:
+Compatibility remains:
+
 - `GET /v1/feed`
 - `GET /v1/reports/latest`
-
-Episode/product/validation API:
 - `GET /v2/feed`
 - `GET /v2/reports/latest`
-- `GET /v2/episodes?country=&state=&since=&min_strength=&limit=`
+- `GET /v2/episodes`
 - `GET /v2/episodes/{episode_id}`
-- `GET /v2/events?country=&since=&limit=`
-- `GET /v2/changes?since=&limit=`
-- `GET /v2/map?limit=`
-- `GET /v2/alerts/pending?limit=`
+- `GET /v2/events`
+- `GET /v2/changes`
+- `GET /v2/map`
+- `GET /v2/alerts/pending`
 - `GET /v2/consumers/agrolog/feed`
 - `GET /v2/review-queue`
 - `GET /v2/coverage`
@@ -94,11 +109,20 @@ Episode/product/validation API:
 - `GET /health`
 - `GET /dashboard`
 
-Set `GEOWATCH_API_TOKEN` before exposing data endpoints outside a trusted boundary.
+v0.9 read-only strategic surfaces:
+
+- `GET /v2/review-decisions`
+- `GET /v2/episode-operations`
+- `GET /v2/forecasts`
+- `GET /v2/forecasts/summary`
+- `GET /v2/geopolitics/countries`
+- `GET /v2/geopolitics/graph`
+
+Strategic mutations remain CLI/internal operations rather than public HTTP write endpoints.
 
 ## Deployment state
 
-`scripts/deploy_gcp.sh` contains Cloud Run/API/collector/dispatcher/Scheduler/GCS deployment assets, but repository presence does **not** mean a live cloud deployment exists. Production remains an external gate requiring a GCP project, PostgreSQL/PostGIS, secrets and end-to-end smoke/restore validation.
+`scripts/deploy_gcp.sh` contains Cloud Run/API/collector/dispatcher/Scheduler/GCS assets, but repository presence does **not** mean a live cloud deployment exists. Production still requires a GCP project, PostgreSQL/PostGIS, secrets, source credentials where applicable and end-to-end smoke/restore validation.
 
 ## Release state
 
@@ -106,5 +130,6 @@ Set `GEOWATCH_API_TOKEN` before exposing data endpoints outside a trusted bounda
 - v0.4 history/quality — complete.
 - v0.5 convergence engine — complete.
 - v0.6 operational data layer — complete in code/CI; live deployment external.
-- v0.7 product/alert layer — complete, CI passed and merged.
-- v0.8 geopolitical knowledge + validation — **complete, CI passed and merged in PR #6**.
+- v0.7 product/alert layer — complete.
+- v0.8 geopolitical knowledge + validation — complete.
+- v0.9 strategic intelligence + historical learning — implemented in this branch pending release gate.
