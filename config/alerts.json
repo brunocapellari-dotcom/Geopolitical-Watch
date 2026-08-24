@@ -1,0 +1,32 @@
+{
+  "policies": [
+    {
+      "policy_id": "episode-escalating",
+      "severity": "high",
+      "states": ["escalating"],
+      "min_strength": 30,
+      "enabled": true
+    },
+    {
+      "policy_id": "strategic-infrastructure-change",
+      "severity": "high",
+      "change_types": ["state_transition"],
+      "min_strength": 35,
+      "infrastructure_required": true,
+      "enabled": true
+    },
+    {
+      "policy_id": "contradiction-review",
+      "severity": "medium",
+      "min_strength": 0,
+      "enabled": true
+    },
+    {
+      "policy_id": "ceasefire-change",
+      "severity": "medium",
+      "states": ["ceasefire", "deescalating"],
+      "min_strength": 20,
+      "enabled": true
+    }
+  ]
+}
