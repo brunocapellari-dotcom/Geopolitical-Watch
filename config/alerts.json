@@ -18,7 +18,7 @@
     {
       "policy_id": "contradiction-review",
       "severity": "medium",
-      "min_strength": 0,
+      "required_flags": ["contradiction_present", "retraction_present"],
       "enabled": true
     },
     {
