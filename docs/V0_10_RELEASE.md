@@ -35,8 +35,8 @@ The conservative v0.10 weighted project-readiness estimate is ~0.71. This is not
 
 A 0.95 readiness result is invalid unless every hard gate in `config/readiness.json` passes.
 
-## Release gate
+## Release gate result
 
-Merge only if the cumulative GitHub Actions suite succeeds on the final branch SHA.
+The cumulative GitHub Actions test suite passed on PR #10 and v0.10.0 was merged to `main`.
 
 Live GCP deployment, source credentials and large historical empirical validation remain external gates and are not implied by passing CI.
