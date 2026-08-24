@@ -1,0 +1,9 @@
+{
+  "consumer_id": "agrolog-mt",
+  "read_only": true,
+  "min_strength": 35,
+  "states": ["emerging", "active", "escalating", "stable", "deescalating", "ceasefire"],
+  "impact_areas": ["energy", "fertilizers", "shipping", "trade", "fx", "agriculture", "logistics", "infrastructure"],
+  "max_episodes": 100,
+  "notes": "Read-only downstream profile. AgroLog MT does not write to Geopolitical Watch storage and applies its own downstream agro/logistics impact analysis."
+}
