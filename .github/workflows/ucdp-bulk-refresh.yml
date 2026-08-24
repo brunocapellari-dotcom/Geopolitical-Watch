@@ -12,25 +12,34 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Build UCDP public bulk artifacts
-        run: python scripts/build_ucdp_bulk_artifacts.py | tee ucdp-bulk-run.json
+        run: |
+          set -o pipefail
+          python scripts/build_ucdp_bulk_artifacts.py | tee ucdp-bulk-run.json
+      - name: Build layered empirical history
+        run: |
+          set -o pipefail
+          python scripts/build_empirical_history_artifacts.py | tee empirical-history-run.json
       - name: Publish summary
         if: always()
         run: |
           echo "# UCDP bulk refresh" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f generated/ucdp/summary.json ]; then
-            echo '```json' >> "$GITHUB_STEP_SUMMARY"
-            cat generated/ucdp/summary.json >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "Bulk build did not produce a summary; inspect logs." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          for file in generated/ucdp/summary.json generated/empirical/summary.json; do
+            if [ -f "$file" ]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "## $file" >> "$GITHUB_STEP_SUMMARY"
+              echo '```json' >> "$GITHUB_STEP_SUMMARY"
+              cat "$file" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
       - name: Upload UCDP historical artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -38,6 +47,8 @@ jobs:
           name: geowatch-ucdp-bulk-${{ github.run_id }}
           path: |
             generated/ucdp/
+            generated/empirical/
             ucdp-bulk-run.json
+            empirical-history-run.json
           if-no-files-found: warn
           retention-days: 30
