@@ -1,0 +1,29 @@
+{
+  "entities": [
+    {"entity_id":"infra_suez_canal","entity_type":"canal","canonical_name":"Suez Canal","aliases":["Canal de Suez","قناة السويس"],"country":"Egypt","latitude":30.455,"longitude":32.35},
+    {"entity_id":"infra_strait_hormuz","entity_type":"strait","canonical_name":"Strait of Hormuz","aliases":["Hormuz Strait","Estreito de Ormuz","مضيق هرمز"],"latitude":26.566,"longitude":56.25},
+    {"entity_id":"infra_bab_el_mandeb","entity_type":"strait","canonical_name":"Bab el-Mandeb","aliases":["Bab al-Mandab","Bab el Mandeb","باب المندب"],"latitude":12.583,"longitude":43.333},
+    {"entity_id":"route_red_sea","entity_type":"route","canonical_name":"Red Sea","aliases":["Mar Vermelho","Mer Rouge","البحر الأحمر"],"latitude":20.0,"longitude":38.0},
+    {"entity_id":"route_black_sea","entity_type":"route","canonical_name":"Black Sea","aliases":["Mar Negro","Mer Noire","Черное море","Чорне море"],"latitude":43.0,"longitude":34.0},
+    {"entity_id":"infra_bosphorus","entity_type":"strait","canonical_name":"Bosporus","aliases":["Bosphorus","Bosforo","Bósforo","İstanbul Boğazı"],"country":"Türkiye","latitude":41.119,"longitude":29.075},
+    {"entity_id":"infra_dardanelles","entity_type":"strait","canonical_name":"Dardanelles","aliases":["Dardanelos","Çanakkale Boğazı"],"country":"Türkiye","latitude":40.2,"longitude":26.4},
+    {"entity_id":"infra_panama_canal","entity_type":"canal","canonical_name":"Panama Canal","aliases":["Canal do Panamá","Canal de Panamá"],"country":"Panama","latitude":9.08,"longitude":-79.68},
+    {"entity_id":"infra_kerch_strait","entity_type":"strait","canonical_name":"Kerch Strait","aliases":["Estreito de Kerch","Керченский пролив","Керченська протока"],"latitude":45.3,"longitude":36.6},
+    {"entity_id":"port_odesa","entity_type":"port","canonical_name":"Port of Odesa","aliases":["Odesa Port","Odessa Port","Porto de Odesa","Одеський порт"],"country":"Ukraine","region":"Odesa","latitude":46.49,"longitude":30.74},
+    {"entity_id":"port_chornomorsk","entity_type":"port","canonical_name":"Port of Chornomorsk","aliases":["Chornomorsk Port","Chernomorsk Port","Porto de Chornomorsk"],"country":"Ukraine","region":"Odesa","latitude":46.3,"longitude":30.66},
+    {"entity_id":"port_pivdennyi","entity_type":"port","canonical_name":"Port of Pivdennyi","aliases":["Pivdenny Port","Yuzhny Port","Port of Yuzhny"],"country":"Ukraine","region":"Odesa","latitude":46.64,"longitude":31.02},
+    {"entity_id":"port_novorossiysk","entity_type":"port","canonical_name":"Port of Novorossiysk","aliases":["Novorossiysk Port","Porto de Novorossiysk","Новороссийский порт"],"country":"Russia","latitude":44.72,"longitude":37.78},
+    {"entity_id":"port_constanta","entity_type":"port","canonical_name":"Port of Constanta","aliases":["Constanta Port","Porto de Constanța","Port of Constanța"],"country":"Romania","latitude":44.16,"longitude":28.65},
+    {"entity_id":"port_haifa","entity_type":"port","canonical_name":"Port of Haifa","aliases":["Haifa Port","Porto de Haifa","נמל חיפה"],"country":"Israel","latitude":32.82,"longitude":35.0},
+    {"entity_id":"port_ashdod","entity_type":"port","canonical_name":"Port of Ashdod","aliases":["Ashdod Port","Porto de Ashdod","נמל אשדוד"],"country":"Israel","latitude":31.83,"longitude":34.64},
+    {"entity_id":"port_hodeidah","entity_type":"port","canonical_name":"Port of Hodeidah","aliases":["Hodeidah Port","Hudaydah Port","Port of Al Hudaydah","ميناء الحديدة"],"country":"Yemen","latitude":14.84,"longitude":42.93},
+    {"entity_id":"port_aden","entity_type":"port","canonical_name":"Port of Aden","aliases":["Aden Port","Porto de Aden","ميناء عدن"],"country":"Yemen","latitude":12.79,"longitude":45.03},
+    {"entity_id":"port_bandare_abbas","entity_type":"port","canonical_name":"Port of Bandar Abbas","aliases":["Bandar Abbas Port","Shahid Rajaee Port","Porto de Bandar Abbas","بندر عباس"],"country":"Iran","latitude":27.14,"longitude":56.21},
+    {"entity_id":"port_fujairah","entity_type":"port","canonical_name":"Port of Fujairah","aliases":["Fujairah Port","Porto de Fujairah","ميناء الفجيرة"],"country":"United Arab Emirates","latitude":25.17,"longitude":56.36},
+    {"entity_id":"infra_druzhba_pipeline","entity_type":"pipeline","canonical_name":"Druzhba Pipeline","aliases":["Friendship Pipeline","Oleoduto Druzhba","Нефтепровод Дружба"],"latitude":52.0,"longitude":24.0},
+    {"entity_id":"infra_nord_stream","entity_type":"pipeline","canonical_name":"Nord Stream","aliases":["Nordstream","Gasoduto Nord Stream"],"latitude":55.5,"longitude":15.5},
+    {"entity_id":"infra_kerch_bridge","entity_type":"road","canonical_name":"Crimean Bridge","aliases":["Kerch Bridge","Crimea Bridge","Ponte da Crimeia","Крымский мост","Кримський міст"],"latitude":45.3,"longitude":36.51},
+    {"entity_id":"region_gaza","entity_type":"region","canonical_name":"Gaza Strip","aliases":["Gaza","Faixa de Gaza","قطاع غزة"],"country":"Palestine","latitude":31.42,"longitude":34.38},
+    {"entity_id":"region_donbas","entity_type":"region","canonical_name":"Donbas","aliases":["Donbass","Донбас","Донбасс"],"country":"Ukraine","latitude":48.0,"longitude":37.8}
+  ]
+}
