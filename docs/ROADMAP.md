@@ -35,7 +35,7 @@
 - `geowatch-feed-v2` with v1 compatibility
 - convergence regression suite
 
-## v0.6 — operational data layer — implemented
+## v0.6 — operational data layer — complete in code/CI
 
 - GDACS institutional context adapter
 - ACLED OAuth adapter with cursor pagination
@@ -45,20 +45,34 @@
 - API v2 episode/event/change query surfaces
 - operational JSON and Prometheus metrics
 - production image extras
-- Cloud Run API/job + Cloud Scheduler + GCS deployment script
+- Cloud Run API/job + Cloud Scheduler + GCS deployment assets
 
 Live GCP deployment remains an external execution gate: repository assets do not prove that a Cloud Run service, database or scheduler is running.
 
-## v0.7 — product and alert layer — next
+## v0.7 — product and alert layer — complete in code pending release gate
 
 - dashboard/map
 - episode timelines
-- alert policies and outbox delivery
-- saved/consumer filters
+- deterministic alert policies
+- alert outbox with delivery retry
+- consumer filters
 - webhook delivery
 - consumer-specific feeds
-- AgroLog read-only consumer profile
+- AgroLog MT read-only consumer profile
+- API map/alerts/consumer endpoints
+- CLI dispatcher and consumer feed commands
+- regression tests for alert dedupe/filtering and product surfaces
+
+## v0.8 — validation and operational hardening — next
+
+- real GCP deployment and end-to-end smoke tests
+- Cloud SQL/PostGIS backup/PITR validation
+- historical multi-source backfill inventory
+- larger real-world labeled episode corpus
+- analyst review queue and episode merge/split lineage
+- alert precision/recall/fatigue calibration
+- load/chaos/restore/cost/SLO testing
 
 ## Later
 
-AIS/ADS-B, sanctions, maritime notices, prediction markets and additional sensor/context layers enter only after terms, cost, stability, privacy and false-positive risks are reviewed.
+Sanctions, maritime notices, AIS/ADS-B, additional official sensor/context feeds, prediction markets and other contextual layers enter only after terms, cost, stability, privacy and false-positive risks are reviewed.
