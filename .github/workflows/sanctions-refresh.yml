@@ -1,0 +1,53 @@
+name: sanctions-refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 */6 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Restore previous sanctions snapshot cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .sanctions-cache
+          key: sanctions-${{ github.run_id }}
+          restore-keys: |
+            sanctions-
+      - name: Build official UNSC and UK snapshots/diffs
+        run: python scripts/build_sanctions_artifacts.py | tee sanctions-run.json
+      - name: Save current sanctions snapshot cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .sanctions-cache
+          key: sanctions-${{ github.run_id }}
+      - name: Publish summary
+        if: always()
+        run: |
+          echo "# Official sanctions refresh" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f generated/sanctions/summary.json ]; then
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat generated/sanctions/summary.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload sanctions artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geowatch-sanctions-${{ github.run_id }}
+          path: |
+            generated/sanctions/
+            sanctions-run.json
+          if-no-files-found: warn
+          retention-days: 30
