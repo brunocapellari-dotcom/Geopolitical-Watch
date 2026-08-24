@@ -21,8 +21,14 @@ class StrategicGraph:
         cls,
         profiles_path: str | Path = "config/geopolitics/country_profiles.json",
         graph_path: str | Path = "config/geopolitics/strategic_graph.json",
+        supplemental_profiles_path: str | Path = "config/geopolitics/country_profiles_v011.json",
     ) -> "StrategicGraph":
         profiles = json.loads(Path(profiles_path).read_text(encoding="utf-8"))
+        supplement=Path(supplemental_profiles_path)
+        if supplement.exists():
+            extra=json.loads(supplement.read_text(encoding="utf-8"))
+            existing={row["country_id"] for row in profiles.get("profiles", [])}
+            profiles={**profiles,"profiles":list(profiles.get("profiles", []))+[row for row in extra.get("profiles", []) if row["country_id"] not in existing]}
         graph = json.loads(Path(graph_path).read_text(encoding="utf-8"))
         return cls(profiles, graph)
 
