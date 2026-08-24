@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-from urllib.parse import urlencode
 
 from ..core import infer_impact_areas, stable_event_id, utc_now_iso
 from ..http import get
@@ -12,7 +11,7 @@ DEFAULT_BASE = "https://ucdpapi.pcr.uu.se/api/gedevents"
 DEFAULT_VERSION = "26.1"
 
 
-def collect_all(*, token: str | None = None, version: str = DEFAULT_VERSION, pagesize: int = 1000, timeout: int = 90, max_pages: int = 100) -> tuple[list[bytes], list[str]]:
+def collect_all(*, token: str | None = None, version: str = DEFAULT_VERSION, pagesize: int = 1000, timeout: int = 90, max_pages: int = 100, start_date: str | None = None, end_date: str | None = None) -> tuple[list[bytes], list[str]]:
     token = token or os.environ.get("UCDP_API_TOKEN")
     if not token:
         raise RuntimeError("UCDP_API_TOKEN is required")
@@ -20,7 +19,12 @@ def collect_all(*, token: str | None = None, version: str = DEFAULT_VERSION, pag
     urls: list[str] = []
     page = 1
     while page <= max_pages:
-        response = get(f"{DEFAULT_BASE}/{version}", headers={"x-ucdp-access-token": token}, timeout=timeout, query={"pagesize": pagesize, "page": page})
+        query: dict[str, str | int] = {"pagesize": pagesize, "page": page}
+        if start_date:
+            query["StartDate"] = start_date
+        if end_date:
+            query["EndDate"] = end_date
+        response = get(f"{DEFAULT_BASE}/{version}", headers={"x-ucdp-access-token": token}, timeout=timeout, query=query)
         pages.append(response.payload)
         urls.append(response.url)
         body = json.loads(response.payload.decode("utf-8"))

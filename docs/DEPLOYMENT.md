@@ -30,4 +30,4 @@ The design supports hourly collection, but cadence must respect source quotas an
 
 ## Security
 
-Set `GEOWATCH_API_TOKEN` before exposing the feed outside a trusted network. This v0.3 API is intentionally small and should sit behind a managed HTTPS service/reverse proxy in production.
+Set `GEOWATCH_API_TOKEN` before exposing the feed outside a trusted network. This v0.4 API is intentionally small and should sit behind a managed HTTPS service/reverse proxy in production.

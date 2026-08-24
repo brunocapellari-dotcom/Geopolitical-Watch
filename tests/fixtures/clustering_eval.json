@@ -1,0 +1,13 @@
+{
+  "title_similarity_threshold": 0.78,
+  "cluster_time_hours": 36,
+  "cluster_distance_km": 250,
+  "events": [
+    {"event_id":"a","source_id":"gdelt_conflict_news","source_kind":"news","title":"Missile strike disrupts port operations","event_type":"media_report","reference_at":"2026-08-24T23:30:00+00:00","collected_at":"2026-08-25T01:00:00+00:00","verification_level":"osint_signal","published_at":"2026-08-24T23:30:00+00:00","country":"Ukraine","latitude":50.0,"longitude":30.0,"source_url":"https://reuters.example/a","publisher":"reuters.example","impact_areas":["shipping","logistics"]},
+    {"event_id":"b","source_id":"gdelt_conflict_news","source_kind":"news","title":"Missile strike disrupts port operations","event_type":"media_report","reference_at":"2026-08-25T00:15:00+00:00","collected_at":"2026-08-25T01:00:00+00:00","verification_level":"osint_signal","published_at":"2026-08-25T00:15:00+00:00","country":"Ukraine","latitude":50.05,"longitude":30.05,"source_url":"https://bbc.example/b","publisher":"bbc.example","impact_areas":["shipping","logistics"]},
+    {"event_id":"c","source_id":"gdelt_conflict_news","source_kind":"news","title":"Missile strike disrupts port operations","event_type":"media_report","reference_at":"2026-08-25T00:20:00+00:00","collected_at":"2026-08-25T01:00:00+00:00","verification_level":"osint_signal","published_at":"2026-08-25T00:20:00+00:00","country":"Russian Federation","latitude":55.75,"longitude":37.62,"source_url":"https://example.org/c","publisher":"example.org","impact_areas":["shipping"]},
+    {"event_id":"d","source_id":"gdelt_conflict_news","source_kind":"news","title":"Drone strike reported near terminal","event_type":"media_report","reference_at":"2026-08-24T10:00:00+00:00","collected_at":"2026-08-25T01:00:00+00:00","verification_level":"osint_signal","country":"Ukraine","latitude":46.48,"longitude":30.73,"source_url":"https://example.org/d","publisher":"example.org","impact_areas":["infrastructure"]},
+    {"event_id":"e","source_id":"gdelt_conflict_news","source_kind":"news","title":"Drone strike reported near terminal","event_type":"media_report","reference_at":"2026-08-24T10:20:00+00:00","collected_at":"2026-08-25T01:00:00+00:00","verification_level":"osint_signal","country":"Ukraine","latitude":49.84,"longitude":24.03,"source_url":"https://example.net/e","publisher":"example.net","impact_areas":["infrastructure"]}
+  ],
+  "expected_clusters": [["a","b"],["c"],["d"],["e"]]
+}

@@ -41,3 +41,10 @@ class Event:
         row["actors"] = list(self.actors)
         row["impact_areas"] = list(self.impact_areas)
         return row
+
+    @classmethod
+    def from_dict(cls, row: dict[str, object]) -> "Event":
+        data = dict(row)
+        data["actors"] = tuple(data.get("actors") or ())
+        data["impact_areas"] = tuple(data.get("impact_areas") or ())
+        return cls(**data)  # type: ignore[arg-type]

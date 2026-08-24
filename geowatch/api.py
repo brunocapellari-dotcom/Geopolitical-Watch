@@ -13,12 +13,12 @@ API_TOKEN = os.environ.get("GEOWATCH_API_TOKEN")
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "GeopoliticalWatch/0.3"
+    server_version = "GeopoliticalWatch/0.4"
 
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
         if path == "/health":
-            return self._send(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.3.0"})
+            return self._send(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.4.0"})
         if API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
             return self._send(401, {"error": "unauthorized"})
         store = SQLiteStore(DB_PATH)

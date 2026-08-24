@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from .core import EventCluster, corroboration_status, score_cluster
+from .quality import SourceProfile, event_quality_metadata
 
 
-def build_report(clusters: Iterable[EventCluster], *, report_type: str = "situational", generated_at: str | None = None, min_priority: int = 0, max_events: int = 20, max_news_per_event: int = 5) -> dict:
+def build_report(clusters: Iterable[EventCluster], *, report_type: str = "situational", generated_at: str | None = None, min_priority: int = 0, max_events: int = 20, max_news_per_event: int = 5, source_profiles: Mapping[str, SourceProfile] | None = None) -> dict:
     generated = generated_at or datetime.now(timezone.utc).isoformat()
     ranked = sorted(((score_cluster(c), c) for c in clusters), key=lambda x: (x[0], x[1].canonical.reference_at), reverse=True)
     selected = [(score, cluster) for score, cluster in ranked if score >= min_priority][:max_events]
@@ -30,6 +31,7 @@ def build_report(clusters: Iterable[EventCluster], *, report_type: str = "situat
                 "published_at": event.published_at,
                 "url": event.source_url,
                 "source_id": event.source_id,
+                "quality_metadata": event_quality_metadata(event, source_profiles),
             })
             if len(news) >= max_news_per_event:
                 break
@@ -42,6 +44,7 @@ def build_report(clusters: Iterable[EventCluster], *, report_type: str = "situat
                 "verification_level": event.verification_level,
                 "url": event.source_url,
                 "published_at": event.published_at,
+                "quality_metadata": event_quality_metadata(event, source_profiles),
             }
             for event in cluster.members if event.source_kind != "news"
         ]
@@ -50,7 +53,7 @@ def build_report(clusters: Iterable[EventCluster], *, report_type: str = "situat
             "event_id": canonical.event_id,
             "title": canonical.title,
             "priority_score": score,
-            "priority_method_version": "geowatch-priority-v0.3",
+            "priority_method_version": "geowatch-priority-v0.4",
             "corroboration_status": corroboration_status(cluster),
             "verification_level": canonical.verification_level,
             "reference_at": canonical.reference_at,
@@ -63,6 +66,7 @@ def build_report(clusters: Iterable[EventCluster], *, report_type: str = "situat
             "impact_areas": list(canonical.impact_areas),
             "impact_evidence_class": canonical.impact_evidence_class,
             "provider_count": cluster.provider_count,
+            "canonical_quality_metadata": event_quality_metadata(canonical, source_profiles),
             "evidence": evidence,
             "news": news,
             "news_count": len(news),

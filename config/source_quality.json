@@ -1,0 +1,43 @@
+{
+  "sources": [
+    {
+      "source_id": "gdelt_conflict_news",
+      "governance_class": "news_aggregator",
+      "evidence_role": "publication_signal",
+      "official_or_primary": false,
+      "update_cadence": "high_frequency",
+      "backfill_capability": "STARTDATETIME/ENDDATETIME",
+      "notes": "GDELT identifies publications. The underlying publisher, not GDELT query count, is used for independent news corroboration."
+    },
+    {
+      "source_id": "ucdp_ged_26_1",
+      "governance_class": "research_coded_dataset",
+      "evidence_role": "coded_event",
+      "official_or_primary": true,
+      "update_cadence": "versioned_release",
+      "credential_env": "UCDP_API_TOKEN",
+      "backfill_capability": "StartDate/EndDate with pagination",
+      "notes": "Version is explicit for reproducibility. Dataset revisions and methodology still apply."
+    },
+    {
+      "source_id": "reliefweb_conflict_reports",
+      "governance_class": "humanitarian_information_aggregator",
+      "evidence_role": "curated_publication",
+      "official_or_primary": false,
+      "update_cadence": "high_frequency",
+      "credential_env": "RELIEFWEB_APPNAME",
+      "backfill_capability": "not automated in v0.4",
+      "notes": "Preserve information-partner attribution and original rights."
+    },
+    {
+      "source_id": "nasa_firms_context",
+      "governance_class": "official_sensor_network",
+      "evidence_role": "thermal_anomaly_detection",
+      "official_or_primary": true,
+      "update_cadence": "near_real_time",
+      "credential_env": "FIRMS_MAP_KEY",
+      "backfill_capability": "date plus 1-5 day windows",
+      "notes": "Thermal anomalies are contextual detections and are not attack attribution."
+    }
+  ]
+}
