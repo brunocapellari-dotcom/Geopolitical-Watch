@@ -1,0 +1,47 @@
+name: public-beta-integration
+
+on:
+  pull_request:
+    paths:
+      - "geowatch/pipeline.py"
+      - "geowatch/sources/gdelt.py"
+      - "geowatch/sources/gdacs.py"
+      - "config/sources.public-beta.json"
+      - "scripts/assert_beta_run.py"
+      - ".github/workflows/public-beta-monitor.yml"
+      - ".github/workflows/public-beta-integration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-beta-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run real GDELT and GDACS beta path
+        run: |
+          set -o pipefail
+          mkdir -p data/raw reports
+          python -m geowatch collect --config config/sources.public-beta.json --db data/beta-smoke.db --raw data/raw --reports reports | tee beta-run.json
+      - name: Assert live beta health
+        run: python scripts/assert_beta_run.py --run beta-run.json --db data/beta-smoke.db --reports reports
+      - name: Upload live beta evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geowatch-live-beta-smoke-${{ github.run_id }}
+          path: |
+            beta-run.json
+            data/beta-smoke.db
+            data/raw/
+            reports/
+          if-no-files-found: warn
+          retention-days: 7
