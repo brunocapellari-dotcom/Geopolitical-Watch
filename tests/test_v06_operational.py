@@ -63,11 +63,14 @@ class V06OperationalTests(unittest.TestCase):
                     with urlopen(base+"/v2/geopolitics/graph") as r: graph=json.load(r)
                     with urlopen(base+"/v2/readiness") as r: readiness=json.load(r)
                     with urlopen(base+"/v2/geopolitics/infrastructure?node_id=STRAIT_HORMUZ") as r: infra=json.load(r)
-                self.assertEqual("0.10.0",health["version"]); self.assertEqual(1,len(listing["episodes"])); self.assertEqual(episodes[0].episode_id,detail["episode"]["episode_id"])
+                    with urlopen(base+"/v2/source-activation") as r: activation=json.load(r)
+                    with urlopen(base+"/v2/acceleration") as r: acceleration=json.load(r)
+                self.assertEqual("0.11.0",health["version"]); self.assertEqual(1,len(listing["episodes"])); self.assertEqual(episodes[0].episode_id,detail["episode"]["episode_id"])
                 self.assertTrue(detail["strategic_context"]["context_not_evidence"]); self.assertTrue(detail["strategic_graph_context"]["context_not_evidence"]); self.assertTrue(detail["escalation_readout"]["indicator_score_not_probability"])
                 self.assertEqual("geowatch-review-queue-v1",review["schema_version"]); self.assertEqual("geowatch-coverage-inventory-v1",coverage["schema_version"])
                 self.assertEqual("geowatch-forecast-calibration-v1",forecasts["schema_version"]); self.assertEqual("JPN",japan["profile"]["country_id"]); self.assertTrue(graph["governance"]["edge_requires_source"])
                 self.assertFalse(readiness["target_reached"]); self.assertEqual("STRAIT_HORMUZ",infra["node"]["node_id"])
+                self.assertTrue(activation["single_source_block_does_not_block_pipeline"]); self.assertTrue(acceleration["external_gates_are_not_faked"])
             finally:
                 os.environ.pop("GEOWATCH_DB",None) if old is None else os.environ.__setitem__("GEOWATCH_DB",old)
 

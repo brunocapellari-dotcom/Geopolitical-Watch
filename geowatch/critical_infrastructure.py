@@ -16,8 +16,18 @@ class CriticalInfrastructureGraph:
             self.adj[edge["to"]].add(edge["from"])
 
     @classmethod
-    def from_json(cls, path: str | Path = "config/geopolitics/critical_infrastructure.json") -> "CriticalInfrastructureGraph":
-        return cls(json.loads(Path(path).read_text(encoding="utf-8")))
+    def from_json(cls, path: str | Path = "config/geopolitics/critical_infrastructure.json",
+                  supplement_path: str | Path = "config/geopolitics/critical_infrastructure_v011.json") -> "CriticalInfrastructureGraph":
+        payload=json.loads(Path(path).read_text(encoding="utf-8"))
+        supplement=Path(supplement_path)
+        if supplement.exists():
+            extra=json.loads(supplement.read_text(encoding="utf-8"))
+            node_ids={row["node_id"] for row in payload.get("nodes", [])}
+            edge_keys={(row.get("from"),row.get("to"),row.get("type")) for row in payload.get("edges", [])}
+            payload={**payload,
+                "nodes":list(payload.get("nodes", []))+[row for row in extra.get("nodes", []) if row["node_id"] not in node_ids],
+                "edges":list(payload.get("edges", []))+[row for row in extra.get("edges", []) if (row.get("from"),row.get("to"),row.get("type")) not in edge_keys]}
+        return cls(payload)
 
     def node(self, node_id: str) -> dict | None:
         row = self.nodes.get(node_id)

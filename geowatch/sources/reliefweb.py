@@ -10,18 +10,52 @@ from ..models import Event
 BASE_URL = "https://api.reliefweb.int/v2/reports"
 
 
-def collect(*, appname: str | None = None, query: str = "conflict war hostilities displacement", limit: int = 100, timeout: int = 60) -> tuple[bytes, str]:
-    appname = appname or os.environ.get("RELIEFWEB_APPNAME")
+def _appname(value: str | None) -> str:
+    appname = value or os.environ.get("RELIEFWEB_APPNAME")
     if not appname:
         raise RuntimeError("RELIEFWEB_APPNAME is required")
+    return appname
+
+
+def collect(*, appname: str | None = None, query: str = "conflict war hostilities displacement", limit: int = 100, timeout: int = 60) -> tuple[bytes, str]:
     response = get(BASE_URL, timeout=timeout, query={
-        "appname": appname,
+        "appname": _appname(appname),
         "profile": "full",
         "preset": "latest",
         "limit": min(max(limit, 1), 1000),
         "query[value]": query,
     })
     return response.payload, response.url
+
+
+def collect_window(*, start: str, end: str, appname: str | None = None,
+                   query: str = "conflict war hostilities displacement", limit: int = 500,
+                   max_pages: int = 20, timeout: int = 60) -> tuple[list[bytes], list[str]]:
+    """Collect a bounded historical window using official V2 range filters and offset pagination."""
+    app = _appname(appname)
+    limit = min(max(limit, 1), 1000)
+    payloads: list[bytes] = []
+    urls: list[str] = []
+    for page in range(max_pages):
+        offset = page * limit
+        response = get(BASE_URL, timeout=timeout, query={
+            "appname": app,
+            "profile": "full",
+            "limit": limit,
+            "offset": offset,
+            "sort[]": "date.created:asc",
+            "query[value]": query,
+            "filter[field]": "date.created",
+            "filter[value][from]": start,
+            "filter[value][to]": end,
+        })
+        payloads.append(response.payload)
+        urls.append(response.url)
+        body = json.loads(response.payload.decode("utf-8"))
+        rows = body.get("data", [])
+        if not isinstance(rows, list) or len(rows) < limit:
+            break
+    return payloads, urls
 
 
 def parse(payload: bytes, *, source_id: str = "reliefweb", collected_at: str | None = None, raw_ref: str | None = None) -> list[Event]:
