@@ -1,0 +1,25 @@
+{
+  "schema_version": "geowatch-escalation-indicators-v1",
+  "principles": {
+    "indicator_is_not_event_confirmation": true,
+    "multiple_indicators_required_for_strong_inference": true,
+    "context_and_baseline_required": true,
+    "deescalation_indicators_tracked_separately": true
+  },
+  "indicators": [
+    {"id":"reserve_mobilization","direction":"escalation","weight":3,"keywords":["reserve mobilization","reservists called up","partial mobilization"],"questions":["is this routine rotation or exceptional mobilization","what force size and geography are involved"]},
+    {"id":"force_reinforcement","direction":"escalation","weight":2,"keywords":["troop reinforcement","additional forces","military buildup","deployment of forces"],"questions":["is the movement defensive, offensive, rotational, or exercise-related"]},
+    {"id":"diplomatic_drawdown","direction":"escalation","weight":2,"keywords":["embassy evacuation","diplomatic staff withdrawn","ordered citizens to leave"],"questions":["is the action precautionary or tied to a specific threat assessment"]},
+    {"id":"airspace_restriction","direction":"escalation","weight":2,"keywords":["airspace closed","flight restriction","notam restriction"],"questions":["what area, altitude and duration are covered"]},
+    {"id":"maritime_restriction","direction":"escalation","weight":3,"keywords":["shipping warning","maritime exclusion zone","port closed","navigation restricted"],"questions":["is commercial shipping materially affected","is the restriction official or reported"]},
+    {"id":"strategic_infrastructure_attack","direction":"escalation","weight":4,"keywords":["refinery attacked","pipeline attacked","port attacked","power grid attacked","subsea cable damaged"],"questions":["is attribution independently corroborated","what capacity is actually offline"]},
+    {"id":"cross_border_strike","direction":"escalation","weight":4,"keywords":["cross-border strike","strike inside","attack across the border"],"questions":["is the strike acknowledged","does it expand the conflict geography"]},
+    {"id":"ceasefire_collapse","direction":"escalation","weight":4,"keywords":["ceasefire collapsed","truce collapsed","ceasefire violated"],"questions":["is the breach isolated or systematic","do parties still recognize the agreement"]},
+    {"id":"new_sanctions_package","direction":"pressure","weight":2,"keywords":["new sanctions","additional sanctions","asset freeze","export restrictions"],"questions":["what channels of coercion are targeted","what substitution or evasion paths exist"]},
+    {"id":"nuclear_posture_change","direction":"escalation","weight":5,"keywords":["nuclear alert","nuclear posture","strategic forces alert"],"questions":["is this declaratory signaling or an observable operational change"]},
+    {"id":"backchannel_talks","direction":"deescalation","weight":2,"keywords":["backchannel talks","secret talks","indirect negotiations"],"questions":["are talks authorized and sustained","what issues are actually under negotiation"]},
+    {"id":"ceasefire_agreement","direction":"deescalation","weight":4,"keywords":["ceasefire agreement","truce agreed","cessation of hostilities"],"questions":["when does it enter into force","what monitoring and enforcement mechanisms exist"]},
+    {"id":"force_withdrawal","direction":"deescalation","weight":3,"keywords":["troops withdrawn","military withdrawal","forces pulled back"],"questions":["is withdrawal verified and geographically meaningful"]},
+    {"id":"infrastructure_restoration","direction":"deescalation","weight":2,"keywords":["port reopened","pipeline restored","power restored","shipping resumed"],"questions":["what proportion of normal capacity has returned"]}
+  ]
+}
