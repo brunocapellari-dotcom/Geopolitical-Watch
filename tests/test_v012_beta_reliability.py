@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
 
 from geowatch.beta_digest import build_beta_digest, render_beta_digest_markdown
+from geowatch.convergence import converge_events
 from geowatch.empirical_history import EmpiricalHistory
 from geowatch.historical_forecast_baseline import baseline_summary, build_base_rate_forecasts
 from geowatch.http import get
+from geowatch.models import Event
 
 
 class _DummyResponse:
@@ -35,6 +38,7 @@ class V012BetaReliabilityTests(unittest.TestCase):
         self.assertIn('concurrency:', text)
         self.assertIn('actions/cache/restore@v4', text)
         self.assertIn('actions/cache/save@v4', text)
+        self.assertIn('geowatch-public-beta-v2-', text)
         self.assertIn('set -o pipefail', text)
         self.assertIn('scripts/assert_beta_run.py', text)
         self.assertIn('scripts/build_beta_digest.py', text)
@@ -72,6 +76,44 @@ class V012BetaReliabilityTests(unittest.TestCase):
         self.assertIn('structural_source_errors', text)
         self.assertIn('HTTP Error 429', text)
         self.assertIn('parser_schema_and_configuration_errors_fail_the_beta_run', text)
+
+    def test_context_only_gdacs_cannot_seed_conflict_episode(self):
+        event = Event(
+            event_id='gdacs1', source_id='gdacs_context', source_kind='institutional',
+            title='Flood affecting transport corridor', event_type='gdacs_fl',
+            reference_at='2026-08-24T10:00:00+00:00', collected_at='2026-08-24T10:01:00+00:00',
+            verification_level='curated_report', country='Brazil', latitude=-3.1, longitude=-60.0,
+            publisher='gdacs.org',
+        )
+        episodes, claims, evidence, _, changes = converge_events([event], now=datetime(2026, 8, 24, 12, tzinfo=timezone.utc))
+        self.assertEqual([], episodes)
+        self.assertEqual([], claims)
+        self.assertEqual([], evidence)
+        self.assertEqual([], changes)
+
+    def test_sensor_signal_cannot_seed_conflict_episode(self):
+        event = Event(
+            event_id='firms1', source_id='nasa_firms_context', source_kind='sensor',
+            title='Thermal anomaly at 1,2', event_type='thermal_anomaly',
+            reference_at='2026-08-24T10:00:00+00:00', collected_at='2026-08-24T10:01:00+00:00',
+            verification_level='sensor_signal', latitude=1.0, longitude=2.0, publisher='NASA FIRMS',
+        )
+        episodes, claims, evidence, _, _ = converge_events([event], now=datetime(2026, 8, 24, 12, tzinfo=timezone.utc))
+        self.assertEqual([], episodes)
+        self.assertEqual([], claims)
+        self.assertEqual([], evidence)
+
+    def test_conflict_news_still_seeds_episode(self):
+        event = Event(
+            event_id='news1', source_id='gdelt_conflict_news', source_kind='news',
+            title='Missile strike reported near port', event_type='media_report',
+            reference_at='2026-08-24T10:00:00+00:00', collected_at='2026-08-24T10:01:00+00:00',
+            verification_level='osint_signal', country='Ukraine', publisher='example.com',
+        )
+        episodes, claims, evidence, _, _ = converge_events([event], now=datetime(2026, 8, 24, 12, tzinfo=timezone.utc))
+        self.assertEqual(1, len(episodes))
+        self.assertEqual(1, len(claims))
+        self.assertEqual(1, len(evidence))
 
     def test_empirical_history_preserves_layers_and_hides_future_outcomes(self):
         curated = [{
