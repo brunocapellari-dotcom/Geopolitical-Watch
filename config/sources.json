@@ -38,6 +38,22 @@
       "area": "world",
       "day_range": 1,
       "extension": "csv"
+    },
+    {
+      "source_id": "gdacs_context",
+      "kind": "gdacs",
+      "enabled": true,
+      "extension": "json",
+      "notes": "Official institutional disaster/context signal; not conflict attribution."
+    },
+    {
+      "source_id": "acled_events",
+      "kind": "acled",
+      "enabled": false,
+      "limit": 5000,
+      "lookback_days": 7,
+      "extension": "json",
+      "notes": "Requires myACLED/OAuth credentials and source-term review before enabling."
     }
   ],
   "report": {
@@ -48,5 +64,11 @@
     "title_similarity_threshold": 0.78,
     "cluster_time_hours": 36,
     "cluster_distance_km": 250
+  },
+  "convergence": {
+    "entity_catalog": "config/entities.json",
+    "episode_lookback_days": 180,
+    "attach_threshold": 0.43,
+    "max_report_episodes": 50
   }
 }

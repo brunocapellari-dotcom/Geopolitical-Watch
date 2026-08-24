@@ -4,52 +4,71 @@ Standalone public-source geopolitical conflict monitoring and intelligence feed.
 
 ## Status
 
-Version **0.5.0** adds persistent conflict episodes, claims/evidence lineage, multilingual entity resolution, contradiction handling, decomposed evidence strength and a convergence engine. The project remains fully independent from AgroLog MT; AgroLog MT is only a downstream consumer of the versioned feed contract.
-
-## What it does
-
-- Collects high-frequency conflict-related news from GDELT DOC 2.0.
-- Supports UCDP GED as a research-coded event layer when a token is configured.
-- Supports ReliefWeb V2 as a curated humanitarian/institutional report layer when an approved appname is configured.
-- Supports NASA FIRMS as a contextual thermal-anomaly sensor layer when a MAP_KEY is configured.
-- Preserves raw snapshots with SHA-256 and collection metadata.
-- Maintains per-source checkpoints and collector-run audit records.
-- Supports bounded historical backfill for GDELT, UCDP and FIRMS.
-- Normalizes country aliases and canonical event geography.
-- Separates OSINT signals, curated reports, research-coded events and sensor signals.
-- Builds persistent `ConflictEpisode` records above the immutable event layer.
-- Preserves normalized claims, evidence relations, contradictions, corrections and retractions.
-- Resolves multilingual strategic infrastructure/route aliases and actor entities.
-- Decomposes evidence strength by provider independence, coded/institutional/sensor evidence, geolocation, entity resolution, recency and contradictions.
-- Publishes `geowatch-feed-v2` episode intelligence while preserving `geowatch-feed-v1`.
-- Persists events, entities, episodes, claims, evidence, lineage and change history in SQLite for local/reference execution.
-
-## Evidence discipline
-
-A news article proves that a publication was observed, not automatically that the reported event occurred exactly as described. A thermal anomaly is contextual evidence and is never treated as proof of an attack by itself. The `overall_index` in evidence strength is a triage index, not a probability that a claim is true.
-
-## Quick start
-
-Python 3.12+ is sufficient; the core runtime uses the standard library only.
-
-1. Run tests: `python -m unittest discover -s tests -v`
-2. Collect enabled sources: `python -m geowatch collect`
-3. Backfill one supported source: `python -m geowatch backfill --source gdelt_conflict_news --start 2026-08-20T00:00:00Z --end 2026-08-21T00:00:00Z`
-4. Evaluate clustering replay: `python -m geowatch evaluate --fixture tests/fixtures/clustering_eval.json`
-5. Evaluate episode convergence: `python -m geowatch evaluate-episodes --fixture tests/fixtures/episode_eval.json`
-6. Serve the API: `python -m geowatch serve`
+Version **0.6.0** adds the operational data layer above the v0.5 convergence engine: GDACS context, ACLED OAuth/cursor support, PostgreSQL/PostGIS production storage, durable GCS RAW evidence, API v2 queries, Prometheus metrics and reproducible GCP deployment assets. The project remains fully independent from AgroLog MT; AgroLog MT is only a downstream consumer of published feeds.
 
 ## Architecture
 
-`sources -> RAW/checkpoints -> events -> entity resolution -> claims/evidence -> persistent conflict episodes -> convergence/state/change detection -> reports -> versioned feeds -> consumers`
+`sources -> durable RAW/checkpoints -> normalized events -> entity resolution -> claims/evidence -> persistent conflict episodes -> convergence/state/change detection -> PostgreSQL/PostGIS -> API/feed v1+v2 -> consumers`
 
-`Event` remains the immutable evidence record. `ConflictEpisode` is the persistent analytical unit.
+- `Event` remains the preserved evidence record.
+- `ConflictEpisode` is the persistent analytical unit.
+- SQLite remains the zero-cost local/test backend.
+- PostgreSQL/PostGIS is the production backend when `GEOWATCH_DB_URL` is set.
+- Filesystem RAW remains available locally; GCS is selected with `GEOWATCH_RAW_BUCKET` or a `gs://` RAW location.
 
-## Compatibility
+## Sources
 
-- `geowatch-feed-v1`: event/cluster feed retained for existing consumers.
-- `geowatch-feed-v2`: episode-level feed with claims, evidence strength, entities and change flags.
+- GDELT DOC 2.0 — enabled high-frequency publication signal.
+- GDACS — enabled institutional disaster/context signal; never conflict attribution by itself.
+- UCDP GED — supported, disabled until token/config review.
+- ReliefWeb V2 — supported, disabled until approved appname.
+- NASA FIRMS — supported, disabled until MAP_KEY/operational region is configured.
+- ACLED — supported with OAuth and cursor pagination, disabled until myACLED credentials and terms review.
 
-## Current development direction
+## Evidence discipline
 
-The next major step is **v0.6 — operational data layer**: add GDACS/ACLED adapters, PostgreSQL/PostGIS production storage, API v2 query surfaces, observability and deployment assets. v0.7 then adds dashboard, alert delivery and consumer profiles.
+A publication proves publication observation, not automatic confirmation of the reported event. A thermal anomaly or disaster alert is contextual evidence, not attack attribution. `EvidenceStrength.overall_index` is a triage/evidence-strength index, not a probability that a claim is true.
+
+## Quick start
+
+1. `python -m unittest discover -s tests -v`
+2. `python -m geowatch collect`
+3. `python -m geowatch serve`
+4. `python -m geowatch metrics`
+
+Optional PostgreSQL/GCS dependencies: `pip install '.[production]'`.
+
+## API
+
+Compatibility endpoints remain:
+- `GET /v1/feed`
+- `GET /v1/reports/latest`
+
+Operational episode API:
+- `GET /v2/feed`
+- `GET /v2/reports/latest`
+- `GET /v2/episodes?country=&state=&since=&min_strength=&limit=`
+- `GET /v2/episodes/{episode_id}`
+- `GET /v2/events?country=&since=&limit=`
+- `GET /v2/changes?since=&limit=`
+- `GET /v2/operational`
+- `GET /metrics`
+- `GET /health`
+
+Set `GEOWATCH_API_TOKEN` before exposing the service outside a trusted boundary.
+
+## Production variables
+
+- `GEOWATCH_DB_URL` — PostgreSQL/PostGIS DSN.
+- `GEOWATCH_RAW_BUCKET` — GCS bucket for immutable RAW artifacts.
+- `GEOWATCH_RAW_PREFIX` — optional object prefix, default `raw`.
+- `GEOWATCH_API_TOKEN` — API bearer token.
+- source credentials such as `UCDP_API_TOKEN`, `RELIEFWEB_APPNAME`, `FIRMS_MAP_KEY`, and ACLED credentials are only required when those sources are enabled.
+
+## Deployment state
+
+`scripts/deploy_gcp.sh` provisions/deploys Cloud Run API + Cloud Run collector job + Cloud Scheduler + GCS wiring, but repository presence does **not** mean the cloud service has been deployed. A live deployment requires a GCP project, PostgreSQL/PostGIS DSN secret and API token secret, followed by a collector/API smoke test.
+
+## Next
+
+v0.7 adds the product layer: authenticated dashboard/map, alert policies/outbox delivery, timelines and consumer-specific feeds while keeping Geopolitical Watch independent from downstream systems.
