@@ -107,4 +107,4 @@ Set `GEOWATCH_API_TOKEN` before exposing data endpoints outside a trusted bounda
 - v0.5 convergence engine — complete.
 - v0.6 operational data layer — complete in code/CI; live deployment external.
 - v0.7 product/alert layer — complete, CI passed and merged.
-- v0.8 geopolitical knowledge + validation — implemented in this branch pending CI/release merge.
+- v0.8 geopolitical knowledge + validation — **complete, CI passed and merged in PR #6**.
