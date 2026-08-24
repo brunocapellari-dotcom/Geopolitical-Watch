@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Iterable
 
 
 class GlobalProfileRegistry:
@@ -18,11 +19,19 @@ class GlobalProfileRegistry:
         self._profiles = {row["country_id"]: row for row in enriched.get("profiles", [])}
 
     @classmethod
-    def from_files(cls, registry_path: str | Path = "config/geopolitics/country_registry.json", enriched_path: str | Path = "config/geopolitics/country_profiles.json") -> "GlobalProfileRegistry":
-        return cls(
-            json.loads(Path(registry_path).read_text(encoding="utf-8")),
-            json.loads(Path(enriched_path).read_text(encoding="utf-8")),
-        )
+    def from_files(cls, registry_path: str | Path = "config/geopolitics/country_registry.json",
+                   enriched_path: str | Path = "config/geopolitics/country_profiles.json",
+                   supplemental_paths: Iterable[str | Path] = ("config/geopolitics/country_profiles_v011.json",)) -> "GlobalProfileRegistry":
+        base=json.loads(Path(enriched_path).read_text(encoding="utf-8"))
+        profiles=list(base.get("profiles", []))
+        for path in supplemental_paths:
+            p=Path(path)
+            if p.exists():
+                supplement=json.loads(p.read_text(encoding="utf-8"))
+                existing={row["country_id"] for row in profiles}
+                profiles.extend(row for row in supplement.get("profiles", []) if row["country_id"] not in existing)
+        merged={**base,"profiles":profiles}
+        return cls(json.loads(Path(registry_path).read_text(encoding="utf-8")),merged)
 
     def profile(self, country_id: str) -> dict | None:
         code = country_id.upper()
