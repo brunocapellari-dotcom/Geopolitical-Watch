@@ -1,0 +1,14 @@
+{
+  "schema_version":"geowatch-firms-regions-v1",
+  "areas":[
+    {"id":"black_sea","bbox":"27,40,42,48","priority":1,"themes":["Black Sea","Ukraine","shipping","ports"]},
+    {"id":"red_sea_bab_el_mandeb","bbox":"31,10,46,31","priority":1,"themes":["Red Sea","Bab el-Mandeb","shipping"]},
+    {"id":"persian_gulf_hormuz","bbox":"46,20,62,31","priority":1,"themes":["Persian Gulf","Hormuz","energy","shipping"]},
+    {"id":"eastern_mediterranean","bbox":"25,29,39,38","priority":2,"themes":["Eastern Mediterranean","Levant","shipping"]},
+    {"id":"taiwan_strait","bbox":"117,20,123,27","priority":1,"themes":["Taiwan Strait","shipping","technology"]},
+    {"id":"south_china_sea","bbox":"105,2,122,24","priority":2,"themes":["South China Sea","shipping"]},
+    {"id":"korean_peninsula","bbox":"124,33,132,44","priority":2,"themes":["Korean Peninsula"]},
+    {"id":"sahel_core","bbox":"-18,8,25,25","priority":3,"themes":["Sahel","West Africa"]}
+  ],
+  "governance":{"world_area_for_production":false,"max_day_range":5,"sensor_context_not_attack_attribution":true,"regional_queries_preferred":true}
+}
