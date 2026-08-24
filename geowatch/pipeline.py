@@ -2,87 +2,273 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from .core import cluster_events
+from .geo import canonicalize_event
+from .history import TimeWindow, iter_windows, overlap_start, parse_utc
+from .quality import load_profiles
 from .reports import build_report, render_markdown
 from .sources import firms, gdelt, reliefweb, ucdp
 from .storage import SQLiteStore
 
 
-def run(config_path: str | Path = "config/sources.json", db_path: str | Path = "data/geowatch.db", raw_root: str | Path = "data/raw", reports_root: str | Path = "reports") -> dict:
+def run(
+    config_path: str | Path = "config/sources.json",
+    db_path: str | Path = "data/geowatch.db",
+    raw_root: str | Path = "data/raw",
+    reports_root: str | Path = "reports",
+) -> dict:
     config = json.loads(Path(config_path).read_text(encoding="utf-8"))
-    collected_at = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
+    collected_at = now.isoformat()
     raw_root = Path(raw_root)
-    all_events = []
-    source_results = []
+    store = SQLiteStore(db_path)
+    profiles = load_profiles(config.get("source_quality_profiles", "config/source_quality.json"))
+    source_results: list[dict[str, object]] = []
+
+    history_cfg = config.get("history", {})
+    default_lookback_hours = int(history_cfg.get("default_lookback_hours", 24))
+    overlap_minutes = int(history_cfg.get("checkpoint_overlap_minutes", 30))
 
     for spec in config.get("sources", []):
         if not spec.get("enabled", False):
             continue
-        source_id = spec["source_id"]
-        kind = spec["kind"]
+        source_id = str(spec["source_id"])
+        started_at = datetime.now(timezone.utc).isoformat()
+        run_id = uuid4().hex
+        request_meta: dict[str, object] = {"kind": spec.get("kind")}
         try:
-            payloads: list[bytes]
-            urls: list[str]
-            if kind == "gdelt":
-                payload, url = gdelt.collect(query=spec.get("query", gdelt.DEFAULT_QUERY), timespan=spec.get("timespan", "24H"), maxrecords=int(spec.get("maxrecords", 250)))
-                payloads, urls = [payload], [url]
-                parser = gdelt.parse
-            elif kind == "reliefweb":
-                payload, url = reliefweb.collect(query=spec.get("query", "conflict war hostilities displacement"), limit=int(spec.get("limit", 100)))
-                payloads, urls = [payload], [url]
-                parser = reliefweb.parse
-            elif kind == "ucdp":
-                payloads, urls = ucdp.collect_all(version=spec.get("version", ucdp.DEFAULT_VERSION), pagesize=int(spec.get("pagesize", 1000)))
-                parser = ucdp.parse
-            elif kind == "firms":
-                payload, url = firms.collect(sensor=spec.get("sensor", "VIIRS_SNPP_NRT"), area=spec.get("area", "world"), day_range=int(spec.get("day_range", 1)))
-                payloads, urls = [payload], [url]
-                parser = firms.parse
-            else:
-                raise ValueError(f"Unknown source kind: {kind}")
+            checkpoint = store.get_checkpoint(source_id)
+            payloads, urls, parser = _collect_incremental(
+                spec,
+                checkpoint=checkpoint,
+                now=now,
+                default_lookback_hours=default_lookback_hours,
+                overlap_minutes=overlap_minutes,
+                request_meta=request_meta,
+            )
+            source_events = []
+            for index, payload in enumerate(payloads):
+                url = urls[index] if index < len(urls) else None
+                path, digest = _store_payload(raw_root, source_id, collected_at, payload, str(spec.get("extension", "json")))
+                store.add_artifact(
+                    artifact_id=f"{source_id}:{digest}",
+                    source_id=source_id,
+                    sha256=digest,
+                    collected_at=collected_at,
+                    observed_url=url,
+                    path=str(path),
+                    bytes_count=len(payload),
+                )
+                parsed = parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=str(path))
+                source_events.extend(canonicalize_event(event) for event in parsed)
 
-            count = 0
-            for payload in payloads:
-                digest = hashlib.sha256(payload).hexdigest()
-                day = collected_at[:10]
-                path = raw_root / source_id / day / f"{digest}.{spec.get('extension','json')}"
-                path.parent.mkdir(parents=True, exist_ok=True)
-                if not path.exists():
-                    path.write_bytes(payload)
-                events = parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=str(path))
-                all_events.extend(events)
-                count += len(events)
-            source_results.append({"source_id": source_id, "status": "ok", "records": count, "urls": urls})
+            store.upsert_events(source_events)
+            last_reference = max((event.reference_at for event in source_events), default=None)
+            store.update_checkpoint(
+                source_id,
+                last_success_at=collected_at,
+                last_reference_at=last_reference,
+                cursor={"observed_urls": urls[-3:]},
+            )
+            finished_at = datetime.now(timezone.utc).isoformat()
+            store.record_run(
+                run_id=run_id,
+                source_id=source_id,
+                started_at=started_at,
+                finished_at=finished_at,
+                status="ok",
+                records=len(source_events),
+                request=request_meta,
+            )
+            source_results.append({"source_id": source_id, "status": "ok", "records": len(source_events), "urls": urls})
         except Exception as exc:
-            source_results.append({"source_id": source_id, "status": "error", "error": f"{type(exc).__name__}: {exc}"})
+            finished_at = datetime.now(timezone.utc).isoformat()
+            error = f"{type(exc).__name__}: {exc}"
+            store.record_run(
+                run_id=run_id,
+                source_id=source_id,
+                started_at=started_at,
+                finished_at=finished_at,
+                status="error",
+                records=0,
+                request=request_meta,
+                error=error,
+            )
+            source_results.append({"source_id": source_id, "status": "error", "error": error})
 
-    clusters = cluster_events(all_events)
+    report_cfg = config.get("report", {})
+    report_lookback_hours = int(report_cfg.get("lookback_hours", 72))
+    analysis_since = (now - timedelta(hours=max(1, report_lookback_hours))).isoformat()
+    analysis_events = store.load_events_since(analysis_since)
+    clusters = cluster_events(
+        analysis_events,
+        threshold=float(report_cfg.get("title_similarity_threshold", 0.78)),
+        max_time_delta_hours=float(report_cfg.get("cluster_time_hours", 36)),
+        max_distance_km=float(report_cfg.get("cluster_distance_km", 250)),
+    )
     report = build_report(
         clusters,
         generated_at=collected_at,
-        min_priority=int(config.get("report", {}).get("min_priority", 0)),
-        max_events=int(config.get("report", {}).get("max_events", 20)),
-        max_news_per_event=int(config.get("report", {}).get("max_news_per_event", 5)),
+        min_priority=int(report_cfg.get("min_priority", 0)),
+        max_events=int(report_cfg.get("max_events", 20)),
+        max_news_per_event=int(report_cfg.get("max_news_per_event", 5)),
+        source_profiles=profiles,
     )
     markdown = render_markdown(report)
-
-    store = SQLiteStore(db_path)
-    store.upsert_events(all_events)
     store.upsert_clusters(clusters, collected_at)
     store.upsert_report(report, markdown)
     store.close()
+    _write_reports(reports_root, collected_at, report, markdown)
 
-    reports_root = Path(reports_root)
-    day_dir = reports_root / collected_at[:10]
+    return {
+        "generated_at": collected_at,
+        "source_results": source_results,
+        "analysis_events": len(analysis_events),
+        "clusters": len(clusters),
+        "report_id": report["report_id"],
+    }
+
+
+def backfill(
+    source_id: str,
+    start: str,
+    end: str,
+    *,
+    config_path: str | Path = "config/sources.json",
+    db_path: str | Path = "data/geowatch.db",
+    raw_root: str | Path = "data/raw",
+    chunk_hours: int = 6,
+) -> dict:
+    """Historical source replay/backfill with explicit bounded windows.
+
+    GDELT uses STARTDATETIME/ENDDATETIME windows, UCDP uses StartDate/EndDate
+    with paging, and FIRMS uses its documented date + day-range interface.
+    ReliefWeb historical backfill is intentionally not automated in v0.4.
+    """
+    config = json.loads(Path(config_path).read_text(encoding="utf-8"))
+    spec = next((row for row in config.get("sources", []) if row.get("source_id") == source_id), None)
+    if spec is None:
+        raise ValueError(f"Unknown source_id: {source_id}")
+    kind = spec.get("kind")
+    store = SQLiteStore(db_path)
+    raw_root = Path(raw_root)
+    collected_at = datetime.now(timezone.utc).isoformat()
+    total_records = 0
+    requests = 0
+
+    if kind == "gdelt":
+        for window in iter_windows(start, end, hours=max(1, chunk_hours)):
+            params = window.gdelt_params()
+            payload, url = gdelt.collect(
+                query=spec.get("query", gdelt.DEFAULT_QUERY),
+                maxrecords=int(spec.get("maxrecords", 250)),
+                start_datetime=params["startdatetime"],
+                end_datetime=params["enddatetime"],
+            )
+            total_records += _persist_backfill_payload(store, raw_root, spec, payload, url, collected_at, gdelt.parse)
+            requests += 1
+    elif kind == "ucdp":
+        start_date = parse_utc(start).date().isoformat()
+        end_date = parse_utc(end).date().isoformat()
+        payloads, urls = ucdp.collect_all(
+            version=spec.get("version", ucdp.DEFAULT_VERSION),
+            pagesize=int(spec.get("pagesize", 1000)),
+            start_date=start_date,
+            end_date=end_date,
+        )
+        for payload, url in zip(payloads, urls):
+            total_records += _persist_backfill_payload(store, raw_root, spec, payload, url, collected_at, ucdp.parse)
+        requests += len(payloads)
+    elif kind == "firms":
+        current = parse_utc(start).date()
+        finish = parse_utc(end).date()
+        while current <= finish:
+            remaining = (finish - current).days + 1
+            day_range = min(5, remaining)
+            payload, url = firms.collect(
+                sensor=spec.get("sensor", "VIIRS_SNPP_NRT"),
+                area=spec.get("area", "world"),
+                day_range=day_range,
+                date=current.isoformat(),
+            )
+            total_records += _persist_backfill_payload(store, raw_root, spec, payload, url, collected_at, firms.parse)
+            current += timedelta(days=day_range)
+            requests += 1
+    else:
+        store.close()
+        raise NotImplementedError(f"Backfill not implemented for source kind: {kind}")
+
+    store.update_checkpoint(source_id, last_success_at=collected_at, last_reference_at=end)
+    store.close()
+    return {"source_id": source_id, "start": start, "end": end, "requests": requests, "records": total_records}
+
+
+def _collect_incremental(spec: dict, *, checkpoint: dict | None, now: datetime, default_lookback_hours: int, overlap_minutes: int, request_meta: dict[str, object]):
+    kind = spec["kind"]
+    if kind == "gdelt":
+        start = overlap_start(
+            checkpoint.get("last_success_at") if checkpoint else None,
+            default_lookback_hours=int(spec.get("lookback_hours", default_lookback_hours)),
+            overlap_minutes=overlap_minutes,
+            now=now,
+        )
+        params = TimeWindow(start, now).gdelt_params()
+        request_meta.update(params)
+        payload, url = gdelt.collect(
+            query=spec.get("query", gdelt.DEFAULT_QUERY),
+            maxrecords=int(spec.get("maxrecords", 250)),
+            start_datetime=params["startdatetime"],
+            end_datetime=params["enddatetime"],
+        )
+        return [payload], [url], gdelt.parse
+    if kind == "reliefweb":
+        payload, url = reliefweb.collect(query=spec.get("query", "conflict war hostilities displacement"), limit=int(spec.get("limit", 100)))
+        return [payload], [url], reliefweb.parse
+    if kind == "ucdp":
+        start_date = None
+        if checkpoint and checkpoint.get("last_reference_at"):
+            start_date = (parse_utc(checkpoint["last_reference_at"]) - timedelta(days=1)).date().isoformat()
+            request_meta["StartDate"] = start_date
+        payloads, urls = ucdp.collect_all(version=spec.get("version", ucdp.DEFAULT_VERSION), pagesize=int(spec.get("pagesize", 1000)), start_date=start_date)
+        return payloads, urls, ucdp.parse
+    if kind == "firms":
+        payload, url = firms.collect(sensor=spec.get("sensor", "VIIRS_SNPP_NRT"), area=spec.get("area", "world"), day_range=int(spec.get("day_range", 1)))
+        return [payload], [url], firms.parse
+    raise ValueError(f"Unknown source kind: {kind}")
+
+
+def _store_payload(raw_root: Path, source_id: str, collected_at: str, payload: bytes, extension: str) -> tuple[Path, str]:
+    digest = hashlib.sha256(payload).hexdigest()
+    path = raw_root / source_id / collected_at[:10] / f"{digest}.{extension}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        path.write_bytes(payload)
+    return path, digest
+
+
+def _persist_backfill_payload(store: SQLiteStore, raw_root: Path, spec: dict, payload: bytes, url: str, collected_at: str, parser) -> int:
+    source_id = str(spec["source_id"])
+    path, digest = _store_payload(raw_root, source_id, collected_at, payload, str(spec.get("extension", "json")))
+    store.add_artifact(
+        artifact_id=f"{source_id}:{digest}", source_id=source_id, sha256=digest,
+        collected_at=collected_at, observed_url=url, path=str(path), bytes_count=len(payload),
+    )
+    events = [canonicalize_event(event) for event in parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=str(path))]
+    store.upsert_events(events)
+    return len(events)
+
+
+def _write_reports(reports_root: str | Path, collected_at: str, report: dict, markdown: str) -> None:
+    root = Path(reports_root)
+    day_dir = root / collected_at[:10]
     day_dir.mkdir(parents=True, exist_ok=True)
     stamp = collected_at.replace(":", "-").replace("+", "_")
     (day_dir / f"{stamp}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     (day_dir / f"{stamp}.md").write_text(markdown, encoding="utf-8")
-    reports_root.mkdir(parents=True, exist_ok=True)
-    (reports_root / "latest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    (reports_root / "latest.md").write_text(markdown, encoding="utf-8")
-
-    return {"generated_at": collected_at, "source_results": source_results, "events": len(all_events), "clusters": len(clusters), "report_id": report["report_id"]}
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "latest.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    (root / "latest.md").write_text(markdown, encoding="utf-8")
