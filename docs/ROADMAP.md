@@ -57,7 +57,7 @@ Live GCP deployment remains an external execution gate.
 - webhook dispatcher
 - product regression suite
 
-## v0.8 — geopolitical knowledge and validation — implemented pending release gate
+## v0.8 — geopolitical knowledge and validation — complete
 
 - advanced geopolitics curriculum
 - structured geopolitical knowledge graph seed
@@ -74,6 +74,7 @@ Live GCP deployment remains an external execution gate.
 - auditable episode merge lineage
 - safe split planning with forced recomputation
 - v0.8 regression suite
+- GitHub Actions release gate passed in PR #6
 
 ## v0.9 — validation, historical learning and strategic graph — next
 
