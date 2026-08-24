@@ -4,7 +4,7 @@
 
 The standalone baseline, history/quality, convergence engine, operational data layer, product/alerts, geopolitical knowledge, strategic learning and empirical-readiness layers are complete in code/CI. Live cloud operation remains a separate evidence gate.
 
-## v0.11 — accelerated production and empirical validation — implemented pending CI
+## v0.11 — accelerated production and empirical validation — complete
 
 Delivered in this code wave:
 
@@ -22,7 +22,8 @@ Delivered in this code wave:
 12. critical-infrastructure graph expanded beyond chokepoints into ports, energy terminals, pipelines and cable corridors;
 13. historical crisis corpus expanded from ~40 to ~78 cases with layered source enrichment;
 14. rolling out-of-sample forecast/alert/convergence reporting added;
-15. source-rights/release/recovery audits consolidated for a v1 go/no-go gate.
+15. source-rights/release/recovery audits consolidated for a v1 go/no-go gate;
+16. GitHub Actions cumulative release gate passed in PR #12.
 
 The conservative weighted project-readiness estimate is now approximately **0.77**. This is project readiness, not analytical accuracy. The target cannot reach 0.95 until all external hard gates pass.
 
