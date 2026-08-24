@@ -104,4 +104,4 @@ Strategic mutations remain CLI/internal operations rather than public HTTP write
 - v0.7 product/alert layer — complete.
 - v0.8 geopolitical knowledge + validation — complete.
 - v0.9 strategic intelligence + historical learning — complete.
-- v0.10 empirical intelligence + production readiness — implemented in this branch pending release gate.
+- v0.10 empirical intelligence + production readiness — **complete, CI passed and merged in PR #10**.

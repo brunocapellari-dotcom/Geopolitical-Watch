@@ -28,7 +28,7 @@ Advanced geopolitics curriculum, theory/concept/case knowledge, canonical source
 
 Persistent review decisions, reversible episode operations, probabilistic forecasts, calibration, competing hypotheses, country profiles, strategic graph, escalation indicators, geoeconomic context, sanctions/maritime models and governed learning proposals.
 
-## v0.10 — empirical intelligence and production readiness — implemented pending release gate
+## v0.10 — empirical intelligence and production readiness — complete
 
 - global ISO country/territory registry with enrichment status separated from coverage;
 - structural actor-profile registry;
@@ -46,7 +46,8 @@ Persistent review decisions, reversible episode operations, probabilistic foreca
 - post-event/postmortem learning loop with non-automatic proposals;
 - weighted readiness model plus mandatory hard gates;
 - v1 production preflight that never prints secrets;
-- v0.10 regression and API smoke coverage.
+- v0.10 regression and API smoke coverage;
+- GitHub Actions release gate passed in PR #10.
 
 Current conservative weighted project-readiness baseline after this code wave is approximately **0.71**. This is project readiness, not analytical accuracy. The target cannot reach 0.95 until all hard gates pass.
 
