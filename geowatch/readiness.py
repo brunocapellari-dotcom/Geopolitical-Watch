@@ -39,14 +39,14 @@ class ReadinessModel:
 
 
 def current_code_readiness_estimate()->dict:
-    """Conservative self-assessment for v0.10 code readiness; external gates remain false."""
+    """Conservative v0.10 project-state estimate; external gates remain false."""
     scores={
-        "core_architecture":0.95,"evidence_governance":0.97,"source_coverage":0.58,"historical_coverage":0.52,
-        "strategic_knowledge":0.72,"empirical_validation":0.48,"forecast_calibration":0.35,"production_operations":0.45,
-        "security_source_rights":0.60,"documentation_recovery":0.88,
+        "core_architecture":0.97,"evidence_governance":0.98,"source_coverage":0.66,"historical_coverage":0.62,
+        "strategic_knowledge":0.82,"empirical_validation":0.58,"forecast_calibration":0.48,"production_operations":0.45,
+        "security_source_rights":0.67,"documentation_recovery":0.94,
     }
     gates={
         "live_production_smoke_passed":False,"database_restore_drill_passed":False,"source_credentials_and_terms_reviewed":False,
         "historical_out_of_sample_validation_completed":False,"security_and_source_rights_audit_completed":False,
     }
-    model=ReadinessModel.from_json(); result=model.evaluate(scores,gates); result["estimate_type"]="conservative_code_and_project_state_estimate"; return result
+    model=ReadinessModel.from_json(); result=model.evaluate(scores,gates); result["estimate_type"]="conservative_v0.10_project_state_estimate"; result["assessed_at"]="2026-08-24"; return result
