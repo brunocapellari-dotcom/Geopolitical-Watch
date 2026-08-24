@@ -1,4 +1,4 @@
-# v0.9.0 release gate
+# v0.9.0 release result
 
 ## Strategic intelligence delivered
 
@@ -32,8 +32,10 @@ The following never increase `EvidenceStrength` merely by existing:
 - sanctions context beyond its issuing legal record;
 - maritime warning beyond its navigation-safety scope.
 
-## Release gate
+## Release result
 
-The release may be merged only if the cumulative GitHub Actions test suite succeeds on the final head SHA.
+GitHub Actions run `32767193543` completed successfully for PR #8 on final head SHA `baa4499c690da5d4a3d199bb365e49bcb8194358`.
+
+PR #8 was merged into `main` with merge commit `9a2537d61d69e99c541002450606d84751f5e819`.
 
 Live GCP deployment and real-source credential activation remain separate operational gates. v0.9 code/CI does not imply production operation or empirical forecasting performance on a large historical corpus.
