@@ -17,6 +17,7 @@ def main() -> int:
     wpi = _read("generated/wpi/summary.json")
     worldbank = _read("generated/worldbank/summary.json")
     sanctions = _read("generated/sanctions/summary.json")
+    unique_sanctions = sanctions.get("unique_designation_id_counts") or sanctions.get("counts", {})
 
     checks = [
         _check("ucdp_conflict_rows", int(ucdp.get("raw_rows", {}).get("armed_conflict_year_rows", 0)) >= 500,
@@ -39,17 +40,18 @@ def main() -> int:
                f"indicators={worldbank.get('indicator_count')}"),
         _check("worldbank_observations", int(worldbank.get("observation_count", 0)) >= 1000,
                f"observations={worldbank.get('observation_count')}"),
-        _check("unsc_sanctions", int(sanctions.get("counts", {}).get("unsc", 0)) >= 10,
-               f"designations={sanctions.get('counts', {}).get('unsc')}"),
-        _check("uk_sanctions", int(sanctions.get("counts", {}).get("uk", 0)) >= 10,
-               f"designations={sanctions.get('counts', {}).get('uk')}"),
+        _check("unsc_unique_designations", int(unique_sanctions.get("unsc", 0)) >= 10,
+               f"unique_ids={unique_sanctions.get('unsc')}"),
+        _check("uk_unique_designations", int(unique_sanctions.get("uk", 0)) >= 1000,
+               f"unique_ids={unique_sanctions.get('uk')}"),
     ]
     passed = all(row["passed"] for row in checks)
     output = {
-        "schema_version": "geowatch-public-bootstrap-smoke-v1",
+        "schema_version": "geowatch-public-bootstrap-smoke-v2",
         "passed": passed,
         "checks": checks,
         "thresholds_are_sanity_checks_not_completeness_claims": True,
+        "sanctions_thresholds_use_unique_provider_ids_not_flattened_csv_rows": True,
         "public_bootstrap_pass_does_not_close_v1_hard_gates": True,
     }
     out = Path("generated/public-bootstrap-smoke.json")
