@@ -4,6 +4,10 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from _repo_path import ensure_repo_path
+
+ensure_repo_path()
+
 from geowatch.historical_forecast_baseline import baseline_summary, build_base_rate_forecasts
 from geowatch.ucdp_bulk import (
     aggregate_actor_profiles,

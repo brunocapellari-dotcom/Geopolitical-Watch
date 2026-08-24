@@ -4,6 +4,10 @@ import argparse
 import json
 from pathlib import Path
 
+from _repo_path import ensure_repo_path
+
+ensure_repo_path()
+
 from geowatch.coverage_dashboard import build_source_coverage_dashboard
 from geowatch.storage_factory import open_store
 

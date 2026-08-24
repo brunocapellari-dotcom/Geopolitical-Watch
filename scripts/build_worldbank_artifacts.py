@@ -4,6 +4,10 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from _repo_path import ensure_repo_path
+
+ensure_repo_path()
+
 from geowatch.worldbank import countries, indicator, latest_by_country, load_registry
 
 
