@@ -1,0 +1,15 @@
+{
+  "schema_version": "geowatch-maritime-notice-sources-v1",
+  "as_of_checked": "2026-08-24",
+  "sources": [
+    {"source_id":"iho_navarea","authority":"International Hydrographic Organization / NAVAREA coordinators","url":"https://iho.int/en/navigation-warnings-on-the-web","kind":"navigation_warning_index","refresh":"hourly_when_enabled"},
+    {"source_id":"ukho_navwarnings","authority":"UK Hydrographic Office","url":"https://www.gov.uk/government/publications/navigational-warnings-reporting-and-broadcasting-hazards-at-sea/navigational-warnings","kind":"navarea_and_coastal_warnings","refresh":"hourly_when_enabled"},
+    {"source_id":"nga_msi","authority":"U.S. National Geospatial-Intelligence Agency","url":"https://msi.nga.mil/","kind":"maritime_safety_information","refresh":"hourly_when_enabled"}
+  ],
+  "governance": {
+    "official_warning_is_navigation_safety_evidence_not_conflict_attribution": true,
+    "cancellation_and_validity_must_be_preserved": true,
+    "web_availability_does_not_replace_mariner_broadcast_systems": true,
+    "ais_is_separate_future_context_layer": true
+  }
+}
