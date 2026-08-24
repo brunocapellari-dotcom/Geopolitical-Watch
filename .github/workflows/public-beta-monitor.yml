@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: geowatch-public-beta
+  cancel-in-progress: false
+
 jobs:
   public-beta:
     runs-on: ubuntu-latest
@@ -17,13 +21,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Restore persistent beta database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/beta.db
+          key: geowatch-public-beta-${{ github.run_id }}
+          restore-keys: |
+            geowatch-public-beta-
       - name: Run public-source monitor
         run: |
+          set -o pipefail
           mkdir -p data/raw reports
           python -m geowatch collect --config config/sources.public-beta.json --db data/beta.db --raw data/raw --reports reports | tee beta-run.json
       - name: Build source coverage summary
         if: always()
-        run: python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json || true
+        run: |
+          if [ -f data/beta.db ]; then
+            python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json
+          else
+            echo "beta database missing; coverage summary skipped"
+          fi
       - name: Publish situational summary
         if: always()
         run: |
@@ -43,6 +60,12 @@ jobs:
             cat reports/beta_coverage.json >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Save persistent beta database
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: data/beta.db
+          key: geowatch-public-beta-${{ github.run_id }}
       - name: Upload public beta artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,6 +73,7 @@ jobs:
           name: geowatch-public-beta-${{ github.run_id }}
           path: |
             beta-run.json
+            data/beta.db
             reports/
           if-no-files-found: warn
           retention-days: 14
