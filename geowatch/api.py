@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from .actor_profiles import ActorProfiles
+from .backfill_planner import BackfillPlanner
 from .consumers import build_consumer_feed, consumer_profile_path, load_profile
 from .critical_infrastructure import CriticalInfrastructureGraph
 from .dashboard import dashboard_html, map_points
@@ -16,20 +17,27 @@ from .geopolitics import GeopoliticalKnowledge
 from .global_profiles import GlobalProfileRegistry
 from .historical_corpus import HistoricalCorpus
 from .metrics import operational_snapshot, prometheus_text
+from .profile_enrichment import ProfileEnrichmentQueue
 from .readiness import current_code_readiness_estimate
 from .reports import build_feed
 from .review import build_review_queue
 from .security_systems import SecuritySystems
+from .source_activation import SourceActivationRegistry
 from .strategic_graph import StrategicGraph
 from .strategic_state import list_forecasts, list_operations, list_review_decisions
 from .storage_factory import backend_name, open_store
 from .validation import source_coverage_inventory
+from .v011_report import build_acceleration_report
 
 API_TOKEN = os.environ.get("GEOWATCH_API_TOKEN")
 
 
+def _reviewed_terms() -> set[str]:
+    return {value.strip() for value in os.environ.get("GEOWATCH_REVIEWED_SOURCE_TERMS", "").split(",") if value.strip()}
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "GeopoliticalWatch/0.10"
+    server_version = "GeopoliticalWatch/0.11"
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -37,11 +45,22 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
 
         if path == "/health":
-            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.10.0", "storage_backend": backend_name()})
+            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.11.0", "storage_backend": backend_name()})
         if path == "/dashboard":
             return self._send_text(200, dashboard_html(), "text/html; charset=utf-8")
         if API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
             return self._send_json(401, {"error": "unauthorized"})
+
+        if path == "/v2/source-activation":
+            return self._send_json(200, SourceActivationRegistry.from_json().evaluate(env=os.environ, reviewed_terms=_reviewed_terms()))
+        if path == "/v2/backfill-plan":
+            activation=SourceActivationRegistry.from_json().evaluate(env=os.environ, reviewed_terms=_reviewed_terms())
+            limit=_int(query,"per_source_limit",2)
+            return self._send_json(200,{"schema_version":"geowatch-backfill-queue-v1","windows":BackfillPlanner.from_json().queue(activation,per_source_limit=limit)})
+        if path == "/v2/geopolitics/profile-progress":
+            return self._send_json(200,ProfileEnrichmentQueue.from_files().progress())
+        if path == "/v2/acceleration":
+            return self._send_json(200,build_acceleration_report(env=dict(os.environ),reviewed_terms=_reviewed_terms()))
 
         store = open_store()
         try:
