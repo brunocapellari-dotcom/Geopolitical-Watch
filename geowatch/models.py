@@ -9,6 +9,14 @@ ImpactArea = Literal[
     "energy", "fertilizers", "shipping", "trade", "fx", "agriculture",
     "logistics", "humanitarian", "infrastructure"
 ]
+EntityType = Literal[
+    "country", "region", "city", "actor", "government", "armed_group",
+    "organization", "port", "airport", "rail", "road", "pipeline", "refinery",
+    "power", "canal", "strait", "waterway", "route", "infrastructure", "unknown"
+]
+ClaimStatus = Literal["unverified", "supported", "disputed", "retracted", "superseded"]
+EvidenceRelation = Literal["supports", "refutes", "updates", "reports"]
+EpisodeState = Literal["emerging", "active", "escalating", "stable", "deescalating", "ceasefire", "closed"]
 
 
 @dataclass(frozen=True)
@@ -47,4 +55,147 @@ class Event:
         data = dict(row)
         data["actors"] = tuple(data.get("actors") or ())
         data["impact_areas"] = tuple(data.get("impact_areas") or ())
+        return cls(**data)  # type: ignore[arg-type]
+
+
+@dataclass(frozen=True)
+class Entity:
+    entity_id: str
+    entity_type: EntityType
+    canonical_name: str
+    aliases: tuple[str, ...] = ()
+    country: str | None = None
+    region: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    external_ids: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, object]:
+        row = asdict(self)
+        row["aliases"] = list(self.aliases)
+        row["external_ids"] = list(self.external_ids)
+        return row
+
+    @classmethod
+    def from_dict(cls, row: dict[str, object]) -> "Entity":
+        data = dict(row)
+        data["aliases"] = tuple(data.get("aliases") or ())
+        data["external_ids"] = tuple(data.get("external_ids") or ())
+        return cls(**data)  # type: ignore[arg-type]
+
+
+@dataclass(frozen=True)
+class EvidenceRef:
+    evidence_id: str
+    event_id: str
+    source_id: str
+    verification_level: VerificationLevel
+    evidence_class: EvidenceClass
+    relation: EvidenceRelation
+    observed_at: str
+    provider: str | None = None
+    url: str | None = None
+    raw_ref: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, row: dict[str, object]) -> "EvidenceRef":
+        return cls(**row)  # type: ignore[arg-type]
+
+
+@dataclass(frozen=True)
+class Claim:
+    claim_id: str
+    episode_id: str
+    claim_type: str
+    topic_key: str
+    statement: str
+    stance: EvidenceRelation
+    status: ClaimStatus
+    first_seen_at: str
+    last_seen_at: str
+    subject_entity_ids: tuple[str, ...] = ()
+    object_entity_ids: tuple[str, ...] = ()
+    evidence_ids: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, object]:
+        row = asdict(self)
+        row["subject_entity_ids"] = list(self.subject_entity_ids)
+        row["object_entity_ids"] = list(self.object_entity_ids)
+        row["evidence_ids"] = list(self.evidence_ids)
+        return row
+
+    @classmethod
+    def from_dict(cls, row: dict[str, object]) -> "Claim":
+        data = dict(row)
+        data["subject_entity_ids"] = tuple(data.get("subject_entity_ids") or ())
+        data["object_entity_ids"] = tuple(data.get("object_entity_ids") or ())
+        data["evidence_ids"] = tuple(data.get("evidence_ids") or ())
+        return cls(**data)  # type: ignore[arg-type]
+
+
+@dataclass(frozen=True)
+class EvidenceStrength:
+    provider_independence: float
+    research_coded: float
+    curated_institutional: float
+    sensor_context: float
+    geolocation: float
+    entity_resolution: float
+    recency: float
+    contradiction_penalty: float
+    overall_index: int
+    method_version: str = "geowatch-evidence-strength-v0.5"
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, row: dict[str, object]) -> "EvidenceStrength":
+        return cls(**row)  # type: ignore[arg-type]
+
+
+@dataclass(frozen=True)
+class ConflictEpisode:
+    episode_id: str
+    title: str
+    state: EpisodeState
+    started_at: str
+    last_updated_at: str
+    countries: tuple[str, ...]
+    regions: tuple[str, ...]
+    event_ids: tuple[str, ...]
+    claim_ids: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    actor_entity_ids: tuple[str, ...] = ()
+    infrastructure_entity_ids: tuple[str, ...] = ()
+    other_entity_ids: tuple[str, ...] = ()
+    change_flags: tuple[str, ...] = ()
+    evidence_strength: EvidenceStrength | None = None
+    version: int = 1
+
+    def to_dict(self) -> dict[str, object]:
+        row = asdict(self)
+        for field in (
+            "countries", "regions", "event_ids", "claim_ids", "evidence_ids",
+            "actor_entity_ids", "infrastructure_entity_ids", "other_entity_ids", "change_flags",
+        ):
+            row[field] = list(getattr(self, field))
+        if self.evidence_strength is not None:
+            row["evidence_strength"] = self.evidence_strength.to_dict()
+        return row
+
+    @classmethod
+    def from_dict(cls, row: dict[str, object]) -> "ConflictEpisode":
+        data = dict(row)
+        for field in (
+            "countries", "regions", "event_ids", "claim_ids", "evidence_ids",
+            "actor_entity_ids", "infrastructure_entity_ids", "other_entity_ids", "change_flags",
+        ):
+            data[field] = tuple(data.get(field) or ())
+        strength = data.get("evidence_strength")
+        if isinstance(strength, dict):
+            data["evidence_strength"] = EvidenceStrength.from_dict(strength)
         return cls(**data)  # type: ignore[arg-type]
