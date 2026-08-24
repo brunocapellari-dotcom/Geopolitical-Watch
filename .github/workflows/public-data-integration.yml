@@ -22,21 +22,33 @@ jobs:
   live-public-bootstrap:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Build UCDP bulk historical artifacts
-        run: python scripts/build_ucdp_bulk_artifacts.py | tee ucdp-live.json
+        run: |
+          set -o pipefail
+          python scripts/build_ucdp_bulk_artifacts.py | tee ucdp-live.json
       - name: Build NGA World Port Index artifacts
-        run: python scripts/build_wpi_artifacts.py | tee wpi-live.json
+        run: |
+          set -o pipefail
+          python scripts/build_wpi_artifacts.py | tee wpi-live.json
       - name: Build World Bank strategic baseline
-        run: python scripts/build_worldbank_artifacts.py | tee worldbank-live.json
+        run: |
+          set -o pipefail
+          python scripts/build_worldbank_artifacts.py | tee worldbank-live.json
       - name: Build official sanctions snapshots
-        run: python scripts/build_sanctions_artifacts.py | tee sanctions-live.json
+        run: |
+          set -o pipefail
+          python scripts/build_sanctions_artifacts.py | tee sanctions-live.json
       - name: Assert real public bootstrap sanity
-        run: python scripts/assert_public_bootstrap.py | tee bootstrap-live.json
+        run: |
+          set -o pipefail
+          python scripts/assert_public_bootstrap.py | tee bootstrap-live.json
       - name: Publish validation summary
         if: always()
         run: |
