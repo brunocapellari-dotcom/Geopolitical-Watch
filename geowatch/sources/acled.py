@@ -34,11 +34,39 @@ def access_token(*, timeout: int = 60) -> str:
     return str(token)
 
 
-def collect(*, query: dict[str, str | int] | None = None, limit: int = 5000, timeout: int = 90) -> tuple[bytes, str]:
-    params: dict[str, str | int] = {"limit": min(max(limit, 1), 5000), "_format": "json"}
+def collect(*, query: dict[str, str | int] | None = None, limit: int = 5000, cursor: str | int | None = None, token: str | None = None, timeout: int = 90) -> tuple[bytes, str]:
+    params: dict[str, str | int] = {"limit": min(max(limit, 1), 5000), "_format": "json", "with_total": "true"}
     params.update(query or {})
-    response = get(DATA_URL, headers={"Authorization": f"Bearer {access_token(timeout=timeout)}"}, timeout=timeout, query=params)
+    if cursor is not None:
+        params["cursor"] = cursor
+    auth = token or access_token(timeout=timeout)
+    response = get(DATA_URL, headers={"Authorization": f"Bearer {auth}"}, timeout=timeout, query=params)
     return response.payload, response.url
+
+
+def collect_all(*, query: dict[str, str | int] | None = None, limit: int = 5000, max_pages: int = 200, timeout: int = 90) -> tuple[list[bytes], list[str]]:
+    """Cursor-based pagination, preferred over page pagination for long-lived automation."""
+    token = access_token(timeout=timeout)
+    cursor: str | int | None = 0
+    payloads: list[bytes] = []
+    urls: list[str] = []
+    seen: set[str] = set()
+    for _ in range(max(1, max_pages)):
+        payload, url = collect(query=query, limit=limit, cursor=cursor, token=token, timeout=timeout)
+        payloads.append(payload)
+        urls.append(url)
+        body = json.loads(payload.decode("utf-8"))
+        next_cursor = body.get("next_cursor") if isinstance(body, dict) else None
+        if next_cursor in (None, "", 0, "0"):
+            break
+        key = str(next_cursor)
+        if key in seen:
+            raise RuntimeError("ACLED cursor pagination repeated a cursor")
+        seen.add(key)
+        cursor = next_cursor
+    else:
+        raise RuntimeError("ACLED pagination reached max_pages before next_cursor became null")
+    return payloads, urls
 
 
 def parse(payload: bytes, *, source_id: str = "acled_events", collected_at: str | None = None, raw_ref: str | None = None) -> list[Event]:
