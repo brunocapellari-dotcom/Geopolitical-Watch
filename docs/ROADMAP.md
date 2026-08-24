@@ -49,7 +49,7 @@
 
 Live GCP deployment remains an external execution gate: repository assets do not prove that a Cloud Run service, database or scheduler is running.
 
-## v0.7 — product and alert layer — complete in code pending release gate
+## v0.7 — product and alert layer — complete
 
 - dashboard/map
 - episode timelines
@@ -62,6 +62,7 @@ Live GCP deployment remains an external execution gate: repository assets do not
 - API map/alerts/consumer endpoints
 - CLI dispatcher and consumer feed commands
 - regression tests for alert dedupe/filtering and product surfaces
+- GitHub Actions release gate passed in PR #4
 
 ## v0.8 — validation and operational hardening — next
 
