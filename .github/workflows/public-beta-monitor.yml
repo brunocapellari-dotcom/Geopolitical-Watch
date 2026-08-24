@@ -20,7 +20,7 @@ jobs:
       - name: Run public-source monitor
         run: |
           mkdir -p data/raw reports
-          python -m geowatch collect --db data/beta.db --raw data/raw --reports reports | tee beta-run.json
+          python -m geowatch collect --config config/sources.public-beta.json --db data/beta.db --raw data/raw --reports reports | tee beta-run.json
       - name: Publish situational summary
         if: always()
         run: |
