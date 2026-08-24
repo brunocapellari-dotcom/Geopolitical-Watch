@@ -1,0 +1,40 @@
+name: worldbank-refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build World Bank country/geoeconomic artifacts
+        run: python scripts/build_worldbank_artifacts.py | tee worldbank-run.json
+      - name: Publish summary
+        if: always()
+        run: |
+          echo "# World Bank strategic baseline" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f generated/worldbank/summary.json ]; then
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat generated/worldbank/summary.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload World Bank artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geowatch-worldbank-${{ github.run_id }}
+          path: |
+            generated/worldbank/
+            worldbank-run.json
+          if-no-files-found: warn
+          retention-days: 30
