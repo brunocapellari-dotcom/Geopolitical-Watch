@@ -4,7 +4,7 @@ Standalone public-source geopolitical conflict monitoring and intelligence feed.
 
 ## Status
 
-Version **0.4.0** adds historical collection controls, source checkpoints, canonical geography, temporal/geospatial clustering and evaluation tooling. The project remains fully independent from AgroLog MT; AgroLog MT is only a downstream consumer of the versioned feed contract.
+Version **0.5.0** adds persistent conflict episodes, claims/evidence lineage, multilingual entity resolution, contradiction handling, decomposed evidence strength and a convergence engine. The project remains fully independent from AgroLog MT; AgroLog MT is only a downstream consumer of the versioned feed contract.
 
 ## What it does
 
@@ -16,18 +16,17 @@ Version **0.4.0** adds historical collection controls, source checkpoints, canon
 - Maintains per-source checkpoints and collector-run audit records.
 - Supports bounded historical backfill for GDELT, UCDP and FIRMS.
 - Normalizes country aliases and canonical event geography.
-- Clusters related events across midnight and uses geographic distance when coordinates exist.
 - Separates OSINT signals, curated reports, research-coded events and sensor signals.
-- Adds descriptive source-quality metadata without subjective media-reputation scoring.
-- Scores analyst priority without presenting the score as probability.
-- Generates JSON and Markdown situational reports with related news links.
-- Persists events, clusters, reports, checkpoints, raw-artifact metadata and run logs in SQLite.
-- Exposes `/v1/feed` and `/v1/reports/latest` over HTTP.
-- Includes replay/evaluation tooling for duplicate clustering and false positives.
+- Builds persistent `ConflictEpisode` records above the immutable event layer.
+- Preserves normalized claims, evidence relations, contradictions, corrections and retractions.
+- Resolves multilingual strategic infrastructure/route aliases and actor entities.
+- Decomposes evidence strength by provider independence, coded/institutional/sensor evidence, geolocation, entity resolution, recency and contradictions.
+- Publishes `geowatch-feed-v2` episode intelligence while preserving `geowatch-feed-v1`.
+- Persists events, entities, episodes, claims, evidence, lineage and change history in SQLite for local/reference execution.
 
 ## Evidence discipline
 
-A news article proves that a publication was observed, not automatically that the reported event occurred exactly as described. A thermal anomaly is contextual evidence and is never treated as proof of an attack by itself. Source quality metadata describes provenance, governance and evidence role; it does not assign a simplistic reliability score to publishers.
+A news article proves that a publication was observed, not automatically that the reported event occurred exactly as described. A thermal anomaly is contextual evidence and is never treated as proof of an attack by itself. The `overall_index` in evidence strength is a triage index, not a probability that a claim is true.
 
 ## Quick start
 
@@ -37,37 +36,20 @@ Python 3.12+ is sufficient; the core runtime uses the standard library only.
 2. Collect enabled sources: `python -m geowatch collect`
 3. Backfill one supported source: `python -m geowatch backfill --source gdelt_conflict_news --start 2026-08-20T00:00:00Z --end 2026-08-21T00:00:00Z`
 4. Evaluate clustering replay: `python -m geowatch evaluate --fixture tests/fixtures/clustering_eval.json`
-5. Serve the latest feed/report: `python -m geowatch serve`
-6. Read:
-   - `GET /health`
-   - `GET /v1/feed`
-   - `GET /v1/reports/latest`
-
-GDELT is enabled by default. UCDP, ReliefWeb and FIRMS remain disabled until credentials are configured and their source terms are reviewed.
-
-## Historical behavior
-
-- Incremental runs start from the latest successful checkpoint with a configurable overlap window to reduce boundary misses.
-- GDELT backfill uses explicit `STARTDATETIME`/`ENDDATETIME` windows and remains bounded by the API result cap per query window; high-volume periods may require narrower windows or query partitioning.
-- UCDP backfill uses `StartDate`/`EndDate` plus pagination; these filters follow UCDP endpoint semantics and must not be assumed to represent every possible event-date field.
-- FIRMS backfill uses dated area requests in windows of at most five days; world-scale pulls can be large, so regional bounding boxes are preferred operationally.
-- ReliefWeb historical automation is deliberately deferred in v0.4; the collector remains available for current/curated reports.
-
-## Environment variables
-
-- `UCDP_API_TOKEN` — UCDP API token.
-- `RELIEFWEB_APPNAME` — pre-approved ReliefWeb appname.
-- `FIRMS_MAP_KEY` — NASA FIRMS free MAP_KEY.
-- `GEOWATCH_DB` — SQLite path used by the API server.
-- `GEOWATCH_API_TOKEN` — optional bearer token for feed/report endpoints.
-- `HOST`, `PORT` — API bind settings.
+5. Evaluate episode convergence: `python -m geowatch evaluate-episodes --fixture tests/fixtures/episode_eval.json`
+6. Serve the API: `python -m geowatch serve`
 
 ## Architecture
 
-`sources -> raw snapshots -> checkpoints/run audit -> normalized events -> temporal/geospatial clustering -> corroboration/priority -> reports -> versioned feed -> downstream consumers`
+`sources -> RAW/checkpoints -> events -> entity resolution -> claims/evidence -> persistent conflict episodes -> convergence/state/change detection -> reports -> versioned feeds -> consumers`
 
-The standalone project owns its own storage, credentials, schedules, source policies, methods and reports. Downstream consumers must not write into the Geopolitical Watch database.
+`Event` remains the immutable evidence record. `ConflictEpisode` is the persistent analytical unit.
+
+## Compatibility
+
+- `geowatch-feed-v1`: event/cluster feed retained for existing consumers.
+- `geowatch-feed-v2`: episode-level feed with claims, evidence strength, entities and change flags.
 
 ## Current development direction
 
-The next major step is **v0.5 — convergence engine**: correlate coded events, news, institutional reports and sensor signals into persistent conflict episodes, resolve infrastructure/routes, decompose confidence by evidence class and surface escalation/change detection for analyst review.
+The next major step is **v0.6 — operational data layer**: add GDACS/ACLED adapters, PostgreSQL/PostGIS production storage, API v2 query surfaces, observability and deployment assets. v0.7 then adds dashboard, alert delivery and consumer profiles.
