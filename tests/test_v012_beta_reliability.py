@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
-import tempfile
 import unittest
 from pathlib import Path
 
+from geowatch.beta_digest import build_beta_digest, render_beta_digest_markdown
 from geowatch.empirical_history import EmpiricalHistory
 from geowatch.historical_forecast_baseline import baseline_summary, build_base_rate_forecasts
 
@@ -17,12 +16,14 @@ class V012BetaReliabilityTests(unittest.TestCase):
         self.assertIn('actions/cache/save@v4', text)
         self.assertIn('set -o pipefail', text)
         self.assertIn('scripts/assert_beta_run.py', text)
+        self.assertIn('scripts/build_beta_digest.py', text)
         self.assertIn('data/raw/', text)
 
     def test_live_beta_integration_uses_real_public_profile(self):
         text = Path('.github/workflows/public-beta-integration.yml').read_text(encoding='utf-8')
         self.assertIn('config/sources.public-beta.json', text)
         self.assertIn('scripts/assert_beta_run.py', text)
+        self.assertIn('scripts/build_beta_digest.py', text)
         self.assertIn('set -o pipefail', text)
 
     def test_scheduled_public_refreshes_fail_closed(self):
@@ -67,6 +68,26 @@ class V012BetaReliabilityTests(unittest.TestCase):
         summary = baseline_summary(rows)
         self.assertEqual({'ceasefire', 'peace_agreement'}, set(summary['by_outcome']))
         self.assertNotIn('territorial_change', summary['by_outcome'])
+
+    def test_beta_digest_preserves_non_probability_semantics(self):
+        episode_report = {
+            'generated_at': '2026-08-24T20:00:00+00:00',
+            'episode_count': 1,
+            'episodes': [{
+                'episode_id': 'ep1', 'title': 'Example episode', 'state': 'active',
+                'countries': ['A'], 'last_updated_at': '2026-08-24T19:00:00+00:00',
+                'evidence_strength': {'overall_index': 72}, 'change_flags': ['new_claim'],
+                'claims': [{'claim_id': 'c1'}], 'evidence': [{'evidence_id': 'e1'}],
+                'recent_events': [{'source_id': 'gdelt_conflict_news', 'publisher': 'Example News'}],
+            }],
+        }
+        coverage = {'sources': [{'source_id': 'gdelt_conflict_news', 'last_run_status': 'ok', 'last_run_records': 4, 'last_reference_in_bounded_sample': '2026-08-24T19:00:00+00:00'}]}
+        digest = build_beta_digest(episode_report, coverage)
+        self.assertTrue(digest['source_health']['all_last_runs_ok'])
+        self.assertTrue(digest['top_episodes'][0]['evidence_strength_not_probability'])
+        markdown = render_beta_digest_markdown(digest)
+        self.assertIn('not probability', markdown)
+        self.assertIn('Example episode', markdown)
 
     def test_empirical_builder_is_explicitly_not_human_gold(self):
         text = Path('scripts/build_empirical_history_artifacts.py').read_text(encoding='utf-8')
