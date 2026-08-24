@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 from geowatch.convergence import converge_events, derive_episode_state
@@ -111,13 +111,13 @@ class V05ConvergenceTests(unittest.TestCase):
             store.upsert_evidence(evidence)
             store.upsert_claims(claims)
             store.upsert_episodes(episodes)
-            for change in changes:
-                store.record_episode_change(change)
+            store.record_changes(changes)
             loaded = store.load_episodes()
             self.assertEqual(1, len(loaded))
             self.assertEqual(set(episodes[0].event_ids), set(loaded[0].event_ids))
             self.assertEqual(len(claims), len(store.load_claims(episode_id=episodes[0].episode_id)))
             self.assertEqual(len(evidence), len(store.load_evidence(episode_id=episodes[0].episode_id)))
+            self.assertGreaterEqual(len(store.changes_since("2026-08-24T00:00:00+00:00")), 1)
             store.close()
 
 
