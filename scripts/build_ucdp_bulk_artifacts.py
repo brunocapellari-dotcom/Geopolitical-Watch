@@ -11,6 +11,7 @@ from geowatch.ucdp_bulk import (
     enrich_cases_with_termination,
     termination_outcomes,
 )
+from geowatch.ucdp_labels import derive_conflict_identity_labels, label_summary
 
 
 def main() -> int:
@@ -19,6 +20,7 @@ def main() -> int:
 
     acd_rows, acd_url = download_rows("armed_conflict_26_1")
     cases = aggregate_armed_conflict_cases(acd_rows)
+    labels = derive_conflict_identity_labels(acd_rows)
 
     termination_rows, termination_url = download_rows("termination_4_2024")
     cases = enrich_cases_with_termination(cases, termination_outcomes(termination_rows))
@@ -31,6 +33,7 @@ def main() -> int:
         "schema_version": "geowatch-ucdp-bulk-build-v1",
         "case_count": len(cases),
         "actor_count": len(actors),
+        "identity_labels": label_summary(labels),
         "baseline_forecast_count": len(forecasts),
         "baseline": baseline_summary(forecasts),
         "sources": {
@@ -43,6 +46,7 @@ def main() -> int:
 
     (out / "historical_cases.json").write_text(json.dumps({"schema_version":"geowatch-ucdp-historical-cases-v1","cases":cases}, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "actors.json").write_text(json.dumps({"schema_version":"geowatch-ucdp-actors-v1","profiles":actors}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out / "identity_labels.json").write_text(json.dumps({"schema_version":"geowatch-ucdp-identity-labels-v1","labels":labels,"human_gold":False}, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "baseline_forecasts.json").write_text(json.dumps({"schema_version":"geowatch-historical-baseline-v1","forecasts":forecasts}, ensure_ascii=False, indent=2), encoding="utf-8")
     (out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
