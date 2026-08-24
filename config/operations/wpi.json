@@ -1,0 +1,14 @@
+{
+  "schema_version": "geowatch-wpi-source-v1",
+  "as_of_checked": "2026-08-24",
+  "source_url": "https://msi.nga.mil/api/publications/download?type=view&key=16920959/SFH00000/UpdatedPub150.csv",
+  "source_page": "https://msi.nga.mil/Publications/WPI",
+  "authority": "US National Geospatial-Intelligence Agency",
+  "refresh": "monthly",
+  "governance": {
+    "official_csv": true,
+    "structural_reference_not_live_operational_status": true,
+    "candidate_score_not_criticality_probability": true,
+    "current_port_conditions_require_current_port_authority_or_notice": true
+  }
+}
