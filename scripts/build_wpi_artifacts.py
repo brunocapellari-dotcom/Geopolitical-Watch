@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from _repo_path import ensure_repo_path
+
+ensure_repo_path()
+
 from geowatch.wpi import download, select_candidates
 
 
