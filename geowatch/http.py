@@ -19,9 +19,21 @@ def get(url: str, *, headers: dict[str, str] | None = None, timeout: int = 60, q
         pairs = parse_qsl(parts.query, keep_blank_values=True)
         pairs.extend((key, str(value)) for key, value in query.items())
         url = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(pairs), parts.fragment))
-    req_headers = {"User-Agent": "GeopoliticalWatch/0.4"}
+    req_headers = {"User-Agent": "GeopoliticalWatch/0.6"}
     req_headers.update(headers or {})
     request = Request(url, headers=req_headers)
+    with urlopen(request, timeout=timeout) as response:
+        return HttpResponse(response.read(), response.geturl(), response.headers.get("Content-Type"))
+
+
+def post_form(url: str, data: dict[str, str], *, headers: dict[str, str] | None = None, timeout: int = 60) -> HttpResponse:
+    payload = urlencode(data).encode("utf-8")
+    req_headers = {
+        "User-Agent": "GeopoliticalWatch/0.6",
+        "Content-Type": "application/x-www-form-urlencoded",
+    }
+    req_headers.update(headers or {})
+    request = Request(url, data=payload, headers=req_headers, method="POST")
     with urlopen(request, timeout=timeout) as response:
         return HttpResponse(response.read(), response.geturl(), response.headers.get("Content-Type"))
 
