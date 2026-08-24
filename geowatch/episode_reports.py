@@ -5,8 +5,10 @@ import json
 from datetime import datetime, timezone
 from typing import Iterable
 
+from .escalation import EscalationLibrary
 from .geopolitics import GeopoliticalKnowledge
 from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef
+from .strategic_graph import StrategicGraph
 
 
 def build_episode_report(
@@ -19,6 +21,8 @@ def build_episode_report(
     generated_at: str | None = None,
     max_episodes: int = 50,
     geopolitical_knowledge: GeopoliticalKnowledge | None = None,
+    strategic_graph: StrategicGraph | None = None,
+    escalation_library: EscalationLibrary | None = None,
 ) -> dict:
     generated = generated_at or datetime.now(timezone.utc).isoformat()
     claim_map: dict[str, Claim] = {claim.claim_id: claim for claim in claims}
@@ -30,6 +34,16 @@ def build_episode_report(
             geopolitical_knowledge = GeopoliticalKnowledge.from_files()
         except (FileNotFoundError, json.JSONDecodeError):
             geopolitical_knowledge = None
+    if strategic_graph is None:
+        try:
+            strategic_graph = StrategicGraph.from_files()
+        except (FileNotFoundError, json.JSONDecodeError):
+            strategic_graph = None
+    if escalation_library is None:
+        try:
+            escalation_library = EscalationLibrary.from_json()
+        except (FileNotFoundError, json.JSONDecodeError):
+            escalation_library = None
 
     ranked = sorted(
         episodes,
@@ -44,11 +58,19 @@ def build_episode_report(
         entity_ids = set(episode.actor_entity_ids) | set(episode.infrastructure_entity_ids) | set(episode.other_entity_ids)
         ep_entities = [entity_map[eid] for eid in entity_ids if eid in entity_map]
         strategic_context = (
-            geopolitical_knowledge.context_for_episode(
-                episode, claims=ep_claims, entities=ep_entities, events=ep_events
-            )
+            geopolitical_knowledge.context_for_episode(episode, claims=ep_claims, entities=ep_entities, events=ep_events)
             if geopolitical_knowledge is not None
             else {"context_not_evidence": True, "status": "knowledge_layer_unavailable"}
+        )
+        graph_context = (
+            strategic_graph.context_for_episode(episode, entities=ep_entities)
+            if strategic_graph is not None
+            else {"context_not_evidence": True, "status": "strategic_graph_unavailable"}
+        )
+        escalation = (
+            escalation_library.detect(events=ep_events, claims=ep_claims)
+            if escalation_library is not None
+            else {"indicator_score_not_probability": True, "status": "indicator_library_unavailable"}
         )
         rows.append({
             **episode.to_dict(),
@@ -57,14 +79,16 @@ def build_episode_report(
             "entities": [entity.to_dict() for entity in ep_entities],
             "recent_events": [event.to_dict() for event in sorted(ep_events, key=lambda e: e.reference_at, reverse=True)[:20]],
             "strategic_context": strategic_context,
+            "strategic_graph_context": graph_context,
+            "escalation_readout": escalation,
             "methodology_notes": [
                 "Episode state is a deterministic analytical state derived from preserved claims/events; it is not an official conflict classification.",
                 "Evidence strength is a decomposed heuristic index and must not be interpreted as probability that a claim is true.",
                 "Contradictions, corrections and retractions remain in the episode lineage instead of being overwritten.",
-                "Geopolitical strategic context is non-evidentiary and cannot verify an event, claim or attribution.",
+                "Geopolitical knowledge, strategic-graph relations and escalation indicators are non-evidentiary context and cannot verify an event, claim, attribution or intent.",
             ],
         })
-    report_id = "epr_" + hashlib.sha256((generated + "|" + "|".join(row["episode_id"] for row in rows)).encode()).hexdigest()[:20]
+    report_id = "epr_" + hashlib.sha256((generated + "|" + "|".join(str(row["episode_id"]) for row in rows)).encode()).hexdigest()[:20]
     return {
         "schema_version": "geowatch-episode-report-v1",
         "report_id": report_id,
@@ -84,7 +108,7 @@ def build_episode_feed(report: dict) -> dict:
         "episodes": report.get("episodes", []),
         "compatibility": {
             "event_feed": "geowatch-feed-v1 remains available at /v1/feed",
-            "semantics": "v2 episodes aggregate events/claims/evidence, preserve lineage, and may include non-evidentiary geopolitical context",
+            "semantics": "v2 episodes aggregate events/claims/evidence, preserve lineage, and may include explicitly non-evidentiary strategic context",
         },
     }
 
@@ -125,14 +149,23 @@ def render_episode_markdown(report: dict) -> str:
             lenses = context.get("theoretical_lenses") or []
             if lenses:
                 lines.append("**Lenses:** " + ", ".join(item["name"] for item in lenses[:6]))
-            analogies = context.get("historical_analogies") or []
-            if analogies:
-                lines.append("**Historical comparison prompts:** " + ", ".join(item["id"] for item in analogies[:3]))
             questions = context.get("analytical_questions") or []
             if questions:
                 lines += ["", "Analytical questions:"]
                 for question in questions[:6]:
                     lines.append(f"- {question}")
+        graph = episode.get("strategic_graph_context") or {}
+        profiles = graph.get("country_profiles") or []
+        if profiles:
+            lines += ["", "### Country strategic profiles (not evidence)", ""]
+            for profile in profiles[:6]:
+                lines.append(f"- **{profile['name']}**: " + ", ".join(profile.get("strategic_themes", [])[:6]))
+        escalation = episode.get("escalation_readout") or {}
+        indicators = escalation.get("indicators") or []
+        if indicators:
+            lines += ["", "### Escalation/de-escalation indicators (not probability)", ""]
+            for indicator in indicators[:10]:
+                lines.append(f"- {indicator['id']} [{indicator['direction']}] weight={indicator['weight']}")
         recent = episode.get("recent_events", [])
         if recent:
             lines += ["", "### Recent evidence/events", ""]

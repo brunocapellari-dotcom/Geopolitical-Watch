@@ -37,10 +37,10 @@
 
 ## v0.6 — operational data layer — complete in code/CI
 
-- GDACS institutional context adapter
-- ACLED OAuth adapter with cursor pagination
-- PostgreSQL/PostGIS production schema/store
-- durable filesystem/GCS RAW abstraction
+- GDACS context adapter
+- ACLED OAuth/cursor adapter
+- PostgreSQL/PostGIS production store
+- filesystem/GCS RAW abstraction
 - API v2 operational surfaces
 - Prometheus metrics
 - Cloud Run deployment assets
@@ -49,55 +49,68 @@ Live GCP deployment remains an external execution gate.
 
 ## v0.7 — product and alert layer — complete
 
-- dashboard/map and episode timelines
+- dashboard/map and timelines
 - deterministic alert policies
-- deduplicated outbox/retry delivery
+- outbox/retry delivery
 - consumer-specific feeds
 - AgroLog MT read-only profile
 - webhook dispatcher
-- product regression suite
 
 ## v0.8 — geopolitical knowledge and validation — complete
 
 - advanced geopolitics curriculum
-- structured geopolitical knowledge graph seed
-- canonical legal/data/academic source registry
-- strict `context_not_evidence` boundary
-- strategic context attached to episode reports/API
-- multi-theory context retrieval
-- regional context retrieval
-- historical analogy prompts with mandatory analogy limits
-- source coverage inventory endpoint
-- analyst review queue generation
-- episode-quality flags
-- alert precision/recall/FPR calibration framework
-- auditable episode merge lineage
-- safe split planning with forced recomputation
-- v0.8 regression suite
-- GitHub Actions release gate passed in PR #6
+- structured theory/concept/case knowledge
+- canonical source registry
+- strict context/evidence boundary
+- strategic context in reports/API
+- review queue and quality flags
+- source coverage inventory
+- alert calibration framework
+- merge lineage and split planning
 
-## v0.9 — validation, historical learning and strategic graph — next
+## v0.9 — strategic intelligence and historical learning — implemented pending release gate
 
-- production deployment and restore drill when GCP credentials/infrastructure are available
-- real multi-source historical coverage inventory/backfill
-- labeled real-world episode corpus at scale
-- persisted analyst review decisions
-- apply/revert merge/split workflow with durable review state
-- historical forecast/outcome calibration
-- country strategic profiles
-- rivalry/alliance graph
-- larger strategic infrastructure graph
-- sanctions and export-control context layer
-- official maritime notice layer
-- geoeconomic dependency metrics
-- escalation indicator library
-- competing-hypotheses analysis objects
-- knowledge proposals generated from resolved analyst reviews
+- persistent analyst review decisions
+- governed knowledge proposals; no automatic knowledge mutation
+- reversible merge/split/revert workflow with snapshots
+- probabilistic forecast objects and resolutions
+- Brier score and calibration tables
+- competing hypotheses and discriminating indicators
+- country strategic profile framework + initial seed
+- temporal strategic relationship/chokepoint graph
+- escalation/de-escalation indicator library
+- geoeconomic supplier/route dependency metrics
+- official sanctions source registry and normalized sanction model
+- official maritime-warning source registry and normalized warning model
+- read-only strategic API surfaces
+- strategic CLI operations
+- v0.9 regression suite
+
+## v0.10 — empirical intelligence and production — next
+
+- deploy API/collector/dispatcher to real GCP environment when credentials are available
+- provision/validate Cloud SQL PostgreSQL/PostGIS, backups and PITR
+- execute end-to-end smoke test and restore drill
+- activate UCDP, ReliefWeb, FIRMS and ACLED only after required credentials/terms gates
+- ingest official sanctions changes from UN/OFAC/UK sources
+- ingest official NAVAREA/navigational-warning data where technically/legally available
+- complete historical coverage inventory and bounded backfills
+- build large labeled real-world conflict/episode corpus
+- persist analyst review status/workflow beyond decision ledger
+- expand country profiles toward global coverage
+- expand alliances/rivalries/disputes/economic-dependency graph with dated sources
+- expand strategic infrastructure graph: ports, canals, straits, pipelines, LNG, refineries, grids, cables, rail and critical nodes
+- attach dated geoeconomic datasets to dependency metrics
+- create formal forecast question templates and resolution criteria
+- evaluate forecast/convergence/alert calibration on historical out-of-sample windows
+- knowledge proposals -> review -> accepted/rejected versioned knowledge mutations
+- load/chaos/backup/restore/cost/SLO tests
+- source-rights and security audit before v1.0
 
 ## v1.0 gate
 
-v1.0 requires demonstrated production reliability, restore capability, empirically validated alert/convergence quality, stable API contracts, security/cost review, source-rights review and documented knowledge governance.
+v1.0 requires demonstrated production reliability, restore capability, empirically validated convergence/alert/forecast quality, stable API contracts, security/cost/source-rights review and documented knowledge governance.
 
 ## Later
 
-AIS/ADS-B, prediction markets and additional sensor/context layers enter only after terms, cost, privacy, stability and false-positive risks are reviewed.
+AIS/ADS-B, prediction markets, satellite-derived context and other sensor layers enter only after terms, cost, privacy, stability, operational-security and false-positive risks are reviewed.

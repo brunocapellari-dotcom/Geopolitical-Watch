@@ -1,0 +1,41 @@
+{
+  "schema_version": "geowatch-strategic-graph-v1",
+  "as_of": "2026-08-24",
+  "governance": {
+    "edge_requires_source": true,
+    "edge_requires_validity_window": true,
+    "context_not_evidence": true,
+    "volatile_edges_require_refresh": true
+  },
+  "nodes": [
+    {"id":"USA","type":"country","name":"United States"},
+    {"id":"CHN","type":"country","name":"China"},
+    {"id":"RUS","type":"country","name":"Russia"},
+    {"id":"IND","type":"country","name":"India"},
+    {"id":"BRA","type":"country","name":"Brazil"},
+    {"id":"JPN","type":"country","name":"Japan"},
+    {"id":"IRN","type":"country","name":"Iran"},
+    {"id":"TUR","type":"country","name":"Türkiye"},
+    {"id":"NATO","type":"organization","name":"North Atlantic Treaty Organization"},
+    {"id":"strait_hormuz","type":"chokepoint","name":"Strait of Hormuz"},
+    {"id":"strait_malacca","type":"chokepoint","name":"Strait of Malacca"},
+    {"id":"turkish_straits","type":"chokepoint","name":"Turkish Straits"},
+    {"id":"south_atlantic","type":"maritime_region","name":"South Atlantic"},
+    {"id":"black_sea","type":"maritime_region","name":"Black Sea"}
+  ],
+  "edges": [
+    {"id":"usa_nato_member","source":"USA","target":"NATO","relation":"member_of","valid_from":"1949-04-04","valid_to":null,"source_ids":["nato_members"],"refresh":"quarterly"},
+    {"id":"tur_nato_member","source":"TUR","target":"NATO","relation":"member_of","valid_from":"1952-02-18","valid_to":null,"source_ids":["nato_members"],"refresh":"quarterly"},
+    {"id":"usa_jpn_alliance","source":"USA","target":"JPN","relation":"security_alliance","valid_from":"1960-06-23","valid_to":null,"source_ids":["japan_us_security"],"refresh":"quarterly"},
+    {"id":"jpn_hormuz_exposure","source":"JPN","target":"strait_hormuz","relation":"energy_route_exposure","valid_from":"2000-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"annual","qualifier":"structural context; quantify with current trade/energy data before use"},
+    {"id":"jpn_malacca_exposure","source":"JPN","target":"strait_malacca","relation":"trade_route_exposure","valid_from":"2000-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"annual","qualifier":"structural context; quantify before operational use"},
+    {"id":"chn_malacca_exposure","source":"CHN","target":"strait_malacca","relation":"trade_route_exposure","valid_from":"2000-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"annual","qualifier":"structural context; quantify before operational use"},
+    {"id":"ind_hormuz_exposure","source":"IND","target":"strait_hormuz","relation":"energy_route_exposure","valid_from":"2000-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"annual","qualifier":"structural context; quantify before operational use"},
+    {"id":"ind_malacca_exposure","source":"IND","target":"strait_malacca","relation":"trade_route_exposure","valid_from":"2000-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"annual","qualifier":"structural context; quantify before operational use"},
+    {"id":"irn_hormuz_geography","source":"IRN","target":"strait_hormuz","relation":"adjacent_to","valid_from":"1900-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"structural"},
+    {"id":"tur_straits_geography","source":"TUR","target":"turkish_straits","relation":"territorial_chokepoint_context","valid_from":"1900-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"structural"},
+    {"id":"tur_black_sea_context","source":"TUR","target":"black_sea","relation":"littoral_state_context","valid_from":"1900-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"structural"},
+    {"id":"rus_black_sea_context","source":"RUS","target":"black_sea","relation":"littoral_state_context","valid_from":"1991-12-26","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"structural"},
+    {"id":"bra_south_atlantic_context","source":"BRA","target":"south_atlantic","relation":"littoral_state_context","valid_from":"1900-01-01","valid_to":null,"source_ids":["unctad_rmt"],"refresh":"structural"}
+  ]
+}
