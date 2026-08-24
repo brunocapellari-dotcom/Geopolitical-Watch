@@ -1,0 +1,20 @@
+{
+  "schema_version": "geowatch-worldbank-source-v1",
+  "as_of_checked": "2026-08-24",
+  "country_endpoint": "https://api.worldbank.org/v2/country",
+  "indicator_endpoint": "https://api.worldbank.org/v2/country/all/indicator/{indicator}",
+  "authentication_required": false,
+  "indicators": [
+    {"id":"NY.GDP.MKTP.CD","name":"GDP current USD","theme":"economic_scale"},
+    {"id":"SP.POP.TOTL","name":"Population total","theme":"demography"},
+    {"id":"NE.TRD.GNFS.ZS","name":"Trade percent of GDP","theme":"trade_exposure"},
+    {"id":"EG.IMP.CONS.ZS","name":"Energy imports net percent of energy use","theme":"energy_dependency"},
+    {"id":"MS.MIL.XPND.GD.ZS","name":"Military expenditure percent of GDP","theme":"military_input"}
+  ],
+  "governance": {
+    "observations_are_dated": true,
+    "missing_values_preserved": true,
+    "military_expenditure_is_input_not_capability": true,
+    "economic_indicator_not_conflict_evidence": true
+  }
+}
