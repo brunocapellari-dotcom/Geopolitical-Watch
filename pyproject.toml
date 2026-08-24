@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geopolitical-watch"
+version = "0.3.0"
+description = "Standalone public-source geopolitical conflict monitoring and intelligence feed"
+requires-python = ">=3.12"
+license = {text = "Proprietary project scaffold; review upstream source terms before redistribution"}
+
+[tool.setuptools.packages.find]
+include = ["geowatch*"]

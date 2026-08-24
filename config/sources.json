@@ -1,0 +1,43 @@
+{
+  "sources": [
+    {
+      "source_id": "gdelt_conflict_news",
+      "kind": "gdelt",
+      "enabled": true,
+      "timespan": "24H",
+      "maxrecords": 250,
+      "query": "(war OR conflict OR airstrike OR missile OR shelling OR invasion OR \"drone strike\" OR ceasefire OR blockade)",
+      "extension": "json"
+    },
+    {
+      "source_id": "ucdp_ged_26_1",
+      "kind": "ucdp",
+      "enabled": false,
+      "version": "26.1",
+      "pagesize": 1000,
+      "extension": "json"
+    },
+    {
+      "source_id": "reliefweb_conflict_reports",
+      "kind": "reliefweb",
+      "enabled": false,
+      "limit": 100,
+      "query": "conflict war hostilities displacement",
+      "extension": "json"
+    },
+    {
+      "source_id": "nasa_firms_context",
+      "kind": "firms",
+      "enabled": false,
+      "sensor": "VIIRS_SNPP_NRT",
+      "area": "world",
+      "day_range": 1,
+      "extension": "csv"
+    }
+  ],
+  "report": {
+    "min_priority": 0,
+    "max_events": 20,
+    "max_news_per_event": 5
+  }
+}
