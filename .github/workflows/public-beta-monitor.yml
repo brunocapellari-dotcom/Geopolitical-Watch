@@ -27,9 +27,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/beta.db
-          key: geowatch-public-beta-${{ github.run_id }}
+          key: geowatch-public-beta-v2-${{ github.run_id }}
           restore-keys: |
-            geowatch-public-beta-
+            geowatch-public-beta-v2-
       - name: Run public-source monitor
         run: |
           set -o pipefail
@@ -67,7 +67,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: data/beta.db
-          key: geowatch-public-beta-${{ github.run_id }}
+          key: geowatch-public-beta-v2-${{ github.run_id }}
       - name: Upload public beta artifacts
         if: always()
         uses: actions/upload-artifact@v4
