@@ -19,6 +19,10 @@
 - SQLite remains supported for local/test use.
 - PostgreSQL/PostGIS remains the production backend.
 
-## Release gate
+## Release result
 
-This release is considered merged only after the full GitHub Actions test suite succeeds. Cloud deployment is a separate operational gate and is not implied by this release.
+GitHub Actions run `32763294841` completed successfully for PR #4 on the final head SHA `43d54d5f7353904590572989d1f0d1f442336c33`.
+
+PR #4 was merged into `main` with merge commit `63c58273085b89300b71ba577b2e4cdb1534081b`.
+
+Cloud deployment is a separate operational gate and is not implied by this release.

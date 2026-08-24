@@ -102,4 +102,4 @@ Consumer policies are read-only filters over Geopolitical Watch data. `config/co
 - v0.4 history/quality — complete.
 - v0.5 convergence engine — complete.
 - v0.6 operational data layer — complete in code and CI; live cloud deployment remains external.
-- v0.7 product/alert layer — complete in code pending this release gate/CI merge.
+- v0.7 product/alert layer — **complete, CI passed and merged in PR #4**.
