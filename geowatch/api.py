@@ -5,15 +5,21 @@ import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from .actor_profiles import ActorProfiles
 from .consumers import build_consumer_feed, consumer_profile_path, load_profile
+from .critical_infrastructure import CriticalInfrastructureGraph
 from .dashboard import dashboard_html, map_points
 from .episode_reports import build_episode_feed
 from .escalation import EscalationLibrary
 from .forecasting import forecast_summary
 from .geopolitics import GeopoliticalKnowledge
+from .global_profiles import GlobalProfileRegistry
+from .historical_corpus import HistoricalCorpus
 from .metrics import operational_snapshot, prometheus_text
+from .readiness import current_code_readiness_estimate
 from .reports import build_feed
 from .review import build_review_queue
+from .security_systems import SecuritySystems
 from .strategic_graph import StrategicGraph
 from .strategic_state import list_forecasts, list_operations, list_review_decisions
 from .storage_factory import backend_name, open_store
@@ -23,7 +29,7 @@ API_TOKEN = os.environ.get("GEOWATCH_API_TOKEN")
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "GeopoliticalWatch/0.9"
+    server_version = "GeopoliticalWatch/0.10"
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -31,7 +37,7 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
 
         if path == "/health":
-            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.9.0", "storage_backend": backend_name()})
+            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": "0.10.0", "storage_backend": backend_name()})
         if path == "/dashboard":
             return self._send_text(200, dashboard_html(), "text/html; charset=utf-8")
         if API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
@@ -43,6 +49,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_text(200, prometheus_text(operational_snapshot(store)), "text/plain; version=0.0.4; charset=utf-8")
             if path == "/v2/operational":
                 return self._send_json(200, operational_snapshot(store))
+            if path == "/v2/readiness":
+                return self._send_json(200, current_code_readiness_estimate())
             if path == "/v2/coverage":
                 return self._send_json(200, source_coverage_inventory(store, run_limit=_int(query, "limit", 5000) or 5000))
             if path == "/v2/review-queue":
@@ -66,12 +74,30 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/v2/forecasts/summary":
                 return self._send_json(200, {"schema_version": "geowatch-forecast-calibration-v1", **forecast_summary(list_forecasts(store))})
             if path == "/v2/geopolitics/countries":
-                graph = StrategicGraph.from_files()
                 country = _one(query, "country")
+                registry = GlobalProfileRegistry.from_files()
                 if country:
-                    profile = graph.country_profile(country)
+                    profile = registry.profile(country)
                     return self._send_json(200, {"schema_version": "geowatch-country-profile-v1", "profile": profile}) if profile else self._send_json(404, {"error": "country profile not found"})
-                return self._send_json(200, {"schema_version": graph.profiles_payload.get("schema_version"), "profiles": list(graph.profiles.values())})
+                return self._send_json(200, {"schema_version": "geowatch-country-profile-list-v1", "coverage": registry.coverage(), "profiles": registry.list_profiles(status=_one(query, "status"))})
+            if path == "/v2/geopolitics/actors":
+                actors = ActorProfiles.from_json()
+                actor = _one(query, "actor_id")
+                if actor:
+                    profile = actors.profile(actor)
+                    return self._send_json(200, {"schema_version": "geowatch-actor-profile-v1", "profile": profile}) if profile else self._send_json(404, {"error": "actor profile not found"})
+                return self._send_json(200, {"schema_version": "geowatch-actor-profile-list-v1", "profiles": actors.list(_one(query, "actor_type"))})
+            if path == "/v2/geopolitics/security-systems":
+                systems = SecuritySystems.from_json(); country = _one(query, "country")
+                return self._send_json(200, {"schema_version": systems.payload.get("schema_version"), "systems": systems.memberships(country) if country else list(systems.systems.values())})
+            if path == "/v2/geopolitics/infrastructure":
+                graph = CriticalInfrastructureGraph.from_json(); node_id = _one(query, "node_id"); country = _one(query, "country")
+                if node_id:
+                    node = graph.node(node_id); return self._send_json(200, {"schema_version": "geowatch-infrastructure-node-v1", "node": node}) if node else self._send_json(404, {"error": "infrastructure node not found"})
+                return self._send_json(200, {"schema_version": "geowatch-critical-infrastructure-list-v1", "summary": graph.summary(), "nodes": graph.nodes_for_country(country) if country else [{**row, "context_not_evidence": True} for row in graph.nodes.values()]})
+            if path == "/v2/geopolitics/history":
+                corpus = HistoricalCorpus.from_json(); cutoff = _one(query, "as_of")
+                return self._send_json(200, {"schema_version": "geowatch-historical-corpus-api-v1", "summary": corpus.summary(), "cases": corpus.as_of(cutoff) if cutoff else list(corpus.cases.values())})
             if path == "/v2/geopolitics/graph":
                 return self._send_json(200, StrategicGraph.from_files().export_graph())
             if path == "/v2/map":
