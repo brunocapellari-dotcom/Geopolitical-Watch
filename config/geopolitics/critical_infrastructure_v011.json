@@ -1,0 +1,42 @@
+{
+  "schema_version":"geowatch-critical-infrastructure-v011-supplement","as_of":"2026-08-24",
+  "nodes":[
+    {"node_id":"PORT_ODESSA","name":"Port of Odesa","type":"port","region":"Black Sea","countries":["UKR"],"themes":["grain","Black Sea shipping"]},
+    {"node_id":"PORT_CHORNOMORSK","name":"Port of Chornomorsk","type":"port","region":"Black Sea","countries":["UKR"],"themes":["grain","bulk trade"]},
+    {"node_id":"PORT_NOVOROSSIYSK","name":"Port of Novorossiysk","type":"port","region":"Black Sea","countries":["RUS"],"themes":["oil","grain","Black Sea shipping"]},
+    {"node_id":"PORT_CONSTANTA","name":"Port of Constanța","type":"port","region":"Black Sea","countries":["ROU"],"themes":["grain","containers","Danube connectivity"]},
+    {"node_id":"PORT_ANTWERP_BRUGES","name":"Port of Antwerp-Bruges","type":"port","region":"North Sea","countries":["BEL"],"themes":["chemicals","energy","containers"]},
+    {"node_id":"PORT_HAMBURG","name":"Port of Hamburg","type":"port","region":"North Sea/Baltic gateway","countries":["DEU"],"themes":["containers","European logistics"]},
+    {"node_id":"PORT_ALGECIRAS","name":"Port of Algeciras","type":"port","region":"Strait of Gibraltar","countries":["ESP"],"themes":["transshipment","Mediterranean-Atlantic"]},
+    {"node_id":"PORT_TANGIER_MED","name":"Tanger Med","type":"port","region":"Strait of Gibraltar","countries":["MAR"],"themes":["transshipment","manufacturing","Mediterranean-Atlantic"]},
+    {"node_id":"PORT_PIRAEUS","name":"Port of Piraeus","type":"port","region":"Eastern Mediterranean","countries":["GRC"],"themes":["containers","Europe-Asia trade"]},
+    {"node_id":"PORT_DJIBOUTI","name":"Port of Djibouti","type":"port","region":"Bab el-Mandeb","countries":["DJI"],"themes":["Red Sea","Horn of Africa logistics"]},
+    {"node_id":"PORT_SALALAH","name":"Port of Salalah","type":"port","region":"Arabian Sea","countries":["OMN"],"themes":["transshipment","Hormuz alternative context"]},
+    {"node_id":"PORT_FUJAIRAH","name":"Port of Fujairah","type":"port","region":"Gulf of Oman","countries":["ARE"],"themes":["oil","bunkering","Hormuz alternative context"]},
+    {"node_id":"PORT_YANBU","name":"Yanbu Industrial Port","type":"port","region":"Red Sea","countries":["SAU"],"themes":["oil","Red Sea export route"]},
+    {"node_id":"PORT_RAS_TANURA","name":"Ras Tanura","type":"oil_terminal","region":"Persian Gulf","countries":["SAU"],"themes":["oil exports","Hormuz exposure"]},
+    {"node_id":"RAS_LAFFAN","name":"Ras Laffan Industrial City","type":"lng_terminal_cluster","region":"Persian Gulf","countries":["QAT"],"themes":["LNG","Hormuz exposure"]},
+    {"node_id":"PORT_COLOMBO","name":"Port of Colombo","type":"port","region":"Indian Ocean","countries":["LKA"],"themes":["transshipment","Indian Ocean trade"]},
+    {"node_id":"PORT_TANJUNG_PELEPAS","name":"Port of Tanjung Pelepas","type":"port","region":"Strait of Malacca","countries":["MYS"],"themes":["containers","transshipment"]},
+    {"node_id":"PORT_BUSAN","name":"Port of Busan","type":"port","region":"East Asia","countries":["KOR"],"themes":["containers","Northeast Asia trade"]},
+    {"node_id":"PORT_LA_LB","name":"Los Angeles / Long Beach port complex","type":"port_complex","region":"North America Pacific","countries":["USA"],"themes":["containers","Asia-US trade"]},
+    {"node_id":"PORT_HOUSTON","name":"Port of Houston","type":"port","region":"Gulf of Mexico","countries":["USA"],"themes":["energy","chemicals","containers"]},
+    {"node_id":"PORT_DURBAN","name":"Port of Durban","type":"port","region":"Southern Africa","countries":["ZAF"],"themes":["containers","Cape route context"]},
+    {"node_id":"BTC_PIPELINE","name":"Baku-Tbilisi-Ceyhan Pipeline","type":"pipeline","region":"South Caucasus/Eastern Mediterranean","countries":["AZE","GEO","TUR"],"themes":["oil","energy transit"]},
+    {"node_id":"DRUZHBA_PIPELINE","name":"Druzhba Pipeline System","type":"pipeline_system","region":"Europe","countries":["RUS","BLR","POL","DEU","CZE","SVK","HUN"],"themes":["oil","European energy"]},
+    {"node_id":"CPC_PIPELINE","name":"Caspian Pipeline Consortium route","type":"pipeline","region":"Caspian/Black Sea","countries":["KAZ","RUS"],"themes":["oil","Black Sea exports"]},
+    {"node_id":"SAUDI_EAST_WEST_PIPELINE","name":"Saudi East-West Pipeline","type":"pipeline","region":"Saudi Arabia","countries":["SAU"],"themes":["oil","Hormuz bypass capacity context"]},
+    {"node_id":"SABINE_PASS_LNG","name":"Sabine Pass LNG","type":"lng_terminal","region":"Gulf of Mexico","countries":["USA"],"themes":["LNG","global gas trade"]},
+    {"node_id":"SEA_ME_WE_CABLE_CORRIDOR","name":"SEA-ME-WE submarine cable corridor","type":"submarine_cable_corridor","region":"Europe-Middle East-Asia","countries":[],"themes":["digital connectivity","Red Sea","Suez"]},
+    {"node_id":"BALTIC_CABLE_CORRIDOR","name":"Baltic submarine infrastructure corridor","type":"submarine_infrastructure_corridor","region":"Baltic Sea","countries":[],"themes":["telecom","energy interconnectors","critical seabed infrastructure"]}
+  ],
+  "edges":[
+    {"from":"PORT_ODESSA","to":"TURKISH_STRAITS","type":"maritime_route_context"},{"from":"PORT_CHORNOMORSK","to":"TURKISH_STRAITS","type":"maritime_route_context"},{"from":"PORT_NOVOROSSIYSK","to":"TURKISH_STRAITS","type":"maritime_route_context"},{"from":"PORT_CONSTANTA","to":"TURKISH_STRAITS","type":"maritime_route_context"},
+    {"from":"PORT_ALGECIRAS","to":"GIBRALTAR","type":"adjacent_chokepoint"},{"from":"PORT_TANGIER_MED","to":"GIBRALTAR","type":"adjacent_chokepoint"},
+    {"from":"PORT_DJIBOUTI","to":"BAB_EL_MANDEB","type":"adjacent_chokepoint"},{"from":"PORT_FUJAIRAH","to":"STRAIT_HORMUZ","type":"alternative_route_context"},{"from":"PORT_YANBU","to":"BAB_EL_MANDEB","type":"red_sea_route_context"},
+    {"from":"PORT_RAS_TANURA","to":"STRAIT_HORMUZ","type":"export_route_context"},{"from":"RAS_LAFFAN","to":"STRAIT_HORMUZ","type":"export_route_context"},
+    {"from":"PORT_TANJUNG_PELEPAS","to":"MALACCA","type":"adjacent_chokepoint"},{"from":"PORT_COLOMBO","to":"MALACCA","type":"route_context"},
+    {"from":"SAUDI_EAST_WEST_PIPELINE","to":"PORT_YANBU","type":"pipeline_to_terminal"},{"from":"CPC_PIPELINE","to":"PORT_NOVOROSSIYSK","type":"pipeline_to_terminal"},
+    {"from":"SEA_ME_WE_CABLE_CORRIDOR","to":"SUEZ_CANAL","type":"corridor_context"},{"from":"SEA_ME_WE_CABLE_CORRIDOR","to":"BAB_EL_MANDEB","type":"corridor_context"}
+  ]
+}
