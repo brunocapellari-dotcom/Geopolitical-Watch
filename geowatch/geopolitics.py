@@ -84,15 +84,27 @@ class GeopoliticalKnowledge:
                     "themes": list(region.get("themes") or []),
                 })
 
+        matched_concept_text = _norm(" ".join(
+            " ".join([
+                str(concept.get("id", "")),
+                str(concept.get("name", "")),
+                *[str(value) for value in concept.get("keywords", [])],
+                *[str(value) for value in concept.get("mechanisms", [])],
+            ])
+            for concept in matched
+        ))
         theories = []
         for school in self.schools.values():
-            focus = set(school.get("focus") or [])
-            overlap = sorted(focus & matched_ids)
-            if overlap:
+            focus_hits = []
+            for focus in school.get("focus") or []:
+                normalized = _norm(str(focus))
+                if normalized and (_contains_phrase(matched_concept_text, normalized) or _contains_phrase(corpus, normalized)):
+                    focus_hits.append(str(focus))
+            if focus_hits:
                 theories.append({
                     "id": school["id"],
                     "name": school["name"],
-                    "matched_concepts": overlap,
+                    "matched_focus": focus_hits,
                     "cautions": list(school.get("cautions") or []),
                 })
 
