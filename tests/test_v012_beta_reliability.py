@@ -2,10 +2,31 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+from urllib.error import HTTPError
 
 from geowatch.beta_digest import build_beta_digest, render_beta_digest_markdown
 from geowatch.empirical_history import EmpiricalHistory
 from geowatch.historical_forecast_baseline import baseline_summary, build_base_rate_forecasts
+from geowatch.http import get
+
+
+class _DummyResponse:
+    def __init__(self, payload: bytes = b'{}') -> None:
+        self._payload = payload
+        self.headers = {'Content-Type': 'application/json'}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self) -> bytes:
+        return self._payload
+
+    def geturl(self) -> str:
+        return 'https://example.test/data'
 
 
 class V012BetaReliabilityTests(unittest.TestCase):
@@ -36,6 +57,21 @@ class V012BetaReliabilityTests(unittest.TestCase):
             text = Path(path).read_text(encoding='utf-8')
             self.assertIn('set -o pipefail', text, path)
             self.assertIn('PYTHONPATH: .', text, path)
+
+    def test_http_get_retries_retryable_status(self):
+        error = HTTPError('https://example.test', 429, 'Too Many Requests', {'Retry-After': '0'}, None)
+        with patch('geowatch.http.urlopen', side_effect=[error, _DummyResponse()]) as mocked, patch('geowatch.http.time.sleep') as sleeper:
+            response = get('https://example.test', retries=1, backoff_seconds=0)
+        self.assertEqual(b'{}', response.payload)
+        self.assertEqual(2, mocked.call_count)
+        sleeper.assert_called_once()
+
+    def test_beta_health_distinguishes_transient_and_structural_failures(self):
+        text = Path('scripts/assert_beta_run.py').read_text(encoding='utf-8')
+        self.assertIn('transient_source_errors', text)
+        self.assertIn('structural_source_errors', text)
+        self.assertIn('HTTP Error 429', text)
+        self.assertIn('parser_schema_and_configuration_errors_fail_the_beta_run', text)
 
     def test_empirical_history_preserves_layers_and_hides_future_outcomes(self):
         curated = [{
