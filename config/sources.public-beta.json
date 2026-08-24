@@ -1,0 +1,11 @@
+{
+  "source_quality_profiles": "config/source_quality.json",
+  "history": {"default_lookback_hours": 2, "checkpoint_overlap_minutes": 20},
+  "sources": [
+    {"source_id":"gdelt_conflict_news","kind":"gdelt","enabled":true,"lookback_hours":2,"maxrecords":250,"query":"(war OR conflict OR airstrike OR missile OR shelling OR invasion OR \"drone strike\" OR ceasefire OR blockade OR sanctions OR port OR shipping)","extension":"json"},
+    {"source_id":"gdacs_context","kind":"gdacs","enabled":true,"extension":"json","notes":"Official disaster/context signal; never conflict attribution."}
+  ],
+  "report": {"lookback_hours":72,"min_priority":0,"max_events":30,"max_news_per_event":6,"title_similarity_threshold":0.78,"cluster_time_hours":36,"cluster_distance_km":250},
+  "convergence": {"entity_catalog":"config/entities.json","episode_lookback_days":180,"attach_threshold":0.43,"max_report_episodes":75},
+  "alerts": {"policy_file":"config/alerts.json"}
+}
