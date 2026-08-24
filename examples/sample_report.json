@@ -1,0 +1,60 @@
+{
+  "schema_version": "geowatch-report-v1",
+  "report_id": "8bc843a66b9d09aa9f8ab9ee",
+  "report_type": "situational",
+  "generated_at": "2026-08-24T15:00:00+00:00",
+  "event_count": 1,
+  "news_count": 2,
+  "events": [
+    {
+      "cluster_id": "40324961ddce0ccb5302fc5f",
+      "event_id": "demo-reuters",
+      "title": "Missile attack disrupts major port operations",
+      "priority_score": 34,
+      "priority_method_version": "geowatch-priority-v0.3",
+      "corroboration_status": "multi_provider_osint",
+      "verification_level": "osint_signal",
+      "reference_at": "2026-08-24T15:00:00+00:00",
+      "country": null,
+      "region": null,
+      "latitude": null,
+      "longitude": null,
+      "fatalities_best": null,
+      "actors": [],
+      "impact_areas": [
+        "shipping",
+        "logistics"
+      ],
+      "impact_evidence_class": "inferred",
+      "provider_count": 2,
+      "evidence": [],
+      "news": [
+        {
+          "title": "Missile attack disrupts major port operations",
+          "publisher": "reuters.example",
+          "published_at": "2026-08-24T15:00:00+00:00",
+          "url": "https://reuters.example/demo",
+          "source_id": "gdelt"
+        },
+        {
+          "title": "Missile attack disrupts major port operations",
+          "publisher": "bbc.example",
+          "published_at": "2026-08-24T15:00:00+00:00",
+          "url": "https://bbc.example/demo",
+          "source_id": "gdelt"
+        }
+      ],
+      "news_count": 2,
+      "what_to_watch": [
+        "Track route closures/diversions, insurance, voyage time, freight and congestion.",
+        "Track ports, rail, roads, canals, borders and alternate capacity."
+      ]
+    }
+  ],
+  "methodology_notes": [
+    "News coverage is an observed publication signal, not automatic confirmation of the reported fact.",
+    "Thermal and other sensor signals require independent corroboration before conflict attribution.",
+    "Priority score ranks analyst attention; it is not a probability of war or economic impact.",
+    "Impact areas are inferred tags until causal analysis validates or rejects them."
+  ]
+}
