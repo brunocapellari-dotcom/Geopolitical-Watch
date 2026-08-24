@@ -1,0 +1,15 @@
+{
+  "schema_version": "geowatch-sanctions-sources-v1",
+  "as_of_checked": "2026-08-24",
+  "sources": [
+    {"source_id":"unsc_sanctions","authority":"United Nations Security Council","url":"https://main.un.org/securitycouncil/en/sanctions/information","kind":"multilateral_regimes","refresh":"daily_when_enabled"},
+    {"source_id":"ofac_sls","authority":"U.S. Treasury OFAC","url":"https://ofac.treasury.gov/sanctions-list-service","kind":"designation_lists_and_deltas","refresh":"daily_when_enabled"},
+    {"source_id":"uk_sanctions_list","authority":"UK Government","url":"https://www.gov.uk/government/publications/the-uk-sanctions-list","kind":"designation_list_and_changes","refresh":"daily_when_enabled"}
+  ],
+  "governance": {
+    "official_source_required": true,
+    "designation_is_legal_status_not_general_risk_score": true,
+    "effective_dates_and_revocations_must_be_preserved": true,
+    "legal_interpretation_requires_specialist_review": true
+  }
+}
