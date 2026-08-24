@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import datetime, timezone
 from typing import Iterable
 
@@ -27,7 +28,7 @@ def build_episode_report(
     if geopolitical_knowledge is None:
         try:
             geopolitical_knowledge = GeopoliticalKnowledge.from_files()
-        except (FileNotFoundError, json_error_types()):
+        except (FileNotFoundError, json.JSONDecodeError):
             geopolitical_knowledge = None
 
     ranked = sorted(
@@ -144,8 +145,3 @@ def render_episode_markdown(report: dict) -> str:
                 lines.append(f"- {flag}")
         lines.append("")
     return "\n".join(lines) + "\n"
-
-
-def json_error_types():
-    import json
-    return json.JSONDecodeError
