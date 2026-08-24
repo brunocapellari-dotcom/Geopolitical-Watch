@@ -20,7 +20,7 @@ Delivered:
 10. actor and critical-infrastructure registries expanded;
 11. rolling out-of-sample framework and source-rights/release/recovery audits added.
 
-## v0.12 — reliable public Beta and empirical history — release candidate
+## v0.12 — reliable public Beta and empirical history — complete
 
 Delivered in the acceleration wave:
 
@@ -49,7 +49,8 @@ Delivered in the acceleration wave:
 23. scheduled UCDP/WPI/World Bank/sanctions refreshes hardened against false-green `tee` behavior;
 24. public data and Beta artifacts retain RAW/report/database evidence for audit;
 25. package/API version promoted to 0.12.0 from a canonical package version;
-26. readiness dimensions recalculated conservatively to approximately 0.82 while all external hard gates remain false.
+26. readiness dimensions recalculated conservatively to approximately 0.82 while all external hard gates remain false;
+27. final cumulative tests, public-data integration and live Beta integration passed on the v0.12 release head.
 
 The public Beta is an initial usable operating path, not a substitute for final production. A run may remain operational while temporarily degraded by provider rate limiting, but it must state when conflict-source coverage is unavailable.
 
