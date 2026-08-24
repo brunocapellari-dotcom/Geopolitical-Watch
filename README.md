@@ -4,13 +4,13 @@ Standalone public-source geopolitical conflict monitoring and strategic intellig
 
 ## Status
 
-Version **0.9.0** adds the Strategic Intelligence & Historical Learning layer above v0.8: persistent analyst decisions, reversible episode corrections, country strategic profiles, a sourced temporal strategic graph, escalation indicators, competing hypotheses, probabilistic forecasts/calibration, geoeconomic dependency metrics, sanctions context and official maritime-warning context.
+Version **0.10.0** adds the Empirical Intelligence & Production Readiness layer above v0.9: global country coverage registry, actor profiles, security-system context, critical-infrastructure graph, dated geoeconomic observation contracts, chokepoint exposure analysis, sanctions and maritime-warning normalization, formal multi-horizon forecast templates, leakage-safe historical backtesting, a historical crisis corpus, leading-indicator lead-time analysis, post-event learning and a hard-gated readiness model.
 
 The project remains independent from AgroLog MT. AgroLog MT is a downstream read-only consumer of published feeds.
 
 ## Architecture
 
-`sources -> durable RAW -> normalized events -> entities -> claims/evidence -> ConflictEpisodes -> geopolitical knowledge -> strategic graph/indicators -> review/hypotheses/forecasts -> outcomes/learning proposals -> API/dashboard/consumers`
+`sources -> durable RAW -> normalized events -> entities -> claims/evidence -> ConflictEpisodes -> geopolitical knowledge -> strategic graph/indicators -> review/hypotheses/forecasts -> outcomes/postmortems -> governed learning proposals -> API/dashboard/consumers`
 
 Permanent rules:
 
@@ -20,51 +20,67 @@ Permanent rules:
 - indicator scores are not probabilities;
 - forecast probabilities do not change `EvidenceStrength`;
 - analyst corrections preserve lineage and snapshots;
-- learning proposals never auto-apply.
+- learning proposals never auto-apply;
+- historical backtests must enforce an information cutoff;
+- 95% readiness requires all hard production/validation gates, not only a weighted score.
 
-## Geopolitical knowledge
+## v0.10 empirical intelligence
 
-The advanced study program in `docs/GEOPOLITICS_CURRICULUM.md` covers international-relations theory, strategic studies, geoeconomics, political geography, international law, regional systems, information/OSINT uncertainty and historical cases.
+New durable components:
 
-v0.9 adds:
+- `config/geopolitics/country_registry.json` — ISO-3166 global namespace coverage with enrichment status separated from profile quality;
+- `config/geopolitics/actor_profiles.json` — sourced structural profiles for organizations/non-state actors;
+- `config/geopolitics/security_systems.json` — collective-defence alliances, security organizations and partnerships modeled as different relationship types;
+- `config/geopolitics/critical_infrastructure.json` — strategic chokepoints, ports, routes and infrastructure nodes;
+- `config/geopolitics/geoeconomic_sources.json` — canonical official data sources for dated trade/energy/agriculture observations;
+- `config/geopolitics/forecast_templates.json` — frozen questions and resolution criteria for 1/7/30/90-day forecast horizons;
+- `config/geopolitics/historical_crises.json` — initial historical replay corpus with no-lookahead governance;
+- `config/geopolitics/leading_indicators.json` — observable escalation/de-escalation indicator library;
+- `config/readiness.json` — weighted readiness dimensions plus hard gates.
 
-- `config/geopolitics/country_profiles.json` — structural country profiles;
-- `config/geopolitics/strategic_graph.json` — sourced, time-bounded relationships and chokepoint exposure context;
-- `config/geopolitics/escalation_indicators.json` — escalation/de-escalation observables;
-- `config/geopolitics/sanctions_sources.json` — official sanctions source registry;
-- `config/geopolitics/maritime_notice_sources.json` — official navigational-warning registry;
-- `docs/STRATEGIC_INTELLIGENCE_MODEL.md` — learning/forecast/review governance.
+Core modules include `global_profiles`, `actor_profiles`, `security_systems`, `critical_infrastructure`, `geoeconomic_observations`, `chokepoints`, `sanctions_feed`, `maritime_feed`, `forecast_templates`, `historical_backtest`, `historical_corpus`, `leading_indicators`, `postmortem` and `readiness`.
 
-Copyrighted academic/books material remains bibliographic reference + original synthesis only.
+## Forecasting and learning
 
-## Strategic learning loop
-
-`review -> decision -> versioned operation/forecast -> observed outcome -> calibration -> knowledge proposal -> human/source review -> versioned knowledge change`
-
-The strategic ledger stores:
-
-- review decisions;
-- merge/split/revert operations;
-- forecasts and resolutions;
-- knowledge proposals.
-
-Repeated reviewed corrections may generate proposals, but `auto_apply=false` is permanent.
-
-## Forecasting and competing hypotheses
-
-Forecasts preserve original question, probability, timestamp, horizon and rationale. Resolutions are appended later. Historical calibration uses Brier score and probability bins.
-
-Competing hypotheses store supporting, opposing and discriminating indicators. Their diagnostic score is not a posterior probability.
-
-## Geoeconomic context
-
-Initial quantitative tools include supplier HHI, effective supplier count, structural dependency index, route concentration and chokepoint exposure share. These are exposure measures, not loss forecasts.
+Formal forecast questions preserve original probability, horizon, resolution rule and information cutoff. Historical evaluation rejects forecasts that were not strictly created before resolution or whose information cutoff is after forecast creation. Post-event reviews preserve the original evidence snapshot and can generate method-change proposals, always with `auto_apply=false`.
 
 ## Sanctions and maritime context
 
-Sanctions records preserve issuing authority, regime, target, measure, effective date and revocation. Legal applicability requires specialist review.
+Sanctions ingestion normalizes issuing authority/list/reference/name/program/effective date. Official designations establish only what the issuing authority recorded; legal applicability still requires jurisdiction-specific review.
 
-Navigational warnings are kept separate from future AIS context. An official warning can establish navigation-safety context within its scope but does not establish conflict attribution or intent.
+Navigational warnings remain separate from future AIS context. An official warning can establish navigation-safety context within its scope but does not establish conflict attribution or intent.
+
+## Readiness
+
+`GET /v2/readiness` exposes a conservative project-readiness assessment. A weighted score alone cannot produce 95% readiness. The hard gates are:
+
+- live production smoke passed;
+- database restore/PITR drill passed;
+- source credentials and terms reviewed;
+- historical out-of-sample validation completed;
+- security and source-rights audit completed.
+
+`scripts/preflight_v1.py` checks repository assets and required production environment variables without printing secret values.
+
+## API
+
+Compatibility remains for v1/v2 feeds, reports, episodes, events, changes, map, alerts, consumer feeds, review queue, coverage, operational metrics and dashboard.
+
+Strategic/read-only surfaces include:
+
+- `GET /v2/review-decisions`
+- `GET /v2/episode-operations`
+- `GET /v2/forecasts`
+- `GET /v2/forecasts/summary`
+- `GET /v2/geopolitics/countries`
+- `GET /v2/geopolitics/actors`
+- `GET /v2/geopolitics/security-systems`
+- `GET /v2/geopolitics/infrastructure`
+- `GET /v2/geopolitics/history`
+- `GET /v2/geopolitics/graph`
+- `GET /v2/readiness`
+
+Strategic mutations remain CLI/internal operations rather than public HTTP write endpoints.
 
 ## Operational sources
 
@@ -74,51 +90,6 @@ Navigational warnings are kept separate from future AIS context. An official war
 - ReliefWeb V2 — supported, disabled until approved appname.
 - NASA FIRMS — supported, disabled until MAP_KEY and operational regions are configured.
 - ACLED — supported with OAuth/cursor pagination, disabled until credentials and terms review.
-
-## Quick start
-
-1. `python -m unittest discover -s tests -v`
-2. `python -m geowatch collect`
-3. `python -m geowatch serve`
-4. `python -m geowatch metrics`
-5. `python -m geowatch country-profile --country Japan`
-6. `python -m geowatch forecast --subject-type episode --subject-id <id> --question "..." --probability 0.6 --horizon <ISO>`
-7. `python -m geowatch forecast-summary`
-
-Optional PostgreSQL/GCS dependencies: `pip install '.[production]'`.
-
-## API
-
-Compatibility remains:
-
-- `GET /v1/feed`
-- `GET /v1/reports/latest`
-- `GET /v2/feed`
-- `GET /v2/reports/latest`
-- `GET /v2/episodes`
-- `GET /v2/episodes/{episode_id}`
-- `GET /v2/events`
-- `GET /v2/changes`
-- `GET /v2/map`
-- `GET /v2/alerts/pending`
-- `GET /v2/consumers/agrolog/feed`
-- `GET /v2/review-queue`
-- `GET /v2/coverage`
-- `GET /v2/operational`
-- `GET /metrics`
-- `GET /health`
-- `GET /dashboard`
-
-v0.9 read-only strategic surfaces:
-
-- `GET /v2/review-decisions`
-- `GET /v2/episode-operations`
-- `GET /v2/forecasts`
-- `GET /v2/forecasts/summary`
-- `GET /v2/geopolitics/countries`
-- `GET /v2/geopolitics/graph`
-
-Strategic mutations remain CLI/internal operations rather than public HTTP write endpoints.
 
 ## Deployment state
 
@@ -132,4 +103,5 @@ Strategic mutations remain CLI/internal operations rather than public HTTP write
 - v0.6 operational data layer — complete in code/CI; live deployment external.
 - v0.7 product/alert layer — complete.
 - v0.8 geopolitical knowledge + validation — complete.
-- v0.9 strategic intelligence + historical learning — **complete, CI passed and merged in PR #8**.
+- v0.9 strategic intelligence + historical learning — complete.
+- v0.10 empirical intelligence + production readiness — implemented in this branch pending release gate.
