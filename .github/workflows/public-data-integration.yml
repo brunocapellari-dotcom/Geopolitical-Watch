@@ -1,0 +1,62 @@
+name: public-data-integration
+
+on:
+  pull_request:
+    paths:
+      - "geowatch/ucdp_bulk.py"
+      - "geowatch/wpi.py"
+      - "geowatch/worldbank.py"
+      - "geowatch/sanctions_feed.py"
+      - "scripts/build_ucdp_bulk_artifacts.py"
+      - "scripts/build_wpi_artifacts.py"
+      - "scripts/build_worldbank_artifacts.py"
+      - "scripts/build_sanctions_artifacts.py"
+      - "scripts/assert_public_bootstrap.py"
+      - ".github/workflows/public-data-integration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-public-bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build UCDP bulk historical artifacts
+        run: python scripts/build_ucdp_bulk_artifacts.py | tee ucdp-live.json
+      - name: Build NGA World Port Index artifacts
+        run: python scripts/build_wpi_artifacts.py | tee wpi-live.json
+      - name: Build World Bank strategic baseline
+        run: python scripts/build_worldbank_artifacts.py | tee worldbank-live.json
+      - name: Build official sanctions snapshots
+        run: python scripts/build_sanctions_artifacts.py | tee sanctions-live.json
+      - name: Assert real public bootstrap sanity
+        run: python scripts/assert_public_bootstrap.py | tee bootstrap-live.json
+      - name: Publish validation summary
+        if: always()
+        run: |
+          echo "# Geopolitical Watch — live public bootstrap" >> "$GITHUB_STEP_SUMMARY"
+          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/wpi/summary.json generated/worldbank/summary.json generated/sanctions/summary.json; do
+            if [ -f "$file" ]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "## $file" >> "$GITHUB_STEP_SUMMARY"
+              echo '```json' >> "$GITHUB_STEP_SUMMARY"
+              cat "$file" >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+      - name: Upload validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geowatch-public-data-integration-${{ github.run_id }}
+          path: |
+            generated/
+            *-live.json
+          if-no-files-found: warn
+          retention-days: 14
