@@ -68,7 +68,7 @@ Live GCP deployment remains an external execution gate.
 - alert calibration framework
 - merge lineage and split planning
 
-## v0.9 — strategic intelligence and historical learning — implemented pending release gate
+## v0.9 — strategic intelligence and historical learning — complete
 
 - persistent analyst review decisions
 - governed knowledge proposals; no automatic knowledge mutation
@@ -85,6 +85,7 @@ Live GCP deployment remains an external execution gate.
 - read-only strategic API surfaces
 - strategic CLI operations
 - v0.9 regression suite
+- GitHub Actions release gate passed in PR #8
 
 ## v0.10 — empirical intelligence and production — next
 
