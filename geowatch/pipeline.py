@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -13,6 +12,7 @@ from .episode_reports import build_episode_report, render_episode_markdown
 from .geo import canonicalize_event
 from .history import TimeWindow, iter_windows, overlap_start, parse_utc
 from .quality import load_profiles
+from .raw_store import open_raw_store
 from .reports import build_report, render_markdown
 from .sources import acled, firms, gdacs, gdelt, reliefweb, ucdp
 from .storage_factory import open_store
@@ -27,7 +27,7 @@ def run(
     config = json.loads(Path(config_path).read_text(encoding="utf-8"))
     now = datetime.now(timezone.utc)
     collected_at = now.isoformat()
-    raw_root = Path(raw_root)
+    raw_store = open_raw_store(raw_root)
     store = open_store(db_path)
     profiles = load_profiles(config.get("source_quality_profiles", "config/source_quality.json"))
     source_results: list[dict[str, object]] = []
@@ -56,12 +56,12 @@ def run(
             source_events = []
             for index, payload in enumerate(payloads):
                 url = urls[index] if index < len(urls) else None
-                path, digest = _store_payload(raw_root, source_id, collected_at, payload, str(spec.get("extension", "json")))
+                raw_ref, digest = raw_store.put(source_id, collected_at, payload, str(spec.get("extension", "json")))
                 store.add_artifact(
                     artifact_id=f"{source_id}:{digest}", source_id=source_id, sha256=digest,
-                    collected_at=collected_at, observed_url=url, path=str(path), bytes_count=len(payload),
+                    collected_at=collected_at, observed_url=url, path=raw_ref, bytes_count=len(payload),
                 )
-                parsed = parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=str(path))
+                parsed = parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=raw_ref)
                 source_events.extend(canonicalize_event(event) for event in parsed)
 
             store.upsert_events(source_events)
@@ -121,8 +121,6 @@ def run(
     )
     store.upsert_entities(entities)
     store.upsert_evidence(evidence)
-    # Episodes must exist before claims in the PostgreSQL backend because claims
-    # carry a foreign key to their episode. SQLite remains compatible with this order.
     store.upsert_episodes(episodes)
     store.upsert_claims(claims)
     store.record_changes(changes)
@@ -165,7 +163,7 @@ def backfill(
         raise ValueError(f"Unknown source_id: {source_id}")
     kind = spec.get("kind")
     store = open_store(db_path)
-    raw_root = Path(raw_root)
+    raw_store = open_raw_store(raw_root)
     collected_at = datetime.now(timezone.utc).isoformat()
     total_records = 0
     requests = 0
@@ -177,7 +175,7 @@ def backfill(
                 query=spec.get("query", gdelt.DEFAULT_QUERY), maxrecords=int(spec.get("maxrecords", 250)),
                 start_datetime=params["startdatetime"], end_datetime=params["enddatetime"],
             )
-            total_records += _persist_backfill_payload(store, raw_root, spec, payload, url, collected_at, gdelt.parse)
+            total_records += _persist_backfill_payload(store, raw_store, spec, payload, url, collected_at, gdelt.parse)
             requests += 1
     elif kind == "ucdp":
         payloads, urls = ucdp.collect_all(
@@ -185,7 +183,7 @@ def backfill(
             start_date=parse_utc(start).date().isoformat(), end_date=parse_utc(end).date().isoformat(),
         )
         for payload, url in zip(payloads, urls):
-            total_records += _persist_backfill_payload(store, raw_root, spec, payload, url, collected_at, ucdp.parse)
+            total_records += _persist_backfill_payload(store, raw_store, spec, payload, url, collected_at, ucdp.parse)
         requests += len(payloads)
     elif kind == "firms":
         current = parse_utc(start).date()
@@ -196,7 +194,7 @@ def backfill(
                 sensor=spec.get("sensor", "VIIRS_SNPP_NRT"), area=spec.get("area", "world"),
                 day_range=day_range, date=current.isoformat(),
             )
-            total_records += _persist_backfill_payload(store, raw_root, spec, payload, url, collected_at, firms.parse)
+            total_records += _persist_backfill_payload(store, raw_store, spec, payload, url, collected_at, firms.parse)
             current += timedelta(days=day_range)
             requests += 1
     elif kind == "acled":
@@ -206,7 +204,7 @@ def backfill(
         }
         payloads, urls = acled.collect_all(query=query, limit=int(spec.get("limit", 5000)))
         for payload, url in zip(payloads, urls):
-            total_records += _persist_backfill_payload(store, raw_root, spec, payload, url, collected_at, acled.parse)
+            total_records += _persist_backfill_payload(store, raw_store, spec, payload, url, collected_at, acled.parse)
         requests += len(payloads)
     else:
         store.close()
@@ -260,23 +258,14 @@ def _collect_incremental(spec: dict, *, checkpoint: dict | None, now: datetime, 
     raise ValueError(f"Unknown source kind: {kind}")
 
 
-def _store_payload(raw_root: Path, source_id: str, collected_at: str, payload: bytes, extension: str) -> tuple[Path, str]:
-    digest = hashlib.sha256(payload).hexdigest()
-    path = raw_root / source_id / collected_at[:10] / f"{digest}.{extension}"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        path.write_bytes(payload)
-    return path, digest
-
-
-def _persist_backfill_payload(store, raw_root: Path, spec: dict, payload: bytes, url: str, collected_at: str, parser) -> int:
+def _persist_backfill_payload(store, raw_store, spec: dict, payload: bytes, url: str, collected_at: str, parser) -> int:
     source_id = str(spec["source_id"])
-    path, digest = _store_payload(raw_root, source_id, collected_at, payload, str(spec.get("extension", "json")))
+    raw_ref, digest = raw_store.put(source_id, collected_at, payload, str(spec.get("extension", "json")))
     store.add_artifact(
         artifact_id=f"{source_id}:{digest}", source_id=source_id, sha256=digest,
-        collected_at=collected_at, observed_url=url, path=str(path), bytes_count=len(payload),
+        collected_at=collected_at, observed_url=url, path=raw_ref, bytes_count=len(payload),
     )
-    events = [canonicalize_event(event) for event in parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=str(path))]
+    events = [canonicalize_event(event) for event in parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=raw_ref)]
     store.upsert_events(events)
     return len(events)
 
