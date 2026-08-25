@@ -1,0 +1,23 @@
+{
+  "schema_version":"geowatch-v1-gate-config-v1",
+  "readiness_threshold":0.95,
+  "minimums":{
+    "human_gold":500,
+    "resolved_prospective_forecasts":200,
+    "source_history_days":30,
+    "reviewed_critical_infrastructure":50
+  },
+  "external_evidence_required":[
+    "production_smoke",
+    "restore_pitr_drill",
+    "security_review",
+    "cost_review",
+    "source_rights_review"
+  ],
+  "rules":[
+    "A code implementation cannot self-attest an external production gate.",
+    "Human-gold counts only explicitly reviewed labels.",
+    "Retrospective forecast benchmarks do not satisfy prospective track-record requirements.",
+    "v1.0 RC requires readiness >= 0.95 and every hard gate passed."
+  ]
+}
