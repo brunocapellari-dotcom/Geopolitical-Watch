@@ -39,11 +39,24 @@ def append_source_history(history: dict | None, *, generated_at: str, source_res
     return {"schema_version":"geowatch-source-history-v1","retention_days":retention_days,"observation_count":len(rows),"observations":rows,"operational_history_not_event_evidence":True}
 
 
+def rolling_availability(observations: Iterable[dict], *, source_id: str, as_of: str | None=None, windows: tuple[int,...]=(7,30,90)) -> dict:
+    now=_dt(as_of) or datetime.now(timezone.utc)
+    relevant=[r for r in observations if r.get("source_id")==source_id and _dt(r.get("observed_at"))]
+    result={}
+    for days in windows:
+        cutoff=now-timedelta(days=days)
+        rows=[r for r in relevant if (_dt(r.get("observed_at")) or now)>=cutoff]
+        ok=sum(r.get("result_class")=="success" for r in rows)
+        result[str(days)]={"window_days":days,"observations":len(rows),"successful":ok,"availability_ratio":round(ok/len(rows),6) if rows else None,"sample_empty":not rows}
+    return result
+
+
 def summarize_source_history(history: dict, *, as_of: str | None=None, slo_config: dict | None=None) -> dict:
     now=_dt(as_of) or datetime.now(timezone.utc)
     slo={r["source_id"]:r for r in (slo_config or {}).get("sources",[])}
+    all_observations=list(history.get("observations",[]))
     by_source: dict[str,list[dict]]={}
-    for row in history.get("observations",[]): by_source.setdefault(str(row.get("source_id")),[]).append(row)
+    for row in all_observations: by_source.setdefault(str(row.get("source_id")),[]).append(row)
     sources=[]
     for sid,values in sorted(by_source.items()):
         ordered=sorted(values,key=lambda r:str(r.get("observed_at") or "")); total=len(ordered); ok=sum(r.get("result_class")=="success" for r in ordered)
@@ -60,15 +73,19 @@ def summarize_source_history(history: dict, *, as_of: str | None=None, slo_confi
         cfg=slo.get(sid,{})
         max_fresh=cfg.get("max_freshness_hours"); min_avail=cfg.get("monthly_availability_target")
         availability=(ok/total) if total else None
+        rolling=rolling_availability(all_observations,source_id=sid,as_of=now.isoformat())
+        rolling30=(rolling.get("30") or {}).get("availability_ratio")
         sources.append({
             "source_id":sid,"observations":total,"successful":ok,"availability_ratio":round(availability,6) if availability is not None else None,
+            "rolling_availability":rolling,
             "incident_count":len(incidents),"open_incident":bool(incidents and incidents[-1][1] is None),
             "mttr_minutes":round(sum(durations)/len(durations),3) if durations else None,"last_recovery_at":last_recovery.isoformat() if last_recovery else None,
             "latest_reference_at":latest_ref.isoformat() if latest_ref else None,"freshness_hours":round(freshness,3) if freshness is not None else None,
             "freshness_slo_passed":None if max_fresh is None or freshness is None else freshness<=float(max_fresh),
-            "availability_slo_passed":None if min_avail is None or availability is None else availability>=float(min_avail),
+            "availability_slo_passed":None if min_avail is None or rolling30 is None else rolling30>=float(min_avail),
+            "availability_slo_uses_rolling_30d_when_available":True,
         })
-    return {"schema_version":"geowatch-source-resilience-summary-v1","as_of":now.isoformat(),"sources":sources,"provider_availability_separate_from_internal_system_health":True}
+    return {"schema_version":"geowatch-source-resilience-summary-v2","as_of":now.isoformat(),"sources":sources,"provider_availability_separate_from_internal_system_health":True,"rolling_windows_days":[7,30,90]}
 
 
 @dataclass(frozen=True)
