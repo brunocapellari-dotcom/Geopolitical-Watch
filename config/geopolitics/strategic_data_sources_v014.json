@@ -1,0 +1,40 @@
+{
+  "schema_version":"geowatch-strategic-source-catalog-v1",
+  "as_of":"2026-08-25",
+  "sources":[
+    {
+      "source_id":"un_locode","provider":"UNECE","role":"port_location_identity","status":"reviewed_public_reference",
+      "reference":"UN/LOCODE 2025-1","notes":"Over 103,000 locations; identity/location/function reference. Does not by itself establish geopolitical criticality."
+    },
+    {
+      "source_id":"un_comtrade","provider":"UN Statistics Division","role":"bilateral_trade_flows","status":"api_key_recommended",
+      "notes":"Official reported trade data; free account advertises up to 100K records per call and 500 API calls/day. Reporter publication lags vary and must be preserved."
+    },
+    {
+      "source_id":"eia_world_oil_chokepoints","provider":"U.S. EIA","role":"energy_chokepoint_flows","status":"reviewed_public_analysis",
+      "reference":"World Oil Transit Chokepoints, updated 2026-03-03",
+      "notes":"Uses EIA analysis including tanker-tracking inputs; treat values as dated analytical observations, not real-time traffic."
+    },
+    {
+      "source_id":"panama_canal_authority","provider":"Autoridad del Canal de Panama","role":"canal_transits_and_tonnage","status":"reviewed_official",
+      "reference":"Annual Report FY2025"
+    },
+    {
+      "source_id":"unctad_suez_trade_share","provider":"UNCTAD","role":"maritime_trade_context","status":"reviewed_official_analysis",
+      "reference":"SDG Pulse 2024 / Red Sea disruption analysis",
+      "notes":"Contextual global maritime trade shares and disruption analysis; underlying commercial data lineage must be retained where cited."
+    },
+    {
+      "source_id":"faostat","provider":"FAO","role":"food_and_agricultural_production_trade_context","status":"planned_official"},
+    {
+      "source_id":"eia_international","provider":"U.S. EIA","role":"energy_supply_trade_context","status":"planned_official"},
+    {
+      "source_id":"usgs_mineral_commodities","provider":"USGS","role":"critical_mineral_supply_context","status":"planned_official"}
+  ],
+  "epistemic_rules":[
+    "Every observation stores reference period, collection time, unit and source_id.",
+    "Missing bilateral flow is unknown, not zero.",
+    "Structural/reference data never confirms a live conflict event.",
+    "Commercial-data-derived official analysis must retain the official publication as source and note underlying methodology when known."
+  ]
+}
