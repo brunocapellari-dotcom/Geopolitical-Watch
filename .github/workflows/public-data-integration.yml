@@ -10,12 +10,19 @@ on:
       - "scripts/build_empirical_history_artifacts.py"
       - "scripts/build_wpi_artifacts.py"
       - "scripts/build_unlocode_crossmatch.py"
+      - "scripts/build_unlocode_global.py"
+      - "scripts/build_global_port_crosswalk.py"
       - "scripts/build_comtrade_pilot.py"
+      - "scripts/build_comtrade_matrix.py"
+      - "scripts/build_strategic_public_sources_v015.py"
       - "scripts/export_human_review.py"
+      - "scripts/build_human_review_interface.py"
+      - "scripts/build_gold_calibration.py"
       - "scripts/build_worldbank_artifacts.py"
       - "scripts/build_sanctions_artifacts.py"
       - "scripts/build_v013_operational_assets.py"
       - "scripts/build_v014_operational_learning.py"
+      - "scripts/build_v015_empirical_calibration.py"
       - "scripts/build_obsidian_bundle.py"
       - "scripts/assert_public_bootstrap.py"
       - ".github/workflows/public-data-integration.yml"
@@ -43,6 +50,14 @@ jobs:
         run: |
           set -o pipefail
           python scripts/export_human_review.py | tee human-review-live.json
+      - name: Build human review interface
+        run: |
+          set -o pipefail
+          python scripts/build_human_review_interface.py | tee human-review-interface-live.json
+      - name: Build gold calibration gate
+        run: |
+          set -o pipefail
+          python scripts/build_gold_calibration.py | tee gold-calibration-live.json
       - name: Build layered empirical history
         run: |
           set -o pipefail
@@ -51,10 +66,18 @@ jobs:
         run: |
           set -o pipefail
           python scripts/build_wpi_artifacts.py | tee wpi-live.json
-      - name: Crossmatch WPI with UN LOCODE
+      - name: Build global UN LOCODE artifact
+        run: |
+          set -o pipefail
+          python scripts/build_unlocode_global.py | tee unlocode-global-live.json
+      - name: Crossmatch WPI candidates with UN LOCODE
         run: |
           set -o pipefail
           python scripts/build_unlocode_crossmatch.py | tee unlocode-live.json
+      - name: Build global WPI UN LOCODE crosswalk
+        run: |
+          set -o pipefail
+          python scripts/build_global_port_crosswalk.py | tee port-crosswalk-live.json
       - name: Build World Bank strategic baseline
         run: |
           set -o pipefail
@@ -63,6 +86,10 @@ jobs:
         run: |
           set -o pipefail
           python scripts/build_comtrade_pilot.py --smoke | tee comtrade-live.json
+      - name: Validate FAOSTAT USGS and EIA public source access
+        run: |
+          set -o pipefail
+          python scripts/build_strategic_public_sources_v015.py | tee strategic-sources-live.json
       - name: Build official sanctions snapshots
         run: |
           set -o pipefail
@@ -79,11 +106,15 @@ jobs:
         run: |
           set -o pipefail
           python scripts/build_v014_operational_learning.py | tee v014-live.json
+      - name: Build and assert v0.15 empirical calibration assets
+        run: |
+          set -o pipefail
+          python scripts/build_v015_empirical_calibration.py | tee v015-live.json
       - name: Publish validation summary
         if: always()
         run: |
           echo "# Geopolitical Watch — live public bootstrap" >> "$GITHUB_STEP_SUMMARY"
-          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/empirical/summary.json generated/wpi/summary.json generated/unlocode/wpi_crossmatch.json generated/worldbank/summary.json generated/comtrade/summary.json generated/sanctions/summary.json generated/v013/operational_assets.json generated/v014/operational_learning.json generated/obsidian/monitor_conflitos/manifest.json; do
+          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/empirical/summary.json generated/wpi/summary.json generated/unlocode/wpi_crossmatch.json generated/unlocode/global_summary.json generated/unlocode/global_wpi_crosswalk_summary.json generated/worldbank/summary.json generated/comtrade/summary.json generated/strategic_sources/summary.json generated/sanctions/summary.json generated/human_review/interface/summary.json generated/gold_calibration/summary.json generated/v013/operational_assets.json generated/v014/operational_learning.json generated/v015/empirical_calibration.json generated/obsidian/monitor_conflitos/manifest.json; do
             if [ -f "$file" ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "## $file" >> "$GITHUB_STEP_SUMMARY"
