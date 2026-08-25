@@ -4,7 +4,7 @@ Standalone public-source geopolitical conflict monitoring and strategic intellig
 
 ## Status
 
-Version **0.12.0** turns the repository into a substantially more reliable public Beta while deepening empirical history. The release validates real public upstreams in GitHub Actions, persists the Beta database between runs, distinguishes transient source degradation from structural failures, adds HTTP retry/backoff, builds a concise operator digest, and prevents disaster/sensor context from creating conflict episodes by itself.
+Version **0.13.0** promotes the reliable public Beta into an operational-intelligence layer: persistent run history, explicit operational health, run-to-run deltas, source-backed historical validation assets, frozen multi-horizon forecasting benchmarks, expanded strategic profiles and chokepoint scenarios. Final production readiness remains a separate evidence gate.
 
 The project remains independent from AgroLog MT. AgroLog MT is a downstream read-only consumer of published feeds.
 
@@ -12,97 +12,102 @@ The project remains independent from AgroLog MT. AgroLog MT is a downstream read
 
 - `Event` is preserved evidence; `ConflictEpisode` is the persistent analytical unit.
 - Knowledge, profiles, graph edges, historical analogies and infrastructure criticality are context, not event verification.
-- GDACS disaster context and sensor signals such as FIRMS cannot seed `ConflictEpisode`, create conflict claims or raise evidence strength by themselves.
-- Context-only events may enrich an existing episode only after a stronger match and do not refresh the episode's conflict state.
-- Provider disagreements are preserved instead of forcibly reconciled.
-- Forecast probability never changes `EvidenceStrength`.
+- GDACS disaster context and sensor signals cannot seed a conflict episode or raise EvidenceStrength by themselves.
+- Provider disagreements are preserved rather than forcibly reconciled.
+- EvidenceStrength is a heuristic index, never probability.
+- Forecast probability never changes EvidenceStrength.
 - Learning proposals never auto-apply.
-- Historical validation enforces an information cutoff and reports temporal instability, not only aggregate scores.
+- Research-coded history is not human gold or current evidence.
+- Scenario packs are not forecasts.
+- Missing economic observations are not zero-filled.
 - 95% readiness requires every hard production/validation gate in `config/readiness.json`.
 
-## v0.12 public Beta
+## Operational public Beta
 
-The credential-free Beta profile currently enables:
+The credential-free Beta currently uses GDELT as conflict-news signal and GDACS as context-only institutional disaster information.
 
-- GDELT as the public conflict-news signal;
-- GDACS as context-only institutional disaster information.
+`public sources -> RAW -> persistent SQLite Beta -> convergence -> ConflictEpisodes -> operational snapshot -> run delta -> digest -> versioned artifacts`
 
-The Beta workflow:
+v0.13 adds:
 
-`public sources -> raw snapshots -> persistent SQLite Beta store -> convergence -> ConflictEpisodes -> coverage/health -> concise operator digest -> versioned artifacts`
+- health classes `healthy`, `degraded`, `stale`, `partial`, `failed`;
+- persistent bounded operational history;
+- comparison with the previous run;
+- source health/freshness changes;
+- new episodes, state transitions and new change flags;
+- EvidenceStrength shifts explicitly labelled non-probabilistic;
+- concise operator digest with a “what changed” section.
 
-Operational safeguards include:
+GitHub Actions keeps Beta state in a versioned cache and retains database, RAW, state and report artifacts for audit. Live PR integration continues to exercise GDELT + GDACS.
 
-- hourly GitHub Actions execution with concurrency control;
-- persistent Beta SQLite state restored/saved through a versioned cache;
-- fail-closed shell pipelines (`pipefail`);
-- explicit health output distinguishing transient 429/5xx/timeout degradation from parser/schema/configuration failures;
-- GDELT HTTP retry/backoff;
-- conflict-coverage flag separate from generic pipeline health;
-- RAW/report/database artifacts retained for audit;
-- live PR smoke against GDELT + GDACS;
-- a concise digest with source health, freshness, top episodes, change flags and evidence-strength labels explicitly marked as non-probabilistic.
+## Empirical history and forecasting
 
-If GDELT is rate-limited while GDACS remains available, the Beta may continue as **degraded**, but it reports conflict coverage as unavailable and does not manufacture conflict episodes from disaster context.
+Validated public upstreams have processed:
 
-## Empirical history and public-data validation
+- UCDP Armed Conflict 26.1: 2,816 conflict-year rows;
+- 628 reconstructed continuous UCDP episodes across 303 conflict IDs;
+- 1,928 UCDP actors;
+- 1,000 deterministic pre-gold identity labels;
+- NGA World Port Index: 3,807 ports and 300 structural candidates;
+- World Bank: 217 countries and 4,860 recent observations across five indicators;
+- UN consolidated sanctions: 1,011 unique IDs in the validated snapshot;
+- UK Sanctions List: 6,334 Unique IDs in the validated snapshot.
 
-Current live-upstream integration has successfully processed, as sanity-check quantities rather than completeness guarantees:
+v0.13 additionally generates:
 
-- UCDP Armed Conflict 26.1: **2,816** conflict-year rows;
-- **628** reconstructed continuous UCDP episodes across **303** conflict IDs;
-- UCDP Actor 26.1: **1,928** parsed actors;
-- **1,000** deterministic pre-gold identity labels (not human gold);
-- NGA World Port Index: **3,807** ports with **300** structural enrichment candidates;
-- World Bank: **217** countries and **4,860** recent geoeconomic observations across five indicators;
-- UN consolidated sanctions: **1,011** unique IDs in the validated snapshot;
-- UK Sanctions List: **6,334** Unique IDs in the validated snapshot, kept separate from flattened name-row counts.
+- 150 prioritized research-coded UCDP chronologies;
+- an explicit queue of human-gold review candidates, never auto-labelled gold;
+- at least 200 frozen historical forecast questions;
+- horizons of 1, 7, 30 and 90 days;
+- rolling temporal evaluation by year, region and source mix.
 
-The empirical-history layer keeps project-curated cases and UCDP research-coded episodes distinct. UCDP history is neither live-event confirmation nor human-gold review data.
+Historical forecasts are retrospective benchmarks, not a fabricated historical live track record.
 
-The retrospective UCDP base-rate benchmark now scores only outcome classes that are actually represented by the termination dataset. Unsupported classes are not silently treated as negatives.
+## Strategic knowledge
 
-## v0.11 acceleration retained
+The structured geopolitical knowledge layer includes competing theoretical lenses, country profiles, actor profiles, security systems, strategic infrastructure, sanctions, historical cases, geoeconomic context and escalation indicators.
 
-Operational governance remains available:
+v0.13 enriches Tier-2 countries to the >=80% coverage target and expands the reviewed structural actor library beyond 50 entries. Current activity still requires live sources.
 
-- `config/operations/source_activation.json` — per-source credentials/terms gates; one blocked source does not block the global pipeline.
-- `config/operations/backfill_plan.json` — bounded, checkpointed historical windows.
-- `config/operations/firms_regions.json` — regional FIRMS areas; world queries are not the production default.
-- `config/operations/official_context_sources.json` — official sanctions/NAVAREA source registry.
-- `config/audit/source_rights.json` — retention/redistribution/credential review matrix.
-- `scripts/production_smoke.sh` — authenticated live API gate.
-- `scripts/cloudsql_restore_drill.sh` — dry-run by default; isolated clone when explicitly applied.
+Five core chokepoint scenario templates are maintained for:
+
+- Strait of Hormuz;
+- Bab el-Mandeb / Suez;
+- Strait of Malacca;
+- Panama Canal;
+- Turkish Straits.
+
+They require dated route-share inputs and uncertainty bands before quantitative use.
+
+## Infrastructure and geoeconomics
+
+WPI candidates now pass through a promotion-review framework. A port can become `review_ready` from structural signals, but **one source cannot establish reviewed geopolitical criticality** and cannot establish current operational disruption.
+
+World Bank observations are attached as dated country context. The geoeconomic dependency utilities are designed for dated trade/energy/agriculture observations and preserve missing values instead of interpreting absence as zero.
 
 ## Readiness
 
-`GET /v2/readiness` exposes a conservative weighted project-readiness estimate of approximately **0.82** for v0.12. This is **not intelligence accuracy** and cannot become 0.95 while any hard gate remains false.
+`GET /v2/readiness` exposes a conservative weighted project-state estimate of approximately **0.86** for v0.13. This is **not intelligence accuracy**.
 
 Hard gates still open:
 
-- live production smoke passed;
-- database restore/PITR drill passed;
-- restricted-source credentials and terms reviewed;
-- large historical out-of-sample validation completed;
-- security and source-rights audit completed.
+- live GCP production smoke;
+- database restore/PITR drill evidence;
+- credentials/terms approval for all enabled restricted production sources;
+- reviewed large historical out-of-sample validation / human-gold evidence;
+- final security, cost and source-rights audit evidence.
 
-The GitHub-hosted public Beta and public-upstream CI materially improve operational readiness, but they are not substitutes for a real production deployment or disaster-recovery evidence.
-
-## API
-
-The v1/v2 feeds, reports, episodes, events, maps, alerts, consumers, review, forecasts, country/actor/security/infrastructure/history/graph, source activation, backfill and readiness endpoints remain compatible. `/health` reports the package version from a single canonical version constant.
+The release-audit layer emits an explicit v1 go/no-go and cannot infer those gates from repository code or CI.
 
 ## Source state
 
-Enabled without restricted credentials: GDELT publication signals, GDACS context and public official/context registries under their documented use conditions.
+Public layers validated without restricted API credentials include GDELT, GDACS, UCDP bulk datasets under their published terms, NGA World Port Index, World Bank API and official UN/UK sanctions sources.
 
-Public bulk/reference layers validated without restricted API credentials include UCDP bulk datasets under their published CC BY 4.0 terms, NGA World Port Index, World Bank API and official UN/UK sanctions sources.
-
-Supported but not marked production-active until their gates are satisfied: tokenized UCDP API, ReliefWeb, NASA FIRMS and ACLED. Their adapters/backfill plans exist, but credentials/provider terms remain authoritative.
+Supported but not marked production-active until their gates are satisfied: tokenized UCDP API if needed, ReliefWeb, NASA FIRMS and ACLED.
 
 ## Deployment state
 
-Cloud Run, Cloud Scheduler, GCS and PostgreSQL/PostGIS deployment assets exist. Live GCP deployment, database restore evidence and restricted-source activation remain external execution gates and are **not** implied by repository CI or the GitHub-hosted public Beta.
+Cloud Run, Cloud Scheduler, GCS and PostgreSQL/PostGIS deployment assets exist. Live GCP deployment, database restore evidence and restricted-source activation remain external execution gates and are not implied by repository CI or the GitHub-hosted Beta.
 
 ## Release state
 
@@ -115,4 +120,5 @@ Cloud Run, Cloud Scheduler, GCS and PostgreSQL/PostGIS deployment assets exist. 
 - v0.9 strategic intelligence + historical learning — complete.
 - v0.10 empirical intelligence + production readiness — complete.
 - v0.11 accelerated production/empirical validation — complete.
-- v0.12 reliable public Beta + empirical history — **complete in code and live GitHub integration gates; production hard gates remain external**.
+- v0.12 reliable public Beta + empirical history — complete.
+- v0.13 operational intelligence — release requires cumulative and live-upstream CI gates; external v1 hard gates remain separate.

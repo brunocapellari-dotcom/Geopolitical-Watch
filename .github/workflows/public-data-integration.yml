@@ -3,16 +3,14 @@ name: public-data-integration
 on:
   pull_request:
     paths:
-      - "geowatch/ucdp_bulk.py"
-      - "geowatch/empirical_history.py"
-      - "geowatch/wpi.py"
-      - "geowatch/worldbank.py"
-      - "geowatch/sanctions_feed.py"
+      - "geowatch/**"
+      - "config/geopolitics/**"
       - "scripts/build_ucdp_bulk_artifacts.py"
       - "scripts/build_empirical_history_artifacts.py"
       - "scripts/build_wpi_artifacts.py"
       - "scripts/build_worldbank_artifacts.py"
       - "scripts/build_sanctions_artifacts.py"
+      - "scripts/build_v013_operational_assets.py"
       - "scripts/assert_public_bootstrap.py"
       - ".github/workflows/public-data-integration.yml"
   workflow_dispatch:
@@ -55,11 +53,15 @@ jobs:
         run: |
           set -o pipefail
           python scripts/assert_public_bootstrap.py | tee bootstrap-live.json
+      - name: Build and assert v0.13 operational intelligence assets
+        run: |
+          set -o pipefail
+          python scripts/build_v013_operational_assets.py | tee v013-live.json
       - name: Publish validation summary
         if: always()
         run: |
           echo "# Geopolitical Watch — live public bootstrap" >> "$GITHUB_STEP_SUMMARY"
-          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/empirical/summary.json generated/wpi/summary.json generated/worldbank/summary.json generated/sanctions/summary.json; do
+          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/empirical/summary.json generated/wpi/summary.json generated/worldbank/summary.json generated/sanctions/summary.json generated/v013/operational_assets.json; do
             if [ -f "$file" ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "## $file" >> "$GITHUB_STEP_SUMMARY"

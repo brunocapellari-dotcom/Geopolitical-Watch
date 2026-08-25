@@ -23,24 +23,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Restore persistent beta database
+      - name: Restore persistent beta state
         uses: actions/cache/restore@v4
         with:
-          path: data/beta.db
-          key: geowatch-public-beta-v2-${{ github.run_id }}
+          path: |
+            data/beta.db
+            state/beta/
+          key: geowatch-public-beta-v3-${{ github.run_id }}
           restore-keys: |
-            geowatch-public-beta-v2-
+            geowatch-public-beta-v3-
       - name: Run public-source monitor
         run: |
           set -o pipefail
-          mkdir -p data/raw reports
+          mkdir -p data/raw reports state/beta
           python -m geowatch collect --config config/sources.public-beta.json --db data/beta.db --raw data/raw --reports reports | tee beta-run.json
       - name: Assert beta run health
         run: python scripts/assert_beta_run.py --run beta-run.json --db data/beta.db --reports reports
-      - name: Build source coverage summary
-        run: python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json
-      - name: Build concise operator digest
-        run: python scripts/build_beta_digest.py | tee beta-digest-run.json
+      - name: Build operational intelligence package
+        run: |
+          set -o pipefail
+          python scripts/build_beta_summary.py --db data/beta.db --out reports/beta_coverage.json --run beta-run.json --episode-report reports/episodes/latest.json --state-dir state/beta | tee beta-summary-run.json
       - name: Publish situational summary
         if: always()
         run: |
@@ -50,24 +52,17 @@ jobs:
             cat reports/beta_digest.md >> "$GITHUB_STEP_SUMMARY"
           elif [ -f reports/episodes/latest.md ]; then
             cat reports/episodes/latest.md >> "$GITHUB_STEP_SUMMARY"
-          elif [ -f reports/latest.md ]; then
-            cat reports/latest.md >> "$GITHUB_STEP_SUMMARY"
           else
             echo "No report was generated. Inspect beta-run.json and job logs." >> "$GITHUB_STEP_SUMMARY"
           fi
-          if [ -f reports/beta_coverage.json ]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "## Coverage" >> "$GITHUB_STEP_SUMMARY"
-            echo '```json' >> "$GITHUB_STEP_SUMMARY"
-            cat reports/beta_coverage.json >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-          fi
-      - name: Save persistent beta database
+      - name: Save persistent beta state
         if: success()
         uses: actions/cache/save@v4
         with:
-          path: data/beta.db
-          key: geowatch-public-beta-v2-${{ github.run_id }}
+          path: |
+            data/beta.db
+            state/beta/
+          key: geowatch-public-beta-v3-${{ github.run_id }}
       - name: Upload public beta artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,9 +70,10 @@ jobs:
           name: geowatch-public-beta-${{ github.run_id }}
           path: |
             beta-run.json
-            beta-digest-run.json
+            beta-summary-run.json
             data/beta.db
             data/raw/
+            state/beta/
             reports/
           if-no-files-found: warn
           retention-days: 14
