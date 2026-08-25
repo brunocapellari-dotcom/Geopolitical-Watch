@@ -1,0 +1,16 @@
+{
+  "schema_version": "geowatch-source-slo-v1",
+  "as_of": "2026-08-25",
+  "sources": [
+    {"source_id":"gdelt_conflict_news","max_freshness_hours":3,"monthly_availability_target":0.95,"failure_threshold":3,"cooldown_seconds":900},
+    {"source_id":"gdacs_context","max_freshness_hours":12,"monthly_availability_target":0.95,"failure_threshold":3,"cooldown_seconds":1800},
+    {"source_id":"ucdp_bulk_26_1","max_freshness_hours":8760,"monthly_availability_target":0.99,"failure_threshold":2,"cooldown_seconds":21600},
+    {"source_id":"nga_world_port_index","max_freshness_hours":8760,"monthly_availability_target":0.99,"failure_threshold":2,"cooldown_seconds":21600},
+    {"source_id":"world_bank_wdi","max_freshness_hours":17520,"monthly_availability_target":0.99,"failure_threshold":2,"cooldown_seconds":21600}
+  ],
+  "notes": [
+    "SLOs measure operational freshness/availability, not intelligence accuracy.",
+    "Provider outages must remain distinguishable from internal parser/schema failures.",
+    "Targets are initial operational objectives and require empirical revision after sufficient history."
+  ]
+}
