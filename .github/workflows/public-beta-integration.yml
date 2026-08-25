@@ -5,10 +5,16 @@ on:
     paths:
       - "geowatch/pipeline.py"
       - "geowatch/beta_digest.py"
+      - "geowatch/source_resilience.py"
+      - "geowatch/source_failover.py"
+      - "geowatch/prospective_forecasting.py"
       - "geowatch/sources/gdelt.py"
       - "geowatch/sources/gdacs.py"
       - "config/sources.public-beta.json"
+      - "config/operations/source_slo.json"
+      - "config/operations/source_failover.json"
       - "scripts/assert_beta_run.py"
+      - "scripts/build_beta_summary.py"
       - "scripts/build_beta_digest.py"
       - ".github/workflows/public-beta-monitor.yml"
       - ".github/workflows/public-beta-integration.yml"
@@ -31,17 +37,20 @@ jobs:
       - name: Run real GDELT and GDACS beta path
         run: |
           set -o pipefail
-          mkdir -p data/raw reports
+          mkdir -p data/raw reports state/beta
           python -m geowatch collect --config config/sources.public-beta.json --db data/beta-smoke.db --raw data/raw --reports reports | tee beta-run.json
       - name: Assert live beta health
         run: python scripts/assert_beta_run.py --run beta-run.json --db data/beta-smoke.db --reports reports
-      - name: Build live coverage and digest
+      - name: Build live operational intelligence
         run: |
           set -o pipefail
-          python scripts/build_beta_summary.py --db data/beta-smoke.db --out reports/beta_coverage.json
-          python scripts/build_beta_digest.py | tee beta-digest-run.json
+          python scripts/build_beta_summary.py --db data/beta-smoke.db --out reports/beta_coverage.json --state-dir state/beta | tee beta-summary-run.json
           test -s reports/beta_digest.json
           test -s reports/beta_digest.md
+          test -s reports/source_resilience.json
+          test -s reports/prospective_forecast_score.json
+          test -s state/beta/source_history.json
+          test -s state/beta/forecast_ledger.json
       - name: Upload live beta evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,9 +58,10 @@ jobs:
           name: geowatch-live-beta-smoke-${{ github.run_id }}
           path: |
             beta-run.json
-            beta-digest-run.json
+            beta-summary-run.json
             data/beta-smoke.db
             data/raw/
+            state/beta/
             reports/
           if-no-files-found: warn
           retention-days: 7
