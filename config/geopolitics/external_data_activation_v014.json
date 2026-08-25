@@ -1,0 +1,31 @@
+{
+  "schema_version":"geowatch-strategic-source-activation-v1",
+  "as_of":"2026-08-25",
+  "sources":[
+    {
+      "source_id":"faostat","provider":"FAO Statistics Division","status":"public_ready","credential_required":false,
+      "access_modes":["FAOSTAT API Developer Portal","Bulk Download"],
+      "coverage_note":"FAOSTAT states coverage for over 245 countries and territories from 1961 to the most recent available year.",
+      "roles":["food_production","agricultural_trade","food_supply_context"],
+      "activation_gate":"resolve stable domain/dataset identifiers and validate schema on live response before production ingestion"
+    },
+    {
+      "source_id":"eia_international","provider":"U.S. Energy Information Administration","status":"credential_blocked","credential_required":true,"credential_env":"EIA_API_KEY",
+      "access_modes":["EIA API v2","EIA International bulk files"],
+      "roles":["energy_production","consumption","trade_context"],
+      "activation_gate":"API key required by EIA API v2; bulk files may support selected no-key historical ingestion but require schema validation"
+    },
+    {
+      "source_id":"usgs_mcs_2026","provider":"U.S. Geological Survey National Minerals Information Center","status":"public_ready","credential_required":false,
+      "access_modes":["Mineral Commodity Summaries 2026","USGS data release DOI 10.5066/P1WKQ63T"],
+      "reference_period":"2021-2025","roles":["critical_mineral_production","reserves","supply_chain_context"],
+      "activation_gate":"resolve downloadable structured data asset from public USGS data release and validate commodity/country/unit schema"
+    }
+  ],
+  "rules":[
+    "public_ready means discoverable without restricted credentials, not automatically integrated.",
+    "credential_blocked source must not block other strategic sources.",
+    "Annual structural data must carry source lag and reference year.",
+    "Production and reserve estimates are structural observations/estimates, never evidence of a live conflict."
+  ]
+}
