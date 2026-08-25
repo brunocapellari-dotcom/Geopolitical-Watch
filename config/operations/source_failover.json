@@ -1,0 +1,29 @@
+{
+  "schema_version":"geowatch-source-failover-policy-v1",
+  "sources":[
+    {
+      "source_id":"gdelt_conflict_news",
+      "transient_steps":[
+        {"action":"bounded_retry","max_attempts":4,"base_backoff_seconds":2,"jitter":true},
+        {"action":"reduce_query_load","max_records":100,"window_minutes":60,"same_provider":true},
+        {"action":"serve_last_known_state","max_age_hours":6,"mark_stale":true}
+      ],
+      "structural_steps":[
+        {"action":"fail_closed","reason":"parser_schema_or_configuration_error"}
+      ]
+    },
+    {
+      "source_id":"gdacs_context",
+      "transient_steps":[
+        {"action":"bounded_retry","max_attempts":3,"base_backoff_seconds":3,"jitter":true},
+        {"action":"serve_last_known_context","max_age_hours":24,"mark_stale":true}
+      ],
+      "structural_steps":[{"action":"fail_closed"}]
+    }
+  ],
+  "governance":[
+    "Same-provider reduced-load fallbacks do not count as independent corroboration.",
+    "Context-only sources cannot substitute for conflict evidence.",
+    "Last-known-state fallbacks must expose staleness and original reference timestamps."
+  ]
+}
