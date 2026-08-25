@@ -1,0 +1,37 @@
+name: knowledge-integrity
+
+on:
+  pull_request:
+    paths:
+      - "knowledge/obsidian/**"
+      - "geowatch/knowledge_sync.py"
+      - "scripts/build_obsidian_bundle.py"
+      - ".github/workflows/knowledge-integrity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-obsidian:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and validate canonical knowledge bundle
+        run: |
+          set -o pipefail
+          python scripts/build_obsidian_bundle.py | tee obsidian-bundle-run.json
+          test -s generated/obsidian/monitor_conflitos/manifest.json
+      - name: Upload knowledge evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: geowatch-obsidian-knowledge-${{ github.run_id }}
+          path: |
+            obsidian-bundle-run.json
+            generated/obsidian/monitor_conflitos/
+          retention-days: 30

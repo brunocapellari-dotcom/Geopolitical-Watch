@@ -1,0 +1,23 @@
+{
+  "schema_version":"geowatch-obsidian-drive-manifest-v1",
+  "project":"Monitor de Conflitos / Geopolitical Watch",
+  "synced_at":"2026-08-25T14:35:00Z",
+  "vault_folder_id":"1ryWE7kfHS8rPxq2lPoE7App1CkFNhfv9",
+  "project_folder_id":"1AiHWrQl9dTdY0PonTlmDNg3U66Tiow6V",
+  "notes":[
+    {"file":"MOC_Monitor_de_Conflitos.md","drive_file_id":"1Gdevb0PgCghBEn0io4nSGnSUpWJMCN1E"},
+    {"file":"V014_Operational_Learning_e_Resilience.md","drive_file_id":"1HkppIxF6yfDxerhUuC56JXONYl_1wAxn"},
+    {"file":"Operacao_Beta_SLO_Incidentes_e_MTTR.md","drive_file_id":"1jSkv_gEDqb3F1LHDcwlO_ZdyQteMD-wQ"},
+    {"file":"Human_Gold_Calibracao_e_Forecasting.md","drive_file_id":"1hCQ_wQDlV8h8zwjrsn1vOTvr6qE44OU8"},
+    {"file":"Fontes_Estrategicas_e_Geoeconomia.md","drive_file_id":"1mbYNz9JJ30jq2lT5pq6LuRcOTEsAQbiq"},
+    {"file":"Chokepoints_Baselines_e_Cenarios.md","drive_file_id":"1NcKUtm4hLr2wJZCIQAgYPiQ-0KkWrlpP"},
+    {"file":"Governanca_de_Evidencia_e_Aprendizado.md","drive_file_id":"1CCEEv6ePz1sYx9Uu88fJ3cUadFmmn5r2"}
+  ],
+  "duplicate_cleanup":[{"file":"Governanca_de_Evidencia_e_Aprendizado.md","deleted_drive_file_id":"1XvB0IT-4QUSavXSlEnx3n4gY7XS6kb1B","deleted":true}],
+  "rules":[
+    "GitHub knowledge notes are canonical version-controlled text.",
+    "Drive/Obsidian is the active knowledge vault interface.",
+    "A release is not knowledge-complete if required canonical notes are missing from the vault.",
+    "Drive extras are never auto-deleted except explicit duplicate cleanup."
+  ]
+}

@@ -5,12 +5,18 @@ on:
     paths:
       - "geowatch/**"
       - "config/geopolitics/**"
+      - "knowledge/obsidian/**"
       - "scripts/build_ucdp_bulk_artifacts.py"
       - "scripts/build_empirical_history_artifacts.py"
       - "scripts/build_wpi_artifacts.py"
+      - "scripts/build_unlocode_crossmatch.py"
+      - "scripts/build_comtrade_pilot.py"
+      - "scripts/export_human_review.py"
       - "scripts/build_worldbank_artifacts.py"
       - "scripts/build_sanctions_artifacts.py"
       - "scripts/build_v013_operational_assets.py"
+      - "scripts/build_v014_operational_learning.py"
+      - "scripts/build_obsidian_bundle.py"
       - "scripts/assert_public_bootstrap.py"
       - ".github/workflows/public-data-integration.yml"
   workflow_dispatch:
@@ -21,7 +27,7 @@ permissions:
 jobs:
   live-public-bootstrap:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     env:
       PYTHONPATH: .
     steps:
@@ -33,6 +39,10 @@ jobs:
         run: |
           set -o pipefail
           python scripts/build_ucdp_bulk_artifacts.py | tee ucdp-live.json
+      - name: Export human review packets
+        run: |
+          set -o pipefail
+          python scripts/export_human_review.py | tee human-review-live.json
       - name: Build layered empirical history
         run: |
           set -o pipefail
@@ -41,10 +51,18 @@ jobs:
         run: |
           set -o pipefail
           python scripts/build_wpi_artifacts.py | tee wpi-live.json
+      - name: Crossmatch WPI with UN LOCODE
+        run: |
+          set -o pipefail
+          python scripts/build_unlocode_crossmatch.py | tee unlocode-live.json
       - name: Build World Bank strategic baseline
         run: |
           set -o pipefail
           python scripts/build_worldbank_artifacts.py | tee worldbank-live.json
+      - name: Run bounded UN Comtrade strategic smoke
+        run: |
+          set -o pipefail
+          python scripts/build_comtrade_pilot.py --smoke | tee comtrade-live.json
       - name: Build official sanctions snapshots
         run: |
           set -o pipefail
@@ -57,11 +75,15 @@ jobs:
         run: |
           set -o pipefail
           python scripts/build_v013_operational_assets.py | tee v013-live.json
+      - name: Build and assert v0.14 operational learning assets
+        run: |
+          set -o pipefail
+          python scripts/build_v014_operational_learning.py | tee v014-live.json
       - name: Publish validation summary
         if: always()
         run: |
           echo "# Geopolitical Watch — live public bootstrap" >> "$GITHUB_STEP_SUMMARY"
-          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/empirical/summary.json generated/wpi/summary.json generated/worldbank/summary.json generated/sanctions/summary.json generated/v013/operational_assets.json; do
+          for file in generated/public-bootstrap-smoke.json generated/ucdp/summary.json generated/empirical/summary.json generated/wpi/summary.json generated/unlocode/wpi_crossmatch.json generated/worldbank/summary.json generated/comtrade/summary.json generated/sanctions/summary.json generated/v013/operational_assets.json generated/v014/operational_learning.json generated/obsidian/monitor_conflitos/manifest.json; do
             if [ -f "$file" ]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "## $file" >> "$GITHUB_STEP_SUMMARY"
@@ -79,4 +101,4 @@ jobs:
             generated/
             *-live.json
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 30
