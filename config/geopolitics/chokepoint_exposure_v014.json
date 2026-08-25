@@ -1,0 +1,43 @@
+{
+  "schema_version":"geowatch-chokepoint-exposure-v1",
+  "as_of":"2026-08-25",
+  "observations":[
+    {
+      "scenario_id":"hormuz_disruption","reference_period":"1H25","metric":"oil_flow_million_bpd","value":20.9,"source_id":"eia_world_oil_chokepoints","observed_or_published":"published_analysis",
+      "derived_metrics":[{"metric":"share_global_maritime_oil","value":0.25,"method":"EIA published approximately one-quarter"},{"metric":"share_global_petroleum_liquids_consumption","value":0.20,"method":"EIA published approximately 20%"}],
+      "alternatives":[{"name":"Saudi East-West + UAE Abu Dhabi pipelines","capacity_million_bpd":4.7,"source_id":"eia_world_oil_chokepoints"}],
+      "uncertainty":"Transit volumes vary with production, sanctions, routing and tanker activity; baseline is not live traffic."
+    },
+    {
+      "scenario_id":"malacca_disruption","reference_period":"1H25","metric":"oil_flow_million_bpd","value":23.2,"source_id":"eia_world_oil_chokepoints","observed_or_published":"published_analysis",
+      "derived_metrics":[{"metric":"share_global_maritime_oil","value":0.29,"method":"EIA published share"}],
+      "alternatives":[{"name":"Sunda Strait"},{"name":"Lombok Strait"},{"name":"route around Indonesian archipelago"},{"name":"Myanmar-China oil pipeline","partial_substitute":true}],
+      "uncertainty":"Alternative routes differ materially in vessel constraints, distance and effective capacity."
+    },
+    {
+      "scenario_id":"bab_el_mandeb_suez_disruption","reference_period":"1H25","metric":"oil_flow_million_bpd","value":4.2,"source_id":"eia_world_oil_chokepoints","observed_or_published":"published_analysis","route_component":"Bab el-Mandeb",
+      "related":[{"metric":"suez_sumed_oil_flow_million_bpd","value":4.9,"source_id":"eia_world_oil_chokepoints"},{"metric":"combined_route_share_seaborne_oil","value":0.06,"method":"EIA published approximately 6%"},{"metric":"suez_share_global_maritime_trade_2023","value":0.10,"source_id":"unctad_suez_trade_share","method":"UNCTAD published approximately one tenth; different denominator and reference period"}],
+      "alternatives":[{"name":"Cape of Good Hope","cost_time_penalty":true}],
+      "uncertainty":"Suez, SUMED and Bab el-Mandeb have different route semantics; do not sum overlapping flows without voyage-level lineage."
+    },
+    {
+      "scenario_id":"panama_disruption","reference_period":"1H25","metric":"oil_flow_million_bpd","value":2.3,"source_id":"eia_world_oil_chokepoints","observed_or_published":"published_analysis",
+      "derived_metrics":[{"metric":"share_global_maritime_oil","value":0.0288,"method":"calculated 2.3/79.8 using EIA table; not provider-published share"}],
+      "related":[{"metric":"fy2025_total_transits","value":13404,"source_id":"panama_canal_authority","reference_period":"FY2025"}],
+      "alternatives":[{"name":"Cape Horn / other ocean routing","cost_time_penalty":true}],
+      "uncertainty":"Canal capacity depends on water conditions, draft, locks, booking rules and vessel segment; oil share is not total trade share."
+    },
+    {
+      "scenario_id":"turkish_straits_disruption","reference_period":"1H25","metric":"oil_flow_million_bpd","value":3.7,"source_id":"eia_world_oil_chokepoints","observed_or_published":"published_analysis",
+      "derived_metrics":[{"metric":"share_global_maritime_oil","value":0.05,"method":"EIA published approximately 5%"}],
+      "related":[{"metric":"vessel_transits_2024","value":45000,"comparison":"more_than","source_id":"eia_world_oil_chokepoints"}],
+      "alternatives":[],
+      "uncertainty":"Oil flow and vessel count are distinct metrics; navigation constraints and Black Sea export patterns vary over time."
+    }
+  ],
+  "rules":[
+    "Published observations, calculated shares and scenario assumptions must remain separate fields.",
+    "No baseline exposure is a probability of disruption or predicted loss.",
+    "Reference periods must be visible in every downstream report."
+  ]
+}
