@@ -1,0 +1,22 @@
+{
+  "schema_version":"geowatch-strategic-dataset-registry-v1",
+  "as_of":"2026-08-25",
+  "datasets":[
+    {"dataset_id":"faostat_crop_production","provider":"FAO","catalog_id":"d24a448b-3b62-4c09-8c1d-4a39bb599876","domain":"food","coverage":"1961-2024","license":"CC-BY-4.0","status":"public_ready","quality_rule":"preserve FAOSTAT flags; official, unofficial and imputed values must remain distinguishable"},
+    {"dataset_id":"faostat_detailed_trade_matrix","provider":"FAO","catalog_id":"955a7b61-ce56-4a04-adf5-61a3012eec84","domain":"food_trade","coverage":"1961-2024","license":"CC-BY-4.0 with source-specific caveats","status":"public_ready","quality_rule":"main source UNSD/Eurostat; partner imputation and food-aid additions must retain lineage"},
+    {"dataset_id":"faostat_fertilizer_trade_matrix","provider":"FAO","catalog_id":"d5b0de53-e1d6-4060-b1d0-8443d4e13d5f","domain":"fertilizer_trade","coverage":"1990-2023","license":"CC-BY-4.0","status":"public_ready","quality_rule":"source data UN Comtrade; do not count FAOSTAT and Comtrade as independent corroboration for the same cell"},
+    {"dataset_id":"faostat_fertilizers_nutrient","provider":"FAO","catalog_id":"4e50bf79-ddf5-41b1-8608-468eca2697e2","domain":"fertilizer","coverage":"1961-latest","license":"CC-BY-4.0 with source-specific caveats","status":"public_ready","quality_rule":"preserve source/flag semantics and questionnaire vs external-source lineage"},
+    {"dataset_id":"faostat_food_balances","provider":"FAO","catalog_id":"2f264bb6-1238-459a-bf8b-0e2d0a16804a","domain":"food_balance","coverage":"2010-2023","license":"CC-BY-4.0","status":"public_ready"},
+    {"dataset_id":"usgs_mcs_2026","provider":"USGS","sciencebase_item_id":"69837e43b66b01367d7ec7c7","doi":"10.5066/P1WKQ63T","domain":"critical_minerals","coverage":"2021-2025","license":"US Government public domain data release","status":"public_ready"},
+    {"dataset_id":"eia_international","provider":"EIA","domain":"energy","status":"bulk_public_api_key_for_v2","bulk_manifest":"https://api.eia.gov/bulk/manifest.txt","quality_rule":"reference period and unit must be retained; API v2 values may be strings"},
+    {"dataset_id":"un_comtrade","provider":"UNSD","domain":"trade","status":"preview_public_key_for_scale","quality_rule":"preview caps and reporter publication lags must be explicit"},
+    {"dataset_id":"un_locode","provider":"UNECE","domain":"infrastructure_identity","coverage":"2025-1","status":"public_reference","quality_rule":"identity/location is not strategic criticality"},
+    {"dataset_id":"nga_wpi","provider":"NGA","domain":"ports","status":"public_reference","quality_rule":"structural port attributes are not live status and candidate score is not criticality probability"}
+  ],
+  "cross_source_rules":[
+    "FAOSTAT trade values derived from UN Comtrade are not independent corroboration of the underlying Comtrade cell.",
+    "Provider-derived analysis and its upstream commercial or official inputs must retain lineage.",
+    "Missing values remain unknown rather than zero unless the provider defines a structural zero.",
+    "All downstream ratios must preserve numerator, denominator, units and reference periods."
+  ]
+}
