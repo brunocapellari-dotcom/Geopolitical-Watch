@@ -10,8 +10,11 @@ ensure_repo_path()
 
 from geowatch.beta_digest import build_beta_digest, render_beta_digest_markdown
 from geowatch.coverage_dashboard import build_source_coverage_dashboard
+from geowatch.forecast_evaluation import brier_skill,by_horizon_skill,forecast_miss_postmortems,reliability_diagram
+from geowatch.knowledge_release import write_incident_notes
 from geowatch.operational_intelligence import append_history, build_operational_snapshot, compare_snapshots
 from geowatch.prospective_forecasting import append_forecast_ledger,create_prospective_forecasts,resolve_forecasts,score_resolved_forecasts
+from geowatch.slo_dashboard import build_slo_dashboard,render_slo_dashboard_html
 from geowatch.source_resilience import append_source_history,summarize_source_history
 from geowatch.storage_factory import open_store
 
@@ -46,6 +49,7 @@ def main() -> int:
     run=_load(Path(args.run),{})
     episode_report=_load(Path(args.episode_report),{"generated_at":run.get("generated_at"),"episodes":[],"episode_count":0})
     state_dir=Path(args.state_dir); state_dir.mkdir(parents=True,exist_ok=True)
+    reports=Path("reports"); reports.mkdir(parents=True,exist_ok=True)
     generated_at=str(run.get("generated_at") or episode_report.get("generated_at") or "")
 
     previous=_load(state_dir/"latest_snapshot.json",{}) or None
@@ -57,22 +61,37 @@ def main() -> int:
     history=append_history(_load(state_dir/"history.json",{}),snapshot)
     (state_dir/"latest_snapshot.json").write_text(json.dumps(snapshot,ensure_ascii=False,indent=2),encoding="utf-8")
     (state_dir/"history.json").write_text(json.dumps(history,ensure_ascii=False,indent=2),encoding="utf-8")
-    (Path("reports")/"beta_delta.json").write_text(json.dumps(delta,ensure_ascii=False,indent=2),encoding="utf-8")
-    (Path("reports")/"beta_operational_history.json").write_text(json.dumps(history,ensure_ascii=False,indent=2),encoding="utf-8")
+    (reports/"beta_delta.json").write_text(json.dumps(delta,ensure_ascii=False,indent=2),encoding="utf-8")
+    (reports/"beta_operational_history.json").write_text(json.dumps(history,ensure_ascii=False,indent=2),encoding="utf-8")
 
     source_history=append_source_history(_load(state_dir/"source_history.json",{}),generated_at=generated_at,source_results=list(run.get("source_results") or []),coverage=coverage,retention_days=365)
     (state_dir/"source_history.json").write_text(json.dumps(source_history,ensure_ascii=False,indent=2),encoding="utf-8")
-    source_resilience=summarize_source_history(source_history,as_of=generated_at,slo_config=_load(Path(args.slo_config),{}))
-    Path("reports/source_resilience.json").write_text(json.dumps(source_resilience,ensure_ascii=False,indent=2),encoding="utf-8")
+    slo_config=_load(Path(args.slo_config),{})
+    source_resilience=summarize_source_history(source_history,as_of=generated_at,slo_config=slo_config)
+    (reports/"source_resilience.json").write_text(json.dumps(source_resilience,ensure_ascii=False,indent=2),encoding="utf-8")
+    slo_dashboard=build_slo_dashboard(source_resilience,slo_config)
+    (reports/"slo_dashboard.json").write_text(json.dumps(slo_dashboard,ensure_ascii=False,indent=2),encoding="utf-8")
+    (reports/"slo_dashboard.html").write_text(render_slo_dashboard_html(slo_dashboard),encoding="utf-8")
 
     ledger=_load(state_dir/"forecast_ledger.json",{"forecasts":[]})
     episode_states={str(r.get("episode_id")):r for r in episode_report.get("episodes",[]) if r.get("episode_id")}
+    # Resolution remains objective-state based and never rewrites the original probability.
     ledger=resolve_forecasts(ledger,episode_states,resolved_at=generated_at)
     candidates=_daily_forecast_candidates(list(episode_report.get("episodes") or []),ledger,generated_at)
     ledger=append_forecast_ledger(ledger,create_prospective_forecasts(candidates,created_at=generated_at))
     (state_dir/"forecast_ledger.json").write_text(json.dumps(ledger,ensure_ascii=False,indent=2),encoding="utf-8")
     forecast_score=score_resolved_forecasts(ledger)
-    Path("reports/prospective_forecast_score.json").write_text(json.dumps(forecast_score,ensure_ascii=False,indent=2),encoding="utf-8")
+    resolved=list(ledger.get("forecasts") or [])
+    reliability=reliability_diagram(resolved)
+    skill=brier_skill(resolved)
+    horizon_skill=by_horizon_skill(resolved)
+    postmortems=forecast_miss_postmortems(resolved)
+    (reports/"prospective_forecast_score.json").write_text(json.dumps(forecast_score,ensure_ascii=False,indent=2),encoding="utf-8")
+    (reports/"prospective_reliability.json").write_text(json.dumps(reliability,ensure_ascii=False,indent=2),encoding="utf-8")
+    (reports/"prospective_skill.json").write_text(json.dumps({"overall":skill,"by_horizon":horizon_skill},ensure_ascii=False,indent=2),encoding="utf-8")
+    (reports/"forecast_postmortems.json").write_text(json.dumps({"schema_version":"geowatch-forecast-postmortems-v1","count":len(postmortems),"postmortems":postmortems},ensure_ascii=False,indent=2),encoding="utf-8")
+    if postmortems:
+        write_incident_notes(postmortems,root="generated/obsidian/monitor_conflitos/incidents")
 
     health=snapshot["health"]
     digest=build_beta_digest(episode_report,coverage,run_health={
@@ -82,10 +101,11 @@ def main() -> int:
     digest["operational_health_class"]=health["status"]
     digest["delta_from_previous_run"]=delta
     digest["provider_resilience"]={"schema_version":source_resilience["schema_version"],"sources":source_resilience["sources"]}
-    digest["prospective_forecasting"]={"ledger_count":ledger.get("forecast_count",0),"resolved_score":forecast_score}
-    Path("reports/beta_digest.json").write_text(json.dumps(digest,ensure_ascii=False,indent=2),encoding="utf-8")
-    Path("reports/beta_digest.md").write_text(render_beta_digest_markdown(digest)+"\n## What changed since previous run\n\n"+"\n".join(f"- {row.get('type')}: {row}" for row in delta.get("changes",[])[:30])+"\n",encoding="utf-8")
-    print(json.dumps({"coverage":coverage,"health":health,"delta":delta,"history_snapshots":history["snapshot_count"],"source_history_observations":source_history["observation_count"],"forecast_ledger_count":ledger.get("forecast_count",0)},ensure_ascii=False,indent=2))
+    digest["slo_dashboard"]={"source_count":len(slo_dashboard.get("sources",[])),"stale_alert_count":len(slo_dashboard.get("stale_alerts",[]))}
+    digest["prospective_forecasting"]={"ledger_count":ledger.get("forecast_count",0),"resolved_score":forecast_score,"reliability":reliability,"skill":skill,"miss_postmortem_count":len(postmortems)}
+    (reports/"beta_digest.json").write_text(json.dumps(digest,ensure_ascii=False,indent=2),encoding="utf-8")
+    (reports/"beta_digest.md").write_text(render_beta_digest_markdown(digest)+"\n## What changed since previous run\n\n"+"\n".join(f"- {row.get('type')}: {row}" for row in delta.get("changes",[])[:30])+"\n",encoding="utf-8")
+    print(json.dumps({"coverage":coverage,"health":health,"delta":delta,"history_snapshots":history["snapshot_count"],"source_history_observations":source_history["observation_count"],"forecast_ledger_count":ledger.get("forecast_count",0),"resolved_forecasts":forecast_score.get("resolved_count",0),"forecast_postmortems":len(postmortems)},ensure_ascii=False,indent=2))
     return 0
 
 
