@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 from .api import API_TOKEN, Handler as BaseHandler
 from .dashboard import dashboard_html
+from .embedded_collector import ensure_started as ensure_collector_started, status as collector_status
 from .web_auth import clear_cookie, login_html, session_cookie, verify_login_body, verify_session
 
 
@@ -39,14 +40,19 @@ class PrivateHandler(BaseHandler):
             return
 
         session_ok = verify_session(self.headers.get("Cookie"), API_TOKEN)
+        bearer_ok = (not API_TOKEN) or self.headers.get("Authorization") == f"Bearer {API_TOKEN}"
         if path == "/dashboard":
             if API_TOKEN and not session_ok:
                 return self._send_text(200, login_html(), "text/html; charset=utf-8")
             return self._send_text(200, _private_dashboard_html(), "text/html; charset=utf-8")
+        if path == "/v2/runtime/collector":
+            if not (session_ok or bearer_ok):
+                return self._send_json(401, {"error": "unauthorized"})
+            return self._send_json(200, collector_status())
 
         # Same-origin browser sessions are translated to the existing Bearer
         # contract; machine clients can keep sending Authorization themselves.
-        if session_ok and API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
+        if session_ok and API_TOKEN and not bearer_ok:
             if self.headers.get("Authorization"):
                 self.headers.replace_header("Authorization", f"Bearer {API_TOKEN}")
             else:
@@ -82,6 +88,7 @@ class PrivateHandler(BaseHandler):
 
 
 def main() -> int:
+    ensure_collector_started()
     host = os.environ.get("HOST", "0.0.0.0")
     port = int(os.environ.get("PORT", "8080"))
     server = ThreadingHTTPServer((host, port), PrivateHandler)
