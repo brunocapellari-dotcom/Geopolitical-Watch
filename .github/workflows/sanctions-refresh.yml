@@ -46,7 +46,8 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload sanctions artifacts
-        if: always()
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: geowatch-sanctions-${{ github.run_id }}
@@ -54,4 +55,4 @@ jobs:
             generated/sanctions/
             sanctions-run.json
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 1
