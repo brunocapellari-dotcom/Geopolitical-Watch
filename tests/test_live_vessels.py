@@ -52,7 +52,7 @@ class LiveVesselTests(unittest.TestCase):
         self.assertEqual(vessel["speed_over_ground_kt"], 12.4)
         self.assertIn("not verified voyage intent", vessel["ais_semantics"])
 
-    def test_static_update_does_not_erase_last_position(self) -> None:
+    def test_static_update_preserves_position_and_adds_voyage_context(self) -> None:
         position = {
             "MessageType": "PositionReport",
             "MetaData": {"MMSI": 123456789, "ShipName": "SHIP", "Latitude": 1.2, "Longitude": 3.4},
@@ -61,7 +61,15 @@ class LiveVesselTests(unittest.TestCase):
         static = {
             "MessageType": "ShipStaticData",
             "MetaData": {"MMSI": 123456789, "ShipName": "SHIP"},
-            "Message": {"ShipStaticData": {}},
+            "Message": {"ShipStaticData": {
+                "Name": "SHIP",
+                "ImoNumber": 9876543,
+                "CallSign": "PXAB",
+                "Type": 70,
+                "Destination": "SANTOS",
+                "Eta": {"Month": 9, "Day": 20, "Hour": 14, "Minute": 30},
+                "MaximumStaticDraught": 11.2,
+            }},
         }
         _consume(json.dumps(position), max_vessels=100)
         _consume(json.dumps(static), max_vessels=100)
@@ -69,6 +77,12 @@ class LiveVesselTests(unittest.TestCase):
             vessel = vessel_snapshot()["vessels"][0]
         self.assertEqual(vessel["lat"], 1.2)
         self.assertEqual(vessel["lon"], 3.4)
+        self.assertEqual(vessel["reported_destination"], "SANTOS")
+        self.assertEqual(vessel["imo_number"], 9876543)
+        self.assertEqual(vessel["call_sign"], "PXAB")
+        self.assertEqual(vessel["maximum_static_draught_m"], 11.2)
+        self.assertIn("09-20 14:30 UTC", vessel["reported_eta"])
+        self.assertIn("vessel-declared", vessel["ais_semantics"])
 
 
 if __name__ == "__main__":
