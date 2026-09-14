@@ -15,6 +15,8 @@ services:
         sync: false
       - key: AISSTREAM_API_KEY
         sync: false
+      - key: GEOWATCH_WPI_RUNTIME
+        value: "1"
       - key: PYTHONUNBUFFERED
         value: "1"
 
