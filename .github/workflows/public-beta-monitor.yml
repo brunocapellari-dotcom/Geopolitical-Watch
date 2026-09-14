@@ -64,7 +64,8 @@ jobs:
             state/beta/
           key: geowatch-public-beta-v3-${{ github.run_id }}
       - name: Upload public beta artifacts
-        if: always()
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: geowatch-public-beta-${{ github.run_id }}
@@ -76,4 +77,4 @@ jobs:
             state/beta/
             reports/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 1
