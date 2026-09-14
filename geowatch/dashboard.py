@@ -46,7 +46,7 @@ html,body{height:100%}body{font-family:system-ui,sans-serif;margin:0;background:
 </style>
 </head>
 <body>
-<header><strong>Monitor de Conflitos</strong><input id="token" type="password" placeholder="Token privado"><select id="state"><option value="">todos os estados</option><option>emerging</option><option>active</option><option>escalating</option><option>stable</option><option>deescalating</option><option>ceasefire</option></select><button onclick="loadAll()">Atualizar</button><span id="status" class="meta"></span></header>
+<header><strong>Monitor de Conflitos</strong><input id="token" type="password" placeholder="API bearer token"><select id="state"><option value="">todos os estados</option><option>emerging</option><option>active</option><option>escalating</option><option>stable</option><option>deescalating</option><option>ceasefire</option></select><button onclick="loadAll()">Atualizar</button><span id="status" class="meta"></span></header>
 <div class="grid"><div id="map"></div><div class="panel"><div id="episodes"></div></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
