@@ -32,5 +32,5 @@ databases:
   - name: geowatch-db
     plan: free
     region: virginia
-    postgresMajorVersion: 18
+    postgresMajorVersion: "18"
     ipAllowList: []
