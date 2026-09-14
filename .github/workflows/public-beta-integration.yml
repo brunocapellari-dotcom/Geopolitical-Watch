@@ -53,6 +53,7 @@ jobs:
           test -s state/beta/forecast_ledger.json
       - name: Upload live beta evidence
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: geowatch-live-beta-smoke-${{ github.run_id }}
@@ -64,4 +65,4 @@ jobs:
             state/beta/
             reports/
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 1
