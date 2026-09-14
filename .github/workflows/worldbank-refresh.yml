@@ -33,7 +33,8 @@ jobs:
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Upload World Bank artifacts
-        if: always()
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: geowatch-worldbank-${{ github.run_id }}
@@ -41,4 +42,4 @@ jobs:
             generated/worldbank/
             worldbank-run.json
           if-no-files-found: warn
-          retention-days: 30
+          retention-days: 1
