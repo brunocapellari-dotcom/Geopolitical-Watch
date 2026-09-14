@@ -10,6 +10,7 @@ class CriticalInfrastructureGraph:
         self.payload = payload
         self.nodes = {row["node_id"]: row for row in payload.get("nodes", [])}
         self.edges = list(payload.get("edges", []))
+        self.source_status = dict(payload.get("source_status") or {})
         self.adj: dict[str, set[str]] = defaultdict(set)
         for edge in self.edges:
             self.adj[edge["from"]].add(edge["to"])
@@ -27,6 +28,7 @@ class CriticalInfrastructureGraph:
         edges = list(payload.get("edges", []))
         node_ids = {row["node_id"] for row in nodes}
         edge_keys = {(row.get("from"), row.get("to"), row.get("type")) for row in edges}
+        source_status: dict[str, object] = {}
 
         supplement = Path(supplement_path)
         if supplement.exists():
@@ -44,13 +46,25 @@ class CriticalInfrastructureGraph:
         wpi_file = Path(wpi_path)
         if wpi_file.exists():
             wpi = json.loads(wpi_file.read_text(encoding="utf-8"))
-            for raw in wpi.get("nodes", []):
-                row = cls._normalize_wpi_node(raw)
-                if row["node_id"] not in node_ids:
-                    nodes.append(row)
-                    node_ids.add(row["node_id"])
+            wpi_rows = list(wpi.get("nodes", []))
+            source_status["wpi"] = {
+                "status": "persisted",
+                "node_count": len(wpi_rows),
+                "structural_context_not_live_status": True,
+            }
+        else:
+            from .runtime_wpi import load_runtime_wpi
 
-        return cls({**payload, "nodes": nodes, "edges": edges})
+            wpi_rows, wpi_status = load_runtime_wpi(limit=300)
+            source_status["wpi"] = wpi_status
+
+        for raw in wpi_rows:
+            row = cls._normalize_wpi_node(raw)
+            if row["node_id"] not in node_ids:
+                nodes.append(row)
+                node_ids.add(row["node_id"])
+
+        return cls({**payload, "nodes": nodes, "edges": edges, "source_status": source_status})
 
     @staticmethod
     def _normalize_wpi_node(row: dict) -> dict:
@@ -106,5 +120,6 @@ class CriticalInfrastructureGraph:
             "edge_count": len(self.edges),
             "geocoded_node_count": geocoded,
             "by_type": dict(sorted(by_type.items())),
+            "source_status": self.source_status,
             "context_not_evidence": True,
         }
