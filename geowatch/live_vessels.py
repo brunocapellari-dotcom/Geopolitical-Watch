@@ -93,7 +93,7 @@ def _thread_main() -> None:
         _STATE.update({"running": True, "started_at": _utc_now(), "last_error": None})
     try:
         asyncio.run(_run_forever())
-    except Exception as exc:  # defensive outer guard; daemon must never crash the API process
+    except Exception as exc:
         with _LOCK:
             _STATE.update({"running": False, "connected": False, "last_error": f"{type(exc).__name__}: {exc}"})
 
@@ -125,12 +125,11 @@ async def _run_forever() -> None:
                 close_timeout=10,
                 max_size=2 * 1024 * 1024,
             ) as ws:
-                subscription = {
+                await ws.send(json.dumps({
                     "APIKey": key,
                     "BoundingBoxes": boxes,
                     "FilterMessageTypes": message_types,
-                }
-                await ws.send(json.dumps(subscription))
+                }))
                 with _LOCK:
                     _STATE.update({"connected": True, "last_error": None})
                 backoff = 1.0
@@ -143,6 +142,43 @@ async def _run_forever() -> None:
                 _STATE["reconnect_count"] = int(_STATE.get("reconnect_count") or 0) + 1
             await asyncio.sleep(backoff + random.random() * min(backoff, 2.0))
             backoff = min(backoff * 2.0, 60.0)
+
+
+def _eta_fragment(value: object) -> str | None:
+    if not isinstance(value, dict):
+        return None
+    try:
+        month = int(value.get("Month") or 0)
+        day = int(value.get("Day") or 0)
+        hour = int(value.get("Hour") or 0)
+        minute = int(value.get("Minute") or 0)
+    except (TypeError, ValueError):
+        return None
+    if not (1 <= month <= 12 and 1 <= day <= 31 and 0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+    return f"{month:02d}-{day:02d} {hour:02d}:{minute:02d} UTC (ano não transmitido pelo AIS)"
+
+
+def _static_fields(message_type: str, message: dict) -> dict[str, object]:
+    if message_type == "ShipStaticData":
+        return {
+            "ship_name": str(message.get("Name") or "").strip() or None,
+            "imo_number": message.get("ImoNumber"),
+            "call_sign": str(message.get("CallSign") or "").strip() or None,
+            "ship_type_code": message.get("Type"),
+            "reported_destination": str(message.get("Destination") or "").strip() or None,
+            "reported_eta": _eta_fragment(message.get("Eta")),
+            "maximum_static_draught_m": message.get("MaximumStaticDraught"),
+        }
+    if message_type == "StaticDataReport":
+        report_a = message.get("ReportA") if isinstance(message.get("ReportA"), dict) else {}
+        report_b = message.get("ReportB") if isinstance(message.get("ReportB"), dict) else {}
+        return {
+            "ship_name": str(report_a.get("Name") or "").strip() or None,
+            "call_sign": str(report_b.get("CallSign") or "").strip() or None,
+            "ship_type_code": report_b.get("ShipType"),
+        }
+    return {}
 
 
 def _consume(raw: object, *, max_vessels: int) -> None:
@@ -179,7 +215,8 @@ def _consume(raw: object, *, max_vessels: int) -> None:
         "message_type": message_type,
         "received_at": _utc_now(),
         "received_epoch": now_epoch,
-        "ais_semantics": "reported/observed AIS data; not verified voyage intent",
+        "ais_semantics": "reported/observed AIS data; reported destination/ETA are vessel-declared and not verified voyage intent",
+        **_static_fields(message_type, message),
     }
     with _LOCK:
         previous = _VESSELS.get(mmsi, {})
