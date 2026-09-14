@@ -85,12 +85,13 @@ def aircraft_snapshot(lat: object, lon: object, dist_nm: object = 150) -> dict:
 
     body = _json_payload(f"{_BASE}/v2/lat/{latitude:.4f}/lon/{longitude:.4f}/dist/{distance}")
     aircraft = []
+    compact = []
     for row in body.get("ac", []):
         if not isinstance(row, dict):
             continue
         if row.get("lat") is None or row.get("lon") is None:
             continue
-        aircraft.append({
+        normalized = {
             "hex": row.get("hex"),
             "flight": row.get("flight"),
             "registration": row.get("r"),
@@ -104,6 +105,16 @@ def aircraft_snapshot(lat: object, lon: object, dist_nm: object = 150) -> dict:
             "squawk": row.get("squawk"),
             "seen_seconds": row.get("seen"),
             "category": row.get("category"),
+        }
+        aircraft.append(normalized)
+        compact.append({
+            "hex": normalized["hex"], "flight": normalized["flight"],
+            "r": normalized["registration"], "t": normalized["aircraft_type"],
+            "lat": normalized["lat"], "lon": normalized["lon"],
+            "alt_baro": normalized["altitude_baro_ft"], "gs": normalized["ground_speed_kt"],
+            "track": normalized["track_deg"], "baro_rate": normalized["vertical_rate_fpm"],
+            "squawk": normalized["squawk"], "seen": normalized["seen_seconds"],
+            "category": normalized["category"],
         })
     payload = {
         "schema_version": "geowatch-live-aircraft-v1",
@@ -113,6 +124,7 @@ def aircraft_snapshot(lat: object, lon: object, dist_nm: object = 150) -> dict:
         "center": {"lat": latitude, "lon": longitude, "radius_nm": distance},
         "count": len(aircraft),
         "aircraft": aircraft,
+        "ac": compact,
         "cache_hit": False,
     }
     return _store(key, payload, _CACHE_TTL_SECONDS)
@@ -149,6 +161,7 @@ def aircraft_route(callsign: object, lat: object, lon: object) -> dict:
         "plausible": body.get("plausible"),
         "route_semantics": "route lookup is inferred/plausibility-checked context, not a confirmed filed flight plan",
         "airports": airports,
+        "_airports": airports,
         "observed_at": _utc_now(),
         "cache_hit": False,
     }
