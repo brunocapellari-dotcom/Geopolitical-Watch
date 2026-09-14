@@ -5,12 +5,22 @@ from http.server import ThreadingHTTPServer
 from urllib.parse import urlparse
 
 from .api import API_TOKEN, Handler as BaseHandler
+from .dashboard import dashboard_html
 from .web_auth import clear_cookie, login_html, session_cookie, verify_login_body, verify_session
 
 
 def _secure_cookie() -> bool:
     value = os.environ.get("GEOWATCH_COOKIE_SECURE", "1").strip().casefold()
     return value not in {"0", "false", "no", "off"}
+
+
+def _private_dashboard_html() -> str:
+    body = dashboard_html()
+    body = body.replace(
+        '<input id="token" type="password" placeholder="API bearer token">',
+        '<input id="token" type="hidden" value=""><a href="/logout" style="color:#adb5bd;text-decoration:none;font-size:12px">Sair</a>',
+    )
+    return body
 
 
 class PrivateHandler(BaseHandler):
@@ -29,8 +39,10 @@ class PrivateHandler(BaseHandler):
             return
 
         session_ok = verify_session(self.headers.get("Cookie"), API_TOKEN)
-        if path == "/dashboard" and API_TOKEN and not session_ok:
-            return self._send_text(200, login_html(), "text/html; charset=utf-8")
+        if path == "/dashboard":
+            if API_TOKEN and not session_ok:
+                return self._send_text(200, login_html(), "text/html; charset=utf-8")
+            return self._send_text(200, _private_dashboard_html(), "text/html; charset=utf-8")
 
         # Same-origin browser sessions are translated to the existing Bearer
         # contract; machine clients can keep sending Authorization themselves.
