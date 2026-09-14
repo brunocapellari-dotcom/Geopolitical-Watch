@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 
+from geowatch.private_api import _private_dashboard_html
 from geowatch.web_auth import clear_cookie, issue_session, login_html, session_cookie, verify_login_body, verify_session
 
 
@@ -32,6 +33,12 @@ class PrivateAuthTests(unittest.TestCase):
         self.assertIn("Acesso privado", html)
         self.assertIn("Senha inválida", html)
         self.assertNotIn("private-secret", html)
+
+    def test_authenticated_dashboard_hides_bearer_field(self) -> None:
+        html = _private_dashboard_html()
+        self.assertIn('id="token" type="hidden"', html)
+        self.assertNotIn('type="password" placeholder="API bearer token"', html)
+        self.assertIn('href="/logout"', html)
 
 
 if __name__ == "__main__":
