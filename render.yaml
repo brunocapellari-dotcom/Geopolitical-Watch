@@ -17,6 +17,14 @@ services:
         sync: false
       - key: GEOWATCH_WPI_RUNTIME
         value: "1"
+      - key: GEOWATCH_EMBEDDED_COLLECTOR
+        value: "1"
+      - key: GEOWATCH_COLLECT_CONFIG
+        value: "config/sources.public-beta.json"
+      - key: GEOWATCH_COLLECT_INTERVAL_SECONDS
+        value: "3600"
+      - key: GEOWATCH_COOKIE_SECURE
+        value: "1"
       - key: PYTHONUNBUFFERED
         value: "1"
 
