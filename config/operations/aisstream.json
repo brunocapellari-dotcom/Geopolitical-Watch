@@ -1,0 +1,25 @@
+{
+  "schema_version": "geowatch-aisstream-regions-v1",
+  "provider": "AISStream",
+  "endpoint": "wss://stream.aisstream.io/v0/stream",
+  "coverage_semantics": "Strategic-area AIS coverage only; not global vessel completeness.",
+  "stale_after_seconds": 900,
+  "max_vessels": 10000,
+  "regions": [
+    {"id":"hormuz","name":"Strait of Hormuz / Persian Gulf","box":[[22.0,54.0],[28.5,60.5]]},
+    {"id":"red_sea","name":"Bab el-Mandeb / Red Sea","box":[[11.0,41.0],[20.0,45.5]]},
+    {"id":"suez","name":"Suez / Eastern Mediterranean","box":[[28.0,29.0],[34.0,36.5]]},
+    {"id":"black_sea","name":"Black Sea","box":[[40.0,27.0],[47.5,42.5]]},
+    {"id":"taiwan","name":"Taiwan Strait","box":[[21.0,117.0],[27.5,123.5]]},
+    {"id":"malacca","name":"Malacca / Singapore","box":[[-1.0,98.0],[7.5,105.5]]},
+    {"id":"panama","name":"Panama Canal approaches","box":[[7.0,-83.5],[11.5,-77.0]]},
+    {"id":"brazil_south","name":"Santos / Paranagua approaches","box":[[-27.5,-50.5],[-22.0,-43.5]]}
+  ],
+  "message_types": ["PositionReport", "StandardClassBPositionReport", "ExtendedClassBPositionReport", "ShipStaticData"],
+  "governance": {
+    "api_key_server_side_only": true,
+    "direct_browser_connection_forbidden": true,
+    "ais_is_observation_not_verified_voyage_intent": true,
+    "reported_destination_requires_explicit_label": true
+  }
+}
