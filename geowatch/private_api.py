@@ -27,6 +27,23 @@ def _private_dashboard_html() -> str:
 
 
 class PrivateHandler(BaseHandler):
+    def end_headers(self) -> None:
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://unpkg.com; "
+            "img-src 'self' data: https://unpkg.com https://*.tile.openstreetmap.org; "
+            "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+        )
+        if _secure_cookie():
+            self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        super().end_headers()
+
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path == "/login":
@@ -54,8 +71,6 @@ class PrivateHandler(BaseHandler):
                 return self._send_json(200, collector_status())
             return self._send_json(200, build_runtime_readiness())
 
-        # Same-origin browser sessions are translated to the existing Bearer
-        # contract; machine clients can keep sending Authorization themselves.
         if session_ok and API_TOKEN and not bearer_ok:
             if self.headers.get("Authorization"):
                 self.headers.replace_header("Authorization", f"Bearer {API_TOKEN}")
