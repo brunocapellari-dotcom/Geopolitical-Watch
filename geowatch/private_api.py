@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 from .api import API_TOKEN, Handler as BaseHandler
 from .dashboard import dashboard_html
 from .embedded_collector import ensure_started as ensure_collector_started, status as collector_status
+from .runtime_readiness import build_runtime_readiness
 from .web_auth import clear_cookie, login_html, session_cookie, verify_login_body, verify_session
 
 
@@ -45,10 +46,12 @@ class PrivateHandler(BaseHandler):
             if API_TOKEN and not session_ok:
                 return self._send_text(200, login_html(), "text/html; charset=utf-8")
             return self._send_text(200, _private_dashboard_html(), "text/html; charset=utf-8")
-        if path == "/v2/runtime/collector":
+        if path in {"/v2/runtime/collector", "/v2/runtime/readiness"}:
             if not (session_ok or bearer_ok):
                 return self._send_json(401, {"error": "unauthorized"})
-            return self._send_json(200, collector_status())
+            if path == "/v2/runtime/collector":
+                return self._send_json(200, collector_status())
+            return self._send_json(200, build_runtime_readiness())
 
         # Same-origin browser sessions are translated to the existing Bearer
         # contract; machine clients can keep sending Authorization themselves.
