@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
-from .api import main as api_main
+from .private_api import main as api_main
 from .consumers import build_consumer_feed, load_profile
 from .delivery import dispatch_pending
 from .episode_workflow import apply_merge, apply_split, revert_operation
