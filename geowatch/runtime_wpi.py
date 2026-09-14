@@ -26,6 +26,7 @@ def load_runtime_wpi(*, limit: int = 300) -> tuple[list[dict], dict]:
     Failure is soft: the core infrastructure catalog remains available and the
     status object exposes the WPI failure instead of fabricating coordinates.
     """
+    global _CACHE
     if not enabled():
         return [], {"enabled": False, "status": "disabled", "node_count": 0}
 
@@ -58,7 +59,6 @@ def load_runtime_wpi(*, limit: int = 300) -> tuple[list[dict], dict]:
             "structural_context_not_live_status": True,
         }
 
-    global _CACHE
     with _LOCK:
         _CACHE = (time.monotonic() + _TTL_SECONDS, [dict(row) for row in nodes], dict(status))
     return nodes, status
