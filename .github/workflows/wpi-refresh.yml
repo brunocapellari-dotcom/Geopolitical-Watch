@@ -6,7 +6,7 @@ on:
     - cron: "11 4 * * *"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   refresh:
@@ -23,18 +23,6 @@ jobs:
         run: |
           set -o pipefail
           python scripts/build_wpi_artifacts.py | tee wpi-run.json
-      - name: Persist official WPI layer
-        if: success()
-        run: |
-          git config user.name "geowatch-bot"
-          git config user.email "geowatch-bot@users.noreply.github.com"
-          git add generated/wpi/critical_port_candidates.json generated/wpi/summary.json
-          if git diff --cached --quiet; then
-            echo "WPI layer unchanged"
-          else
-            git commit -m "data: refresh official NGA WPI layer"
-            git push
-          fi
       - name: Publish summary
         if: always()
         run: |
