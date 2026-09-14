@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import zlib
 from pathlib import Path
 
 
@@ -16,6 +17,74 @@ class LocalRawStore:
         if not path.exists():
             path.write_bytes(payload)
         return str(path), digest
+
+
+class PostgresRawStore:
+    """Compressed raw payload store sharing the structured PostgreSQL database.
+
+    This is intended for compact public-source snapshots when external object
+    storage is not configured. It preserves byte-level provenance across web
+    service restarts without requiring a persistent local disk.
+    """
+
+    def __init__(self, dsn: str) -> None:
+        if not dsn.startswith(("postgresql://", "postgres://")):
+            raise ValueError("PostgresRawStore requires a PostgreSQL DSN")
+        self.dsn = dsn
+
+    def put(self, source_id: str, collected_at: str, payload: bytes, extension: str) -> tuple[str, str]:
+        try:
+            import psycopg  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("PostgreSQL RAW backend requires psycopg") from exc
+        digest = hashlib.sha256(payload).hexdigest()
+        compressed = zlib.compress(payload, level=6)
+        with psycopg.connect(self.dsn) as db:
+            with db.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS raw_payloads (
+                        source_id TEXT NOT NULL,
+                        sha256 TEXT NOT NULL,
+                        collected_at TIMESTAMPTZ NOT NULL,
+                        extension TEXT NOT NULL,
+                        compression TEXT NOT NULL DEFAULT 'zlib',
+                        original_bytes BIGINT NOT NULL,
+                        stored_bytes BIGINT NOT NULL,
+                        payload BYTEA NOT NULL,
+                        PRIMARY KEY(source_id, sha256)
+                    )
+                """)
+                cur.execute("""
+                    INSERT INTO raw_payloads(
+                        source_id, sha256, collected_at, extension, compression,
+                        original_bytes, stored_bytes, payload
+                    ) VALUES(%s,%s,%s,%s,'zlib',%s,%s,%s)
+                    ON CONFLICT(source_id, sha256) DO NOTHING
+                """, (
+                    source_id, digest, collected_at, extension,
+                    len(payload), len(compressed), compressed,
+                ))
+            db.commit()
+        ref = f"pgraw://{source_id}/{collected_at[:10]}/{digest}.{extension}"
+        return ref, digest
+
+    def get(self, source_id: str, digest: str) -> bytes | None:
+        try:
+            import psycopg  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("PostgreSQL RAW backend requires psycopg") from exc
+        with psycopg.connect(self.dsn) as db:
+            with db.cursor() as cur:
+                cur.execute(
+                    "SELECT compression, payload FROM raw_payloads WHERE source_id=%s AND sha256=%s",
+                    (source_id, digest),
+                )
+                row = cur.fetchone()
+        if not row:
+            return None
+        compression, payload = row
+        data = bytes(payload)
+        return zlib.decompress(data) if compression == "zlib" else data
 
 
 class GCSRawStore:
@@ -41,6 +110,12 @@ def open_raw_store(location: str | Path | None = None):
     bucket = os.environ.get("GEOWATCH_RAW_BUCKET")
     if bucket:
         return GCSRawStore(bucket, os.environ.get("GEOWATCH_RAW_PREFIX", "raw"))
+    backend = os.environ.get("GEOWATCH_RAW_BACKEND", "").strip().casefold()
+    db_url = os.environ.get("GEOWATCH_DB_URL", "")
+    if backend in {"postgres", "postgresql"}:
+        if not db_url:
+            raise RuntimeError("GEOWATCH_DB_URL is required for PostgreSQL RAW storage")
+        return PostgresRawStore(db_url)
     value = str(location) if location is not None else os.environ.get("GEOWATCH_RAW") or "data/raw"
     if value.startswith("gs://"):
         bucket_and_prefix = value[5:].split("/", 1)
@@ -50,8 +125,13 @@ def open_raw_store(location: str | Path | None = None):
 
 def raw_backend_name(location: str | Path | None = None) -> str:
     bucket = os.environ.get("GEOWATCH_RAW_BUCKET")
+    backend = os.environ.get("GEOWATCH_RAW_BACKEND", "").strip().casefold()
     value = str(location) if location is not None else os.environ.get("GEOWATCH_RAW") or "data/raw"
-    return "gcs" if bucket or value.startswith("gs://") else "filesystem"
+    if bucket or value.startswith("gs://"):
+        return "gcs"
+    if backend in {"postgres", "postgresql"}:
+        return "postgresql-compressed"
+    return "filesystem"
 
 
 def _content_type(extension: str) -> str:
