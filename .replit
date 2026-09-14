@@ -1,0 +1,9 @@
+run = ["python", "-m", "geowatch", "serve"]
+
+[gitHubImport]
+requiredFiles = [".replit", "pyproject.toml"]
+
+[deployment]
+build = "pip install --upgrade pip && pip install -e '.[production]'"
+run = ["python", "-m", "geowatch", "serve"]
+ignorePorts = false
