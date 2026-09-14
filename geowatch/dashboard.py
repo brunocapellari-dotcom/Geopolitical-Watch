@@ -42,7 +42,7 @@ def dashboard_html() -> str:
 <title>Monitor de Conflitos</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-html,body{height:100%}body{font-family:system-ui,sans-serif;margin:0;background:#101214;color:#e9ecef}header{min-height:46px;padding:10px 14px;background:#171a1d;display:flex;gap:9px;align-items:center;flex-wrap:wrap}input,button,select{padding:8px;background:#24282c;color:#fff;border:1px solid #3a4046;border-radius:6px}button{cursor:pointer}.grid{display:grid;grid-template-columns:minmax(340px,38%) 1fr;height:calc(100vh - 66px)}#map{height:100%;min-height:360px}.panel{overflow:auto;padding:12px}.card{background:#181c20;border:1px solid #2b3137;border-radius:8px;padding:10px;margin-bottom:9px}.meta{font-size:12px;color:#adb5bd}.high{font-weight:700}.error{color:#ff8787}.badge{font-size:11px;padding:3px 6px;border:1px solid #3a4046;border-radius:10px}.leaflet-tooltip{white-space:nowrap}.aircraft-icon{background:transparent;border:0}.aircraft-glyph{display:block;font-size:18px;line-height:18px;width:18px;height:18px;text-align:center;filter:drop-shadow(0 0 2px #000)} @media(max-width:800px){.grid{grid-template-columns:1fr;grid-template-rows:52% 48%;height:calc(100vh - 100px)}}
+html,body{height:100%}body{font-family:system-ui,sans-serif;margin:0;background:#101214;color:#e9ecef}header{min-height:46px;padding:10px 14px;background:#171a1d;display:flex;gap:9px;align-items:center;flex-wrap:wrap}input,button,select{padding:8px;background:#24282c;color:#fff;border:1px solid #3a4046;border-radius:6px}button{cursor:pointer}.grid{display:grid;grid-template-columns:minmax(340px,38%) 1fr;height:calc(100vh - 66px)}#map{height:100%;min-height:360px}.panel{overflow:auto;padding:12px}.card{background:#181c20;border:1px solid #2b3137;border-radius:8px;padding:10px;margin-bottom:9px}.meta{font-size:12px;color:#adb5bd}.high{font-weight:700}.error{color:#ff8787}.badge{font-size:11px;padding:3px 6px;border:1px solid #3a4046;border-radius:10px}.leaflet-tooltip{white-space:nowrap}.aircraft-icon,.vessel-icon{background:transparent;border:0}.aircraft-glyph,.vessel-glyph{display:block;font-size:18px;line-height:18px;width:18px;height:18px;text-align:center;filter:drop-shadow(0 0 2px #000)} @media(max-width:800px){.grid{grid-template-columns:1fr;grid-template-rows:52% 48%;height:calc(100vh - 100px)}}
 </style>
 </head>
 <body>
@@ -52,20 +52,22 @@ html,body{height:100%}body{font-family:system-ui,sans-serif;margin:0;background:
 <script>
 const map=L.map('map',{worldCopyJump:true}).setView([20,10],2);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'OpenStreetMap'}).addTo(map);
-const conflicts=L.layerGroup().addTo(map), infrastructure=L.layerGroup().addTo(map), aircraft=L.layerGroup().addTo(map), aircraftRoute=L.layerGroup().addTo(map);
-L.control.layers(null,{'Conflitos':conflicts,'Infraestrutura crítica':infrastructure,'Aeronaves ao vivo':aircraft,'Rota da aeronave selecionada':aircraftRoute},{collapsed:false}).addTo(map);
-let lastCounts={episodes:0,conflicts:0,infra:0,infraTotal:0,aircraft:0};
+const conflicts=L.layerGroup().addTo(map), infrastructure=L.layerGroup().addTo(map), aircraft=L.layerGroup().addTo(map), aircraftRoute=L.layerGroup().addTo(map), vessels=L.layerGroup().addTo(map);
+L.control.layers(null,{'Conflitos':conflicts,'Infraestrutura crítica':infrastructure,'Aeronaves ao vivo':aircraft,'Rota da aeronave selecionada':aircraftRoute,'Navios AIS':vessels},{collapsed:false}).addTo(map);
+let lastCounts={episodes:0,conflicts:0,infra:0,infraTotal:0,aircraft:0,vessels:0,aisConfigured:false};
 let aircraftRequest=0;
 
 async function api(path){const token=document.getElementById('token').value;sessionStorage.setItem('geowatch_token',token);const r=await fetch(path,{headers:token?{'Authorization':'Bearer '+token}:{}});if(!r.ok){let detail='HTTP '+r.status;try{const b=await r.json();if(b.error)detail=b.error}catch(_e){}throw new Error(detail)}return r.json()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function validCoord(v,min,max){const n=Number(v);return Number.isFinite(n)&&n>=min&&n<=max}
 function fmt(v,suffix=''){return v===undefined||v===null||v===''?'—':esc(v)+suffix}
-function updateStatus(){document.getElementById('status').textContent=lastCounts.episodes+' episódios | '+lastCounts.conflicts+' conflitos no mapa | '+lastCounts.infra+'/'+lastCounts.infraTotal+' infraestruturas | '+lastCounts.aircraft+' aeronaves'}
+function updateStatus(){const ais=lastCounts.aisConfigured?'':' (AIS aguardando chave)';document.getElementById('status').textContent=lastCounts.episodes+' episódios | '+lastCounts.conflicts+' conflitos | '+lastCounts.infra+'/'+lastCounts.infraTotal+' infraestruturas | '+lastCounts.aircraft+' aeronaves | '+lastCounts.vessels+' navios'+ais}
 function popupEpisode(p){return '<b>'+esc(p.title)+'</b><br>'+esc(p.state)+' | força '+esc(p.evidence_strength_index)+'<br>'+esc(p.location_name)+'<br><span class="meta">'+esc(p.last_updated_at)+'</span>'}
 function popupInfrastructure(n){const themes=(n.themes||n.facilities||[]).join(', ');return '<b>'+esc(n.name)+'</b><br>'+esc(n.type||'infraestrutura')+'<br>'+esc(n.region||n.water_body||'')+(themes?'<br><span class="meta">'+esc(themes)+'</span>':'')+'<br><span class="meta">Contexto estrutural; não implica status operacional atual.</span>'}
 function aircraftLabel(a){return (a.flight||a.r||a.hex||'aeronave').trim()}
 function popupAircraft(a,routeText='Clique para consultar origem/destino plausíveis'){return '<b>'+esc(aircraftLabel(a))+'</b><br>ICAO: '+fmt(a.hex)+' | Reg.: '+fmt(a.r)+' | Tipo: '+fmt(a.t)+'<br>Altitude: '+fmt(a.alt_baro,' ft')+' | Vel.: '+fmt(a.gs,' kt')+' | Rumo: '+fmt(a.track,'°')+'<br><span class="meta">Última posição: '+fmt(a.seen,' s')+' atrás</span><br><span class="meta">'+esc(routeText)+'</span>'}
+function vesselLabel(v){return String(v.ship_name||v.mmsi||'navio').trim()}
+function popupVessel(v){return '<b>'+esc(vesselLabel(v))+'</b><br>MMSI: '+fmt(v.mmsi)+'<br>Vel.: '+fmt(v.speed_over_ground_kt,' kt')+' | Curso: '+fmt(v.course_over_ground_deg,'°')+' | Rumo: '+fmt(v.true_heading_deg,'°')+'<br><span class="meta">'+fmt(v.received_at)+'</span><br><span class="meta">AIS reportado/observado; não confirma intenção de viagem.</span>'}
 
 async function loadAll(){
  const status=document.getElementById('status');status.textContent='carregando';
@@ -97,7 +99,7 @@ async function loadAll(){
   }
   const totalInfra=infra.summary&&infra.summary.node_count!==undefined?infra.summary.node_count:(infra.nodes||[]).length;
   lastCounts={...lastCounts,episodes:(ep.episodes||[]).length,conflicts:conflictPins,infra:infraPins,infraTotal:totalInfra};updateStatus();
-  loadAircraft();
+  loadAircraft();loadVessels();
  }catch(e){status.innerHTML='<span class="error">'+esc(e.message)+'</span>'}
 }
 
@@ -142,8 +144,24 @@ async function loadAircraftRoute(a,marker){
  }catch(e){marker.setPopupContent(popupAircraft(a,'Não foi possível consultar a rota agora.')).openPopup()}
 }
 
+async function loadVessels(){
+ if(!map.hasLayer(vessels))return;
+ try{
+  const payload=await api('/v2/live/vessels');vessels.clearLayers();let count=0;
+  lastCounts.aisConfigured=Boolean(payload.configured);
+  for(const v of payload.vessels||[]){
+   if(!validCoord(v.lat,-90,90)||!validCoord(v.lon,-180,180))continue;
+   const heading=Number.isFinite(Number(v.true_heading_deg))?Number(v.true_heading_deg):(Number.isFinite(Number(v.course_over_ground_deg))?Number(v.course_over_ground_deg):0);
+   const icon=L.divIcon({className:'vessel-icon',html:'<span class="vessel-glyph" style="transform:rotate('+heading+'deg)">▲</span>',iconSize:[18,18],iconAnchor:[9,9]});
+   const m=L.marker([Number(v.lat),Number(v.lon)],{icon}).bindPopup(popupVessel(v));
+   m.bindTooltip(esc(vesselLabel(v)),{direction:'top',sticky:true});m.addTo(vessels);count++;
+  }
+  lastCounts.vessels=count;updateStatus();
+ }catch(e){lastCounts.vessels=0;updateStatus()}
+}
+
 async function showEpisode(id){try{const d=await api('/v2/episodes/'+encodeURIComponent(id));const target=document.getElementById('d-'+id);target.innerHTML='<div class="meta">Claims: '+d.claims.length+' | Evidências: '+d.evidence.length+' | Eventos: '+d.events.length+'</div>'+d.events.slice(0,12).map(e=>'<div class="meta">'+esc(e.reference_at)+' — '+esc(e.title)+'</div>').join('')}catch(e){}}
 document.getElementById('token').value=sessionStorage.getItem('geowatch_token')||'';
-let aircraftMoveTimer=null;map.on('moveend',()=>{clearTimeout(aircraftMoveTimer);aircraftMoveTimer=setTimeout(loadAircraft,800)});map.on('overlayadd',e=>{if(e.layer===aircraft)loadAircraft()});setInterval(loadAircraft,60000);
+let aircraftMoveTimer=null;map.on('moveend',()=>{clearTimeout(aircraftMoveTimer);aircraftMoveTimer=setTimeout(loadAircraft,800)});map.on('overlayadd',e=>{if(e.layer===aircraft)loadAircraft();if(e.layer===vessels)loadVessels()});setInterval(loadAircraft,60000);setInterval(loadVessels,30000);
 </script>
 </body></html>'''
