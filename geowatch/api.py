@@ -18,6 +18,7 @@ from .geopolitics import GeopoliticalKnowledge
 from .global_profiles import GlobalProfileRegistry
 from .historical_corpus import HistoricalCorpus
 from .live_aircraft import LiveAircraftError, aircraft_route, aircraft_snapshot
+from .live_vessels import provider_status as vessel_provider_status, vessel_snapshot
 from .metrics import operational_snapshot, prometheus_text
 from .profile_enrichment import ProfileEnrichmentQueue
 from .readiness import current_code_readiness_estimate
@@ -69,6 +70,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(400, {"error": str(exc)})
             except LiveAircraftError as exc:
                 return self._send_json(503, {"error": str(exc), "provider": "adsb.lol"})
+        if path == "/v2/live/vessels":
+            return self._send_json(200, vessel_snapshot())
+        if path == "/v2/live/vessels/status":
+            return self._send_json(200, vessel_provider_status())
 
         if path == "/v2/source-activation":
             return self._send_json(200, SourceActivationRegistry.from_json().evaluate(env=os.environ, reviewed_terms=_reviewed_terms()))
