@@ -57,7 +57,7 @@ L.control.layers(null,{'Conflitos':conflicts,'Infraestrutura crítica':infrastru
 let lastCounts={episodes:0,conflicts:0,infra:0,infraTotal:0,aircraft:0};
 let aircraftRequest=0;
 
-async function api(path){const token=document.getElementById('token').value;sessionStorage.setItem('geowatch_token',token);const r=await fetch(path,{headers:token?{'Authorization':'Bearer '+token}:{}});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+async function api(path){const token=document.getElementById('token').value;sessionStorage.setItem('geowatch_token',token);const r=await fetch(path,{headers:token?{'Authorization':'Bearer '+token}:{}});if(!r.ok){let detail='HTTP '+r.status;try{const b=await r.json();if(b.error)detail=b.error}catch(_e){}throw new Error(detail)}return r.json()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function validCoord(v,min,max){const n=Number(v);return Number.isFinite(n)&&n>=min&&n<=max}
 function fmt(v,suffix=''){return v===undefined||v===null||v===''?'—':esc(v)+suffix}
@@ -107,9 +107,7 @@ async function loadAircraft(){
  try{
   const center=map.getCenter(),corner=map.getBounds().getNorthEast();
   const dist=Math.max(25,Math.min(250,Math.ceil(map.distance(center,corner)/1852)));
-  const url='https://api.adsb.lol/v2/lat/'+center.lat.toFixed(4)+'/lon/'+center.lng.toFixed(4)+'/dist/'+dist;
-  const r=await fetch(url,{headers:{'Accept':'application/json'}});if(!r.ok)throw new Error('ADSB '+r.status);
-  const payload=await r.json();if(request!==aircraftRequest)return;
+  const payload=await api('/v2/live/aircraft?lat='+center.lat.toFixed(4)+'&lon='+center.lng.toFixed(4)+'&dist_nm='+dist);if(request!==aircraftRequest)return;
   aircraft.clearLayers();let count=0;
   for(const a of payload.ac||[]){
    if(!validCoord(a.lat,-90,90)||!validCoord(a.lon,-180,180))continue;
@@ -129,9 +127,7 @@ async function loadAircraftRoute(a,marker){
  if(!callsign){marker.setPopupContent(popupAircraft(a,'Rota indisponível: aeronave sem callsign.')).openPopup();return}
  try{
   marker.setPopupContent(popupAircraft(a,'Consultando rota plausível…')).openPopup();
-  const url='https://api.adsb.lol/api/0/route/'+encodeURIComponent(callsign)+'/'+Number(a.lat).toFixed(4)+'/'+Number(a.lon).toFixed(4);
-  const r=await fetch(url,{headers:{'Accept':'application/json'}});if(!r.ok)throw new Error('HTTP '+r.status);
-  const route=await r.json();const aps=(route._airports||[]).filter(p=>validCoord(p.lat,-90,90)&&validCoord(p.lon,-180,180));
+  const route=await api('/v2/live/aircraft/route?callsign='+encodeURIComponent(callsign)+'&lat='+Number(a.lat).toFixed(4)+'&lon='+Number(a.lon).toFixed(4));const aps=(route._airports||[]).filter(p=>validCoord(p.lat,-90,90)&&validCoord(p.lon,-180,180));
   const codes=route.airport_codes&&route.airport_codes!=='unknown'?route.airport_codes:'rota não identificada';
   const plausibility=route.plausible===false?'não validada pela posição atual':'plausível pela posição atual';
   marker.setPopupContent(popupAircraft(a,'Rota: '+codes+' — '+plausibility+'. Fonte: ADSB.lol/VRS standing data.')).openPopup();
