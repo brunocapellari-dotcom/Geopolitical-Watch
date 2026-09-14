@@ -17,6 +17,7 @@ from .forecasting import forecast_summary
 from .geopolitics import GeopoliticalKnowledge
 from .global_profiles import GlobalProfileRegistry
 from .historical_corpus import HistoricalCorpus
+from .live_aircraft import LiveAircraftError, aircraft_route, aircraft_snapshot
 from .metrics import operational_snapshot, prometheus_text
 from .profile_enrichment import ProfileEnrichmentQueue
 from .readiness import current_code_readiness_estimate
@@ -51,6 +52,23 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_text(200, dashboard_html(), "text/html; charset=utf-8")
         if API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
             return self._send_json(401, {"error": "unauthorized"})
+
+        if path == "/v2/live/aircraft":
+            try:
+                payload = aircraft_snapshot(_one(query, "lat"), _one(query, "lon"), _one(query, "dist_nm") or 150)
+                return self._send_json(200, payload)
+            except ValueError as exc:
+                return self._send_json(400, {"error": str(exc)})
+            except LiveAircraftError as exc:
+                return self._send_json(503, {"error": str(exc), "provider": "adsb.lol"})
+        if path == "/v2/live/aircraft/route":
+            try:
+                payload = aircraft_route(_one(query, "callsign"), _one(query, "lat"), _one(query, "lon"))
+                return self._send_json(200, payload)
+            except ValueError as exc:
+                return self._send_json(400, {"error": str(exc)})
+            except LiveAircraftError as exc:
+                return self._send_json(503, {"error": str(exc), "provider": "adsb.lol"})
 
         if path == "/v2/source-activation":
             return self._send_json(200, SourceActivationRegistry.from_json().evaluate(env=os.environ, reviewed_terms=_reviewed_terms()))
