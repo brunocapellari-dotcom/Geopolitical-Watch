@@ -23,6 +23,8 @@ services:
         value: "config/sources.public-beta.json"
       - key: GEOWATCH_COLLECT_INTERVAL_SECONDS
         value: "3600"
+      - key: GEOWATCH_RAW_BACKEND
+        value: "postgres"
       - key: GEOWATCH_COOKIE_SECURE
         value: "1"
       - key: PYTHONUNBUFFERED
