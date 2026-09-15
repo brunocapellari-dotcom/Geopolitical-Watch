@@ -8,6 +8,7 @@ from .api import API_TOKEN, Handler as BaseHandler
 from .dashboard import dashboard_html
 from .embedded_collector import ensure_started as ensure_collector_started, status as collector_status
 from .live_vessels import ensure_started as ensure_vessel_started
+from .runtime_guard import validate_production_runtime
 from .runtime_readiness import build_runtime_readiness
 from .web_auth import clear_cookie, login_html, session_cookie, verify_login_body, verify_session
 
@@ -107,6 +108,7 @@ class PrivateHandler(BaseHandler):
 
 
 def main() -> int:
+    validate_production_runtime()
     ensure_collector_started()
     ensure_vessel_started()
     host = os.environ.get("HOST", "0.0.0.0")
