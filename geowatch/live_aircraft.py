@@ -7,13 +7,22 @@ import time
 from datetime import datetime, timezone
 
 from .http import get
+from .tracking_history import TrackHistory
 
 _BASE = "https://api.adsb.lol"
 _CACHE_TTL_SECONDS = 20.0
 _ROUTE_CACHE_TTL_SECONDS = 300.0
 _CALLSIGN = re.compile(r"^[A-Z0-9]{2,16}$")
+_AIRCRAFT_ID = re.compile(r"^~?[A-F0-9]{3,16}$")
 _CACHE: dict[tuple, tuple[float, dict]] = {}
 _LOCK = threading.RLock()
+_TRACKS = TrackHistory(
+    max_entities=20000,
+    max_points_per_entity=120,
+    min_interval_seconds=10.0,
+    min_move_meters=100.0,
+)
+_TRACK_RETENTION_SECONDS = 2 * 60 * 60
 
 
 class LiveAircraftError(RuntimeError):
@@ -86,6 +95,8 @@ def aircraft_snapshot(lat: object, lon: object, dist_nm: object = 150) -> dict:
     body = _json_payload(f"{_BASE}/v2/lat/{latitude:.4f}/lon/{longitude:.4f}/dist/{distance}")
     aircraft = []
     compact = []
+    observed_epoch = time.time()
+    observed_at = datetime.fromtimestamp(observed_epoch, timezone.utc).isoformat()
     for row in body.get("ac", []):
         if not isinstance(row, dict):
             continue
@@ -116,11 +127,29 @@ def aircraft_snapshot(lat: object, lon: object, dist_nm: object = 150) -> dict:
             "squawk": normalized["squawk"], "seen": normalized["seen_seconds"],
             "category": normalized["category"],
         })
+        aircraft_id = str(normalized.get("hex") or "").strip().upper()
+        if _AIRCRAFT_ID.fullmatch(aircraft_id):
+            try:
+                _TRACKS.record(
+                    aircraft_id,
+                    normalized["lat"],
+                    normalized["lon"],
+                    observed_at=observed_at,
+                    epoch=observed_epoch,
+                    properties={
+                        "altitude_baro_ft": normalized.get("altitude_baro_ft"),
+                        "ground_speed_kt": normalized.get("ground_speed_kt"),
+                        "track_deg": normalized.get("track_deg"),
+                    },
+                )
+            except ValueError:
+                pass
+    _TRACKS.prune(older_than_seconds=_TRACK_RETENTION_SECONDS, now_epoch=observed_epoch)
     payload = {
         "schema_version": "geowatch-live-aircraft-v1",
         "provider": "adsb.lol",
         "provider_semantics": "public ADS-B/MLAT observation; coverage and completeness vary",
-        "observed_at": _utc_now(),
+        "observed_at": observed_at,
         "center": {"lat": latitude, "lon": longitude, "radius_nm": distance},
         "count": len(aircraft),
         "aircraft": aircraft,
@@ -128,6 +157,26 @@ def aircraft_snapshot(lat: object, lon: object, dist_nm: object = 150) -> dict:
         "cache_hit": False,
     }
     return _store(key, payload, _CACHE_TTL_SECONDS)
+
+
+def aircraft_track(identifier: object, *, limit: object = 120) -> dict:
+    aircraft_id = str(identifier or "").strip().upper()
+    if not _AIRCRAFT_ID.fullmatch(aircraft_id):
+        raise ValueError("invalid aircraft identifier")
+    result_limit = _bounded_int(limit, minimum=2, maximum=120, name="limit")
+    _TRACKS.prune(older_than_seconds=_TRACK_RETENTION_SECONDS)
+    points = _TRACKS.get(aircraft_id, limit=result_limit)
+    return {
+        "schema_version": "geowatch-aircraft-track-v1",
+        "provider": "adsb.lol",
+        "aircraft_id": aircraft_id,
+        "count": len(points),
+        "points": points,
+        "track_semantics": (
+            "recent ADS-B/MLAT positions observed by this backend while the map was collecting; "
+            "not a complete flight path or confirmed filed route"
+        ),
+    }
 
 
 def aircraft_route(callsign: object, lat: object, lon: object) -> dict:
@@ -171,3 +220,4 @@ def aircraft_route(callsign: object, lat: object, lon: object) -> dict:
 def clear_live_aircraft_cache() -> None:
     with _LOCK:
         _CACHE.clear()
+    _TRACKS.clear()
