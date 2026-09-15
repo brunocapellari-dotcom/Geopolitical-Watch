@@ -12,6 +12,13 @@ class ContainerHardeningTests(unittest.TestCase):
         self.assertNotIn("pip install -e", dockerfile)
         self.assertNotIn("COPY . /app", dockerfile)
 
+    def test_production_container_applies_available_os_security_updates(self) -> None:
+        dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("apt-get update", dockerfile)
+        self.assertIn("apt-get upgrade -y --no-install-recommends", dockerfile)
+        self.assertIn("rm -rf /var/lib/apt/lists/*", dockerfile)
+        self.assertLess(dockerfile.index("apt-get upgrade"), dockerfile.index("pip install"))
+
     def test_docker_context_excludes_non_runtime_assets(self) -> None:
         ignore = Path(".dockerignore").read_text(encoding="utf-8").splitlines()
         ignored = {line.strip() for line in ignore if line.strip() and not line.startswith("#")}
