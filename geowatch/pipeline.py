@@ -15,6 +15,7 @@ from .history import TimeWindow, iter_windows, overlap_start, parse_utc
 from .quality import load_profiles
 from .raw_store import open_raw_store
 from .reports import build_report, render_markdown
+from .security_redaction import redact_runtime_secrets, redact_url
 from .sources import acled, firms, gdacs, gdelt, reliefweb, ucdp
 from .storage_factory import open_store
 
@@ -35,28 +36,41 @@ def run(config_path: str | Path = "config/sources.json", db_path: str | Path | N
         if not spec.get("enabled", False):
             continue
         source_id = str(spec["source_id"])
+        kind = str(spec.get("kind") or source_id)
+        collector_id = str(spec.get("collector_id") or f"{kind}_collector")
         started_at = datetime.now(timezone.utc).isoformat()
         run_id = uuid4().hex
-        request_meta: dict[str, object] = {"kind": spec.get("kind")}
+        request_meta: dict[str, object] = {"kind": spec.get("kind"), "collector_id": collector_id}
         try:
             checkpoint = store.get_checkpoint(source_id)
             payloads, urls, parser = _collect_incremental(spec, checkpoint=checkpoint, now=now, default_lookback_hours=default_lookback_hours, overlap_minutes=overlap_minutes, request_meta=request_meta)
             source_events = []
+            safe_urls: list[str] = []
             for index, payload in enumerate(payloads):
                 url = urls[index] if index < len(urls) else None
-                raw_ref, digest = raw_store.put(source_id, collected_at, payload, str(spec.get("extension", "json")))
-                store.add_artifact(artifact_id=f"{source_id}:{digest}", source_id=source_id, sha256=digest, collected_at=collected_at, observed_url=url, path=raw_ref, bytes_count=len(payload))
+                safe_url = redact_url(url) if url else None
+                if safe_url:
+                    safe_urls.append(safe_url)
+                raw_ref, digest = raw_store.put(
+                    source_id,
+                    collected_at,
+                    payload,
+                    str(spec.get("extension", "json")),
+                    collector_id=collector_id,
+                    source_url=safe_url,
+                )
+                store.add_artifact(artifact_id=f"{source_id}:{digest}", source_id=source_id, sha256=digest, collected_at=collected_at, observed_url=safe_url, path=raw_ref, bytes_count=len(payload))
                 parsed = parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=raw_ref)
                 source_events.extend(canonicalize_event(event) for event in parsed)
             store.upsert_events(source_events)
             last_reference = max((event.reference_at for event in source_events), default=None)
-            store.update_checkpoint(source_id, last_success_at=collected_at, last_reference_at=last_reference, cursor={"observed_urls": urls[-3:]})
+            store.update_checkpoint(source_id, last_success_at=collected_at, last_reference_at=last_reference, cursor={"observed_urls": safe_urls[-3:]})
             finished_at = datetime.now(timezone.utc).isoformat()
             store.record_run(run_id=run_id, source_id=source_id, started_at=started_at, finished_at=finished_at, status="ok", records=len(source_events), request=request_meta)
             source_results.append({"source_id": source_id, "status": "ok", "records": len(source_events), "requests": len(payloads)})
         except Exception as exc:
             finished_at = datetime.now(timezone.utc).isoformat()
-            error = f"{type(exc).__name__}: {exc}"
+            error = redact_runtime_secrets(f"{type(exc).__name__}: {exc}")
             store.record_run(run_id=run_id, source_id=source_id, started_at=started_at, finished_at=finished_at, status="error", records=0, request=request_meta, error=error)
             source_results.append({"source_id": source_id, "status": "error", "error": error})
 
@@ -165,8 +179,18 @@ def _collect_incremental(spec: dict, *, checkpoint: dict | None, now: datetime, 
 
 def _persist_backfill_payload(store, raw_store, spec: dict, payload: bytes, url: str, collected_at: str, parser) -> int:
     source_id = str(spec["source_id"])
-    raw_ref, digest = raw_store.put(source_id, collected_at, payload, str(spec.get("extension", "json")))
-    store.add_artifact(artifact_id=f"{source_id}:{digest}", source_id=source_id, sha256=digest, collected_at=collected_at, observed_url=url, path=raw_ref, bytes_count=len(payload))
+    kind = str(spec.get("kind") or source_id)
+    collector_id = str(spec.get("collector_id") or f"{kind}_collector")
+    safe_url = redact_url(url)
+    raw_ref, digest = raw_store.put(
+        source_id,
+        collected_at,
+        payload,
+        str(spec.get("extension", "json")),
+        collector_id=collector_id,
+        source_url=safe_url,
+    )
+    store.add_artifact(artifact_id=f"{source_id}:{digest}", source_id=source_id, sha256=digest, collected_at=collected_at, observed_url=safe_url, path=raw_ref, bytes_count=len(payload))
     events = [canonicalize_event(event) for event in parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=raw_ref)]
     store.upsert_events(events); return len(events)
 
