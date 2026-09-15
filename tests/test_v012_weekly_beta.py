@@ -106,11 +106,12 @@ class V012WeeklyBetaTests(unittest.TestCase):
         self.assertTrue(result['linked'][0]['jurisdiction_semantics_required'])
         self.assertTrue(result['fuzzy_matching_requires_review'])
 
-    def test_public_refresh_workflows_are_read_only(self):
+    def test_public_refresh_workflows_are_read_only_and_pinned(self):
         for path in ('.github/workflows/ucdp-bulk-refresh.yml','.github/workflows/wpi-refresh.yml','.github/workflows/worldbank-refresh.yml','.github/workflows/sanctions-refresh.yml'):
             text=Path(path).read_text(encoding='utf-8')
             self.assertIn('contents: read',text,path)
-            self.assertIn('upload-artifact@v4',text,path)
+            self.assertIn('actions/upload-artifact@',text,path)
+            self.assertNotIn('actions/upload-artifact@v4',text,path)
 
 
 if __name__=='__main__':
