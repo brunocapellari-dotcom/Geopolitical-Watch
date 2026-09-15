@@ -1,13 +1,13 @@
 {
   "schema_version": "geowatch-source-activation-v1",
-  "as_of": "2026-08-24",
+  "as_of": "2026-09-15",
   "sources": [
     {"source_id":"gdelt_conflict_news","enabled_now":true,"credential_env":[],"terms_gate":false,"historical_backfill":true,"priority":"high"},
     {"source_id":"gdacs_context","enabled_now":true,"credential_env":[],"terms_gate":false,"historical_backfill":false,"priority":"medium"},
     {"source_id":"ucdp_ged_26_1","enabled_now":false,"credential_env":["UCDP_API_TOKEN"],"terms_gate":true,"historical_backfill":true,"priority":"critical","notes":"Token required; version must be explicit."},
     {"source_id":"reliefweb_conflict_reports","enabled_now":false,"credential_env":["RELIEFWEB_APPNAME"],"terms_gate":true,"historical_backfill":true,"priority":"high","notes":"Approved appname required."},
     {"source_id":"nasa_firms_context","enabled_now":false,"credential_env":["FIRMS_MAP_KEY"],"terms_gate":true,"historical_backfill":true,"priority":"medium","notes":"Use regional bounding boxes; sensor context never creates attack attribution by itself."},
-    {"source_id":"acled_events","enabled_now":false,"credential_env":["ACLED_CLIENT_ID","ACLED_CLIENT_SECRET"],"terms_gate":true,"historical_backfill":true,"priority":"critical","notes":"OAuth/account and license/terms review required."},
+    {"source_id":"acled_events","enabled_now":false,"credential_env":["ACLED_USERNAME","ACLED_PASSWORD"],"credential_alternative_env":["ACLED_ACCESS_TOKEN"],"terms_gate":true,"historical_backfill":true,"priority":"critical","notes":"Current programmatic authentication uses myACLED OAuth username/password with hard-coded client_id=acled, or an already issued access token. License/terms review required before activation."},
     {"source_id":"unsc_sanctions","enabled_now":true,"credential_env":[],"terms_gate":false,"historical_backfill":true,"priority":"high","notes":"Official consolidated list and update history."},
     {"source_id":"ofac_sanctions","enabled_now":true,"credential_env":[],"terms_gate":false,"historical_backfill":true,"priority":"high","notes":"OFAC Sanctions List Service is the primary delivery surface."},
     {"source_id":"uk_sanctions","enabled_now":true,"credential_env":[],"terms_gate":false,"historical_backfill":true,"priority":"high","notes":"UK Sanctions List is the sole current UK designation list since 2026-01-28."},
