@@ -131,9 +131,15 @@ resource "google_project_iam_member" "runtime_secret_accessor" {
   member  = "serviceAccount:${google_service_account.runtime.email}"
 }
 
-resource "google_storage_bucket_iam_member" "runtime_raw" {
+resource "google_storage_bucket_iam_member" "runtime_raw_create" {
   bucket = google_storage_bucket.raw.name
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${google_service_account.runtime.email}"
+}
+
+resource "google_storage_bucket_iam_member" "runtime_raw_read" {
+  bucket = google_storage_bucket.raw.name
+  role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.runtime.email}"
 }
 
