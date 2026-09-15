@@ -101,12 +101,12 @@
     },
     {
       "capability": "static_vector_map_archive",
-      "name": "PMTiles",
+      "name": "protomaps/PMTiles",
       "status": "accepted_target",
       "integration_mode": "object_storage_asset",
-      "license": "review-before-code-incorporation",
+      "license": "BSD-3-Clause reference implementations; PMTiles specification public domain/CC0 where applicable",
       "decision": "adopt_for_self_hosted_basemap",
-      "rationale": "Single-file range-request map archives fit GCS and reduce dependency on public raster tiles without introducing another server."
+      "rationale": "Official PMTiles is designed for single-file range-request tile archives on commodity object storage and supports MapLibre directly. It fits GCS and can remove runtime dependence on public raster tile servers without adding a tile backend. Basemap source-data licensing and attribution remain a separate mandatory review."
     },
     {
       "capability": "sanctions_entity_matching",
