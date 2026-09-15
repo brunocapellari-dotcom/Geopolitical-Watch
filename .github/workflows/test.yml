@@ -7,25 +7,20 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgis/postgis:16-3.4
-        env:
-          POSTGRES_USER: geowatch
-          POSTGRES_PASSWORD: geowatch
-          POSTGRES_DB: geowatch
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U geowatch -d geowatch"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install PostgreSQL and PostGIS
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql postgresql-contrib postgis postgresql-16-postgis-3
+          sudo systemctl start postgresql
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE USER geowatch WITH PASSWORD 'geowatch';"
+          sudo -u postgres createdb -O geowatch geowatch
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -d geowatch -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+          pg_isready -h 127.0.0.1 -p 5432
       - name: Install production dependencies
         run: pip install -e '.[production]'
       - name: Install audit tools
@@ -37,8 +32,6 @@ jobs:
       - name: Audit Python dependencies
         run: pip-audit
       - name: Static security analysis
-        # B104/B608 are reviewed, documented exceptions in docs/security-ci-exceptions.md.
-        # All other medium/high Bandit findings remain fatal.
         run: bandit -q -r geowatch -x tests -ll -s B104,B608
       - name: PostgreSQL PostGIS and RAW integration smoke
         env:
