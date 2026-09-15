@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import os
 from http.server import ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .api import API_TOKEN, Handler as BaseHandler
 from .dashboard import dashboard_html
 from .embedded_collector import ensure_started as ensure_collector_started, status as collector_status
-from .live_vessels import ensure_started as ensure_vessel_started
+from .live_vessels import ensure_started as ensure_vessel_started, vessel_snapshot
 from .runtime_guard import validate_production_runtime
 from .runtime_readiness import build_runtime_readiness
 from .web_auth import clear_cookie, login_html, session_cookie, verify_login_body, verify_session
@@ -25,6 +25,11 @@ def _private_dashboard_html() -> str:
         '<input id="token" type="hidden" value=""><a href="/logout" style="color:#adb5bd;text-decoration:none;font-size:12px">Sair</a>',
     )
     return body
+
+
+def _query_one(query: dict[str, list[str]], name: str) -> str | None:
+    values = query.get(name)
+    return values[0] if values else None
 
 
 class PrivateHandler(BaseHandler):
@@ -49,7 +54,9 @@ class PrivateHandler(BaseHandler):
         super().end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
-        path = urlparse(self.path).path.rstrip("/") or "/"
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        query = parse_qs(parsed.query)
         if path == "/health":
             return self._send_json(200, {"status": "ok", "service": "geopolitical-watch"})
         if path == "/login":
@@ -70,12 +77,23 @@ class PrivateHandler(BaseHandler):
             if API_TOKEN and not session_ok:
                 return self._send_text(200, login_html(), "text/html; charset=utf-8")
             return self._send_text(200, _private_dashboard_html(), "text/html; charset=utf-8")
-        if path in {"/v2/runtime/collector", "/v2/runtime/readiness"}:
+        if path in {"/v2/runtime/collector", "/v2/runtime/readiness", "/v2/live/vessels"}:
             if not (session_ok or bearer_ok):
                 return self._send_json(401, {"error": "unauthorized"})
             if path == "/v2/runtime/collector":
                 return self._send_json(200, collector_status())
-            return self._send_json(200, build_runtime_readiness())
+            if path == "/v2/runtime/readiness":
+                return self._send_json(200, build_runtime_readiness())
+            try:
+                return self._send_json(200, vessel_snapshot(
+                    south=_query_one(query, "south"),
+                    west=_query_one(query, "west"),
+                    north=_query_one(query, "north"),
+                    east=_query_one(query, "east"),
+                    limit=_query_one(query, "limit") or 1500,
+                ))
+            except ValueError as exc:
+                return self._send_json(400, {"error": str(exc)})
 
         if session_ok and API_TOKEN and not bearer_ok:
             if self.headers.get("Authorization"):
