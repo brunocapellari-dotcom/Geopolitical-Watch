@@ -6,10 +6,48 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from geowatch.raw_store import LocalRawStore, PostgresRawStore, open_raw_store, raw_backend_name
+from geowatch.raw_store import (
+    LocalRawStore,
+    PostgresRawStore,
+    open_raw_store,
+    raw_backend_name,
+    reset_raw_schema_cache_for_tests,
+)
+
+
+class _Cursor:
+    def __init__(self) -> None:
+        self.execute_count = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def execute(self, *_args, **_kwargs) -> None:
+        self.execute_count += 1
+
+
+class _DB:
+    def __init__(self) -> None:
+        self.cursor_obj = _Cursor()
+        self.commit_count = 0
+
+    def cursor(self):
+        return self.cursor_obj
+
+    def commit(self) -> None:
+        self.commit_count += 1
 
 
 class RuntimeRawStoreTests(unittest.TestCase):
+    def setUp(self) -> None:
+        reset_raw_schema_cache_for_tests()
+
+    def tearDown(self) -> None:
+        reset_raw_schema_cache_for_tests()
+
     def test_local_store_remains_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):
             store = open_raw_store(tmp)
@@ -43,6 +81,14 @@ class RuntimeRawStoreTests(unittest.TestCase):
             store = open_raw_store()
             self.assertIsInstance(store, PostgresRawStore)
             self.assertEqual(store.dsn, env["DATABASE_URL"])
+
+    def test_raw_schema_init_runs_once_per_dsn(self) -> None:
+        store = PostgresRawStore("postgresql://user:secret@example.invalid/db")
+        db = _DB()
+        store._ensure_table(db)
+        store._ensure_table(db)
+        self.assertEqual(db.cursor_obj.execute_count, 1)
+        self.assertEqual(db.commit_count, 1)
 
 
 if __name__ == "__main__":
