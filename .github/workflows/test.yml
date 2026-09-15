@@ -1,18 +1,42 @@
-name: tests
+name: full-project-gate
+
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: geowatch-full-gate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  full-project-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONPATH: .
+      GEOWATCH_TEST_POSTGRES_URL: postgresql://geowatch:geowatch@127.0.0.1:5432/geowatch
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install PostgreSQL and PostGIS
+          cache: pip
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.4"
+          terraform_wrapper: false
+
+      - name: Install PostgreSQL 16 and PostGIS
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql postgresql-contrib postgis postgresql-16-postgis-3
@@ -21,80 +45,24 @@ jobs:
           sudo -u postgres createdb -O geowatch geowatch
           sudo -u postgres psql -v ON_ERROR_STOP=1 -d geowatch -c "CREATE EXTENSION IF NOT EXISTS postgis;"
           pg_isready -h 127.0.0.1 -p 5432
-      - name: Install production dependencies
-        run: pip install -e '.[production]'
-      - name: Install audit tools
-        run: pip install pip-audit bandit
-      - name: Compile package
-        run: python -m compileall -q geowatch
-      - name: Run unit and contract tests
-        run: python -m unittest discover -s tests -v
-      - name: Audit Python dependencies
-        run: pip-audit
-      - name: Static security analysis
-        run: bandit -q -r geowatch -x tests -ll -s B104,B608
-      - name: PostgreSQL PostGIS and RAW integration smoke
-        env:
-          GEOWATCH_DB_URL: postgresql://geowatch:geowatch@127.0.0.1:5432/geowatch
-          GEOWATCH_RAW_BACKEND: postgres
-        run: |
-          python - <<'PY'
-          from geowatch.storage_factory import backend_name, open_store
-          from geowatch.raw_store import open_raw_store, raw_backend_name
 
-          assert backend_name() == 'postgresql-postgis'
-          store = open_store()
-          try:
-              with store.db.cursor() as cur:
-                  cur.execute('SELECT PostGIS_Version()')
-                  version = cur.fetchone()[0]
-                  assert version
-          finally:
-              store.close()
+      - name: Install production and gate dependencies
+        run: pip install -e '.[production,test]'
 
-          raw = open_raw_store()
-          ref, digest = raw.put('ci-source', '2026-09-14T12:00:00+00:00', b'geowatch-ci-payload', 'txt')
-          assert ref.startswith('pgraw://')
-          assert raw.get('ci-source', digest) == b'geowatch-ci-payload'
-          assert raw_backend_name() == 'postgresql-compressed'
-          PY
-      - name: Verify published Replit fails closed when incomplete
+      - name: Install headless Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run the entire repository gate
+        shell: bash
         run: |
           set +e
-          REPLIT_DEPLOYMENT=1 python -m geowatch serve > /tmp/geowatch-failclosed.log 2>&1
+          bash scripts/full_project_gate.sh
           code=$?
           set -e
-          test "$code" -ne 0
-          grep -q 'Refusing to start incomplete production runtime' /tmp/geowatch-failclosed.log
-      - name: Smoke private server
-        env:
-          GEOWATCH_API_TOKEN: ci-private-secret-value
-          GEOWATCH_COOKIE_SECURE: "0"
-          GEOWATCH_EMBEDDED_COLLECTOR: "0"
-          HOST: 127.0.0.1
-        run: |
-          python -m geowatch serve > /tmp/geowatch-smoke.log 2>&1 &
-          pid=$!
-          cleanup() { kill "$pid" 2>/dev/null || true; }
-          trap cleanup EXIT
-          for i in {1..20}; do
-            if curl --fail --silent http://127.0.0.1:8080/health > /tmp/health.json; then
-              break
-            fi
-            sleep 0.5
-          done
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          payload=json.loads(Path('/tmp/health.json').read_text())
-          assert payload == {'status':'ok','service':'geopolitical-watch'}, payload
-          PY
-          curl --fail --silent http://127.0.0.1:8080/dashboard | grep -q 'Acesso privado'
-          curl --fail --silent -D /tmp/login.headers -o /dev/null -X POST \
-            -H 'Content-Type: application/x-www-form-urlencoded' \
-            --data 'password=ci-private-secret-value' \
-            http://127.0.0.1:8080/login
-          grep -qi 'set-cookie: geowatch_session=' /tmp/login.headers
-          grep -qi 'x-content-type-options: nosniff' /tmp/login.headers
-          grep -qi 'x-frame-options: DENY' /tmp/login.headers
-          ! grep -qi 'Python/' /tmp/login.headers
+          if [ "$code" -ne 0 ]; then
+            echo "--- server log ---"
+            cat /tmp/geowatch-full-gate-server.log 2>/dev/null || true
+            echo "--- terraform init log ---"
+            cat /tmp/geowatch-terraform-init.log 2>/dev/null || true
+            exit "$code"
+          fi
