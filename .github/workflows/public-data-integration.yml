@@ -4,43 +4,7 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "geowatch/**"
-      - "config/geopolitics/**"
-      - "knowledge/obsidian/**"
-      - "pyproject.toml"
-      - "scripts/build_ucdp_bulk_artifacts.py"
-      - "scripts/build_empirical_history_artifacts.py"
-      - "scripts/build_wpi_artifacts.py"
-      - "scripts/build_unlocode_crossmatch.py"
-      - "scripts/build_comtrade_pilot.py"
-      - "scripts/export_human_review.py"
-      - "scripts/build_worldbank_artifacts.py"
-      - "scripts/build_sanctions_artifacts.py"
-      - "scripts/build_v013_operational_assets.py"
-      - "scripts/build_v014_operational_learning.py"
-      - "scripts/build_obsidian_bundle.py"
-      - "scripts/assert_public_bootstrap.py"
-      - ".github/workflows/public-data-integration.yml"
   pull_request:
-    paths:
-      - "geowatch/**"
-      - "config/geopolitics/**"
-      - "knowledge/obsidian/**"
-      - "pyproject.toml"
-      - "scripts/build_ucdp_bulk_artifacts.py"
-      - "scripts/build_empirical_history_artifacts.py"
-      - "scripts/build_wpi_artifacts.py"
-      - "scripts/build_unlocode_crossmatch.py"
-      - "scripts/build_comtrade_pilot.py"
-      - "scripts/export_human_review.py"
-      - "scripts/build_worldbank_artifacts.py"
-      - "scripts/build_sanctions_artifacts.py"
-      - "scripts/build_v013_operational_assets.py"
-      - "scripts/build_v014_operational_learning.py"
-      - "scripts/build_obsidian_bundle.py"
-      - "scripts/assert_public_bootstrap.py"
-      - ".github/workflows/public-data-integration.yml"
   workflow_dispatch:
 
 permissions:
