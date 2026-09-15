@@ -43,7 +43,7 @@ def config_path() -> str:
     explicit = os.environ.get("GEOWATCH_COLLECT_CONFIG", "").strip()
     if explicit:
         return explicit
-    if os.environ.get("REPLIT_DEPLOYMENT") == "1" or os.environ.get("GEOWATCH_STRICT_PRODUCTION", "").strip().casefold() in {"1", "true", "yes", "on"}:
+    if os.environ.get("GEOWATCH_STRICT_PRODUCTION", "").strip().casefold() in {"1", "true", "yes", "on"}:
         return "config/sources.production.json"
     return "config/sources.public-beta.json"
 
