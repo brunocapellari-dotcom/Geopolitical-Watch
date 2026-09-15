@@ -15,7 +15,7 @@ def _flag(name: str) -> bool:
 
 
 def strict_production_mode() -> bool:
-    """Enable strict startup automatically for published Replit deployments."""
+    """Enable strict startup for any explicitly published production runtime."""
     return _flag("GEOWATCH_STRICT_PRODUCTION") or os.environ.get("REPLIT_DEPLOYMENT") == "1"
 
 
@@ -24,12 +24,14 @@ def production_requirements() -> dict[str, bool]:
     cookie_value = os.environ.get("GEOWATCH_COOKIE_SECURE", "1").strip().casefold()
     embedded = _flag("GEOWATCH_EMBEDDED_COLLECTOR")
     scheduler = _flag("GEOWATCH_SOURCE_SCHEDULER")
+    external_scheduler = _flag("GEOWATCH_EXTERNAL_SCHEDULER")
+    configured_paths = sum(1 for value in (embedded, scheduler, external_scheduler) if value)
     return {
         "private_auth_secret": len(token) >= _MIN_PRODUCTION_SECRET_LENGTH,
         "persistent_database": backend_name() == "postgresql-postgis",
         "persistent_raw_evidence": raw_backend_name() in {"postgresql-compressed", "gcs"},
-        "collection_path_configured": embedded ^ scheduler,
-        "duplicate_collectors_disabled": not (embedded and scheduler),
+        "collection_path_configured": configured_paths == 1,
+        "duplicate_collectors_disabled": configured_paths <= 1,
         "secure_cookie": cookie_value not in _FALSE,
     }
 
@@ -37,8 +39,10 @@ def production_requirements() -> dict[str, bool]:
 def validate_production_runtime() -> dict[str, bool]:
     """Raise before binding a public port when a production requirement is missing.
 
-    Exactly one batch collection mode is allowed. The registry scheduler is the
-    preferred mode; the embedded legacy collector remains only as a rollback path.
+    Exactly one batch collection mode is allowed. ``GEOWATCH_EXTERNAL_SCHEDULER``
+    is the final cloud mode, where Cloud Scheduler invokes a short-lived Cloud Run
+    Job using ``python -m geowatch scheduler-tick``. The in-process scheduler and
+    embedded collector remain local/rollback modes only.
     """
     checks = production_requirements()
     if not strict_production_mode():
