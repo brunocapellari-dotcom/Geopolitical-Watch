@@ -7,7 +7,9 @@ from urllib.parse import parse_qs, urlparse
 from .ai_roles import load_ai_roles
 from .api import API_TOKEN, Handler as BaseHandler
 from .architecture_status import build_architecture_status
+from .claim_verification import verify_claims
 from .collector_scheduler import ensure_started as ensure_source_scheduler_started, status as source_scheduler_status
+from .context_feed import build_context_feed
 from .dashboard import dashboard_html
 from .embedded_collector import ensure_started as ensure_collector_started, status as collector_status
 from .live_vessels import ensure_started as ensure_vessel_started, vessel_snapshot
@@ -15,6 +17,7 @@ from .login_guard import clear_login_failures, login_allowed, record_login_failu
 from .runtime_guard import validate_production_runtime
 from .runtime_readiness import build_runtime_readiness
 from .source_registry import load_registry
+from .storage_factory import open_store
 from .web_auth import clear_cookie, login_html, session_cookie, verify_login_body, verify_session
 
 
@@ -39,6 +42,14 @@ def _private_dashboard_html() -> str:
 def _query_one(query: dict[str, list[str]], name: str) -> str | None:
     values = query.get(name)
     return values[0] if values else None
+
+
+def _query_int(query: dict[str, list[str]], name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(_query_one(query, name) or default)
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, min(value, maximum))
 
 
 class PrivateHandler(BaseHandler):
@@ -100,6 +111,9 @@ class PrivateHandler(BaseHandler):
             "/v2/architecture/status",
             "/v2/architecture/sources",
             "/v2/architecture/ai-roles",
+            "/v2/context/physical",
+            "/v2/context/network",
+            "/v2/verification/episode",
             "/v2/live/vessels",
         }
         if path in private_runtime_paths:
@@ -117,6 +131,8 @@ class PrivateHandler(BaseHandler):
                 return self._send_json(200, load_registry().summary())
             if path == "/v2/architecture/ai-roles":
                 return self._send_json(200, load_ai_roles().summary())
+            if path in {"/v2/context/physical", "/v2/context/network", "/v2/verification/episode"}:
+                return self._context_or_verification(path, query)
             try:
                 return self._send_json(200, vessel_snapshot(
                     south=_query_one(query, "south"),
@@ -134,6 +150,41 @@ class PrivateHandler(BaseHandler):
             else:
                 self.headers.add_header("Authorization", f"Bearer {API_TOKEN}")
         return super().do_GET()
+
+    def _context_or_verification(self, path: str, query: dict[str, list[str]]) -> None:
+        store = open_store()
+        try:
+            if path == "/v2/context/physical":
+                return self._send_json(200, build_context_feed(
+                    store,
+                    source_ids={"usgs_earthquakes", "nasa_firms_context"},
+                    hours=_query_int(query, "hours", 24, 1, 24 * 30),
+                    limit=_query_int(query, "limit", 1000, 1, 5000),
+                ))
+            if path == "/v2/context/network":
+                return self._send_json(200, build_context_feed(
+                    store,
+                    source_ids={"ioda_outages", "ripestat_bgp"},
+                    hours=_query_int(query, "hours", 24, 1, 24 * 30),
+                    limit=_query_int(query, "limit", 1000, 1, 5000),
+                ))
+            episode_id = (_query_one(query, "episode_id") or "").strip()
+            if not episode_id or len(episode_id) > 128:
+                return self._send_json(400, {"error": "episode_id is required"})
+            episode = store.get_episode(episode_id)
+            if episode is None:
+                return self._send_json(404, {"error": "episode not found"})
+            claims = store.load_claims(episode_id=episode_id)
+            evidence = store.load_evidence(episode_id=episode_id)
+            events = store.load_events_by_ids(episode.event_ids)
+            verdicts = verify_claims(claims, evidence=evidence, events=events)
+            return self._send_json(200, {
+                "schema_version": "geowatch-episode-verification-v1",
+                "episode_id": episode_id,
+                "verdicts": [verdicts[claim.claim_id].to_dict() for claim in claims if claim.claim_id in verdicts],
+            })
+        finally:
+            store.close()
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"
