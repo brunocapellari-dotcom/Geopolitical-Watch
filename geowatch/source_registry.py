@@ -36,6 +36,7 @@ class SourceSpec:
     activation: str
     implementation: str
     credential_env: tuple[str, ...]
+    credential_options: tuple[tuple[str, ...], ...]
     terms_gate: bool
     evidence_role: str
     content_trust: str
@@ -56,6 +57,10 @@ class SourceSpec:
             activation=str(row["activation"]),
             implementation=str(row["implementation"]),
             credential_env=tuple(str(value) for value in (row.get("credential_env") or [])),
+            credential_options=tuple(
+                tuple(str(value) for value in option)
+                for option in (row.get("credential_options") or [])
+            ),
             terms_gate=bool(row.get("terms_gate", False)),
             evidence_role=str(row["evidence_role"]),
             content_trust=str(row["content_trust"]),
@@ -65,7 +70,21 @@ class SourceSpec:
             notes=str(row["notes"]) if row.get("notes") else None,
         )
 
+    def credentials_ready(self) -> bool:
+        if self.credential_options:
+            return any(all(os.environ.get(name, "").strip() for name in option) for option in self.credential_options)
+        return all(os.environ.get(name, "").strip() for name in self.credential_env)
+
     def missing_credentials(self) -> tuple[str, ...]:
+        if self.credentials_ready():
+            return ()
+        if self.credential_options:
+            missing_options = [
+                tuple(name for name in option if not os.environ.get(name, "").strip())
+                for option in self.credential_options
+            ]
+            best = min(missing_options, key=lambda values: (len(values), values))
+            return best
         return tuple(name for name in self.credential_env if not os.environ.get(name, "").strip())
 
     @property
@@ -74,7 +93,7 @@ class SourceSpec:
 
     @property
     def can_run(self) -> bool:
-        return self.implemented and self.activation.startswith("active") and not self.missing_credentials()
+        return self.implemented and self.activation.startswith("active") and self.credentials_ready()
 
 
 class SourceRegistry:
@@ -108,6 +127,10 @@ class SourceRegistry:
                 raise ValueError(f"hostile source must require browser isolation: {spec.source_id}")
             if spec.activation == "active" and not spec.implemented:
                 raise ValueError(f"active source has no implementation: {spec.source_id}")
+            if spec.credential_env and spec.credential_options:
+                raise ValueError(f"use credential_env or credential_options, not both: {spec.source_id}")
+            if any(not option for option in spec.credential_options):
+                raise ValueError(f"empty credential option for {spec.source_id}")
         if self.governance.get("external_content_is_untrusted") is not True:
             raise ValueError("registry governance must treat external content as untrusted")
         if self.governance.get("allow_commands_from_content") is not False:
