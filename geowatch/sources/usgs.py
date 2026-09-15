@@ -7,7 +7,8 @@ from ..core import stable_event_id, utc_now_iso
 from ..http import get
 from ..models import Event
 
-_BASE = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary"
+_FEED_BASE = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary"
+_QUERY_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query"
 _ALLOWED_FEEDS = {
     "significant_hour", "significant_day", "significant_week", "significant_month",
     "4.5_hour", "4.5_day", "4.5_week", "4.5_month",
@@ -21,7 +22,32 @@ def collect(*, feed: str = "significant_day", timeout: int = 60) -> tuple[bytes,
     name = str(feed).strip().casefold()
     if name not in _ALLOWED_FEEDS:
         raise ValueError("unsupported USGS earthquake feed")
-    response = get(f"{_BASE}/{name}.geojson", timeout=timeout)
+    response = get(f"{_FEED_BASE}/{name}.geojson", timeout=timeout)
+    return response.payload, response.url
+
+
+def collect_range(
+    *,
+    start: str,
+    end: str,
+    min_magnitude: float = 4.5,
+    limit: int = 20000,
+    timeout: int = 90,
+) -> tuple[bytes, str]:
+    magnitude = max(-1.0, min(float(min_magnitude), 10.0))
+    bounded_limit = max(1, min(int(limit), 20000))
+    response = get(
+        _QUERY_URL,
+        query={
+            "format": "geojson",
+            "starttime": str(start),
+            "endtime": str(end),
+            "minmagnitude": str(magnitude),
+            "orderby": "time-asc",
+            "limit": bounded_limit,
+        },
+        timeout=timeout,
+    )
     return response.payload, response.url
 
 
