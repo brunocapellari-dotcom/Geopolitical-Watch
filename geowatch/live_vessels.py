@@ -4,10 +4,13 @@ import asyncio
 import json
 import os
 import random
+import re
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from .tracking_history import TrackHistory
 
 _CONFIG_PATH = Path("config/operations/aisstream.json")
 _LOCK = threading.RLock()
@@ -17,10 +20,19 @@ _STATE: dict[str, object] = {
     "connected": False,
     "started_at": None,
     "last_message_at": None,
+    "last_message_epoch": None,
     "last_error": None,
     "reconnect_count": 0,
 }
 _VESSELS: dict[str, dict] = {}
+_POSITION_TYPES = {"PositionReport", "StandardClassBPositionReport", "ExtendedClassBPositionReport"}
+_MMSI = re.compile(r"^\d{9}$")
+_TRACKS = TrackHistory(
+    max_entities=10000,
+    max_points_per_entity=240,
+    min_interval_seconds=5.0,
+    min_move_meters=25.0,
+)
 
 
 def _utc_now() -> str:
@@ -36,18 +48,35 @@ def _api_key() -> str | None:
     return value or None
 
 
+def _stream_freshness(state: dict[str, object], stale_after: int) -> tuple[float | None, bool]:
+    value = state.get("last_message_epoch")
+    try:
+        epoch = float(value) if value is not None else None
+    except (TypeError, ValueError):
+        epoch = None
+    if epoch is None:
+        return None, False
+    age = max(0.0, time.time() - epoch)
+    return round(age, 1), bool(state.get("connected")) and age <= stale_after
+
+
 def provider_status() -> dict:
     cfg = _config()
+    stale_after = int(cfg.get("stale_after_seconds", 900))
     with _LOCK:
         state = dict(_STATE)
         count = len(_VESSELS)
+    stream_age, stream_fresh = _stream_freshness(state, stale_after)
     return {
-        "schema_version": "geowatch-live-vessels-status-v1",
+        "schema_version": "geowatch-live-vessels-status-v2",
         "provider": "AISStream",
         "configured": bool(_api_key()),
         "regions": len(cfg.get("regions", [])),
         "coverage_semantics": cfg.get("coverage_semantics"),
         "vessel_count": count,
+        "tracked_vessel_count": _TRACKS.entity_count(),
+        "stream_age_seconds": stream_age,
+        "stream_fresh": stream_fresh,
         **state,
     }
 
@@ -84,6 +113,16 @@ def _limit(value: object) -> int:
     return number
 
 
+def _track_limit(value: object) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid limit") from exc
+    if number < 2 or number > 240:
+        raise ValueError("limit out of range")
+    return number
+
+
 def vessel_snapshot(
     *,
     south: object | None = None,
@@ -95,6 +134,7 @@ def vessel_snapshot(
     ensure_started()
     cfg = _config()
     stale_after = int(cfg.get("stale_after_seconds", 900))
+    track_retention = int(cfg.get("track_retention_seconds", 21600))
     result_limit = _limit(limit)
     bbox_requested = any(value is not None for value in (south, west, north, east))
     bbox: tuple[float, float, float, float] | None = None
@@ -111,12 +151,29 @@ def vessel_snapshot(
 
     now = time.time()
     with _LOCK:
-        stale = [mmsi for mmsi, row in _VESSELS.items() if now - float(row.get("received_epoch", 0)) > stale_after]
+        stale: list[str] = []
+        for mmsi, row in _VESSELS.items():
+            position_epoch = row.get("position_received_epoch")
+            received_epoch = row.get("received_epoch")
+            try:
+                reference_epoch = float(position_epoch if position_epoch is not None else received_epoch or 0)
+            except (TypeError, ValueError):
+                reference_epoch = 0.0
+            if now - reference_epoch > stale_after:
+                stale.append(mmsi)
         for mmsi in stale:
             _VESSELS.pop(mmsi, None)
-        active_total = len(_VESSELS)
-        vessels = [dict(row) for row in _VESSELS.values()]
+        active_rows = [dict(row) for row in _VESSELS.values() if row.get("position_received_epoch") is not None]
+        active_total = len(active_rows)
         state = dict(_STATE)
+
+    vessels: list[dict] = []
+    for row in active_rows:
+        try:
+            position_age = max(0.0, now - float(row["position_received_epoch"]))
+        except (TypeError, ValueError, KeyError):
+            continue
+        vessels.append({**row, "position_age_seconds": round(position_age, 1)})
 
     if bbox is not None:
         s, w, n, e = bbox
@@ -137,8 +194,10 @@ def vessel_snapshot(
     vessels.sort(key=lambda row: str(row.get("ship_name") or row.get("mmsi") or ""))
     truncated = len(vessels) > result_limit
     vessels = vessels[:result_limit]
+    _TRACKS.prune(older_than_seconds=track_retention, now_epoch=now)
+    stream_age, stream_fresh = _stream_freshness(state, stale_after)
     return {
-        "schema_version": "geowatch-live-vessels-v1",
+        "schema_version": "geowatch-live-vessels-v2",
         "provider": "AISStream",
         "configured": bool(_api_key()),
         "coverage_semantics": cfg.get("coverage_semantics"),
@@ -146,9 +205,32 @@ def vessel_snapshot(
         "active_total": active_total,
         "count": len(vessels),
         "truncated": truncated,
+        "stream_age_seconds": stream_age,
+        "stream_fresh": stream_fresh,
         "bbox": {"south": bbox[0], "west": bbox[1], "north": bbox[2], "east": bbox[3]} if bbox else None,
         "vessels": vessels,
         "collector": state,
+    }
+
+
+def vessel_track(mmsi: object, *, limit: object = 240) -> dict:
+    key = str(mmsi or "").strip()
+    if not _MMSI.fullmatch(key):
+        raise ValueError("invalid mmsi")
+    result_limit = _track_limit(limit)
+    cfg = _config()
+    _TRACKS.prune(older_than_seconds=int(cfg.get("track_retention_seconds", 21600)))
+    points = _TRACKS.get(key, limit=result_limit)
+    return {
+        "schema_version": "geowatch-vessel-track-v1",
+        "provider": "AISStream",
+        "mmsi": key,
+        "count": len(points),
+        "points": points,
+        "track_semantics": (
+            "recent observed AIS positions collected by this running backend; "
+            "not a complete voyage, historical port-call record, or inferred origin/destination"
+        ),
     }
 
 
@@ -255,9 +337,11 @@ def _consume(raw: object, *, max_vessels: int) -> None:
     if not isinstance(event, dict):
         return
     message_type = str(event.get("MessageType") or "")
+    now_epoch = time.time()
+    now_iso = _utc_now()
     if message_type == "SubscriptionConfirmation":
         with _LOCK:
-            _STATE["last_message_at"] = _utc_now()
+            _STATE.update({"last_message_at": now_iso, "last_message_epoch": now_epoch})
         return
 
     meta = event.get("MetaData") if isinstance(event.get("MetaData"), dict) else {}
@@ -266,22 +350,29 @@ def _consume(raw: object, *, max_vessels: int) -> None:
         return
     message_container = event.get("Message") if isinstance(event.get("Message"), dict) else {}
     message = message_container.get(message_type) if isinstance(message_container.get(message_type), dict) else {}
-    now_epoch = time.time()
-    row = {
+    is_position = message_type in _POSITION_TYPES
+
+    row: dict[str, object] = {
         "mmsi": mmsi,
         "ship_name": str(meta.get("ShipName") or "").strip() or None,
-        "lat": meta.get("Latitude"),
-        "lon": meta.get("Longitude"),
-        "speed_over_ground_kt": message.get("Sog"),
-        "course_over_ground_deg": message.get("Cog"),
-        "true_heading_deg": message.get("TrueHeading"),
-        "navigational_status": message.get("NavigationalStatus"),
         "message_type": message_type,
-        "received_at": _utc_now(),
+        "received_at": now_iso,
         "received_epoch": now_epoch,
         "ais_semantics": "reported/observed AIS data; reported destination/ETA are vessel-declared and not verified voyage intent",
         **_static_fields(message_type, message),
     }
+    if is_position:
+        row.update({
+            "lat": meta.get("Latitude"),
+            "lon": meta.get("Longitude"),
+            "speed_over_ground_kt": message.get("Sog"),
+            "course_over_ground_deg": message.get("Cog"),
+            "true_heading_deg": message.get("TrueHeading"),
+            "navigational_status": message.get("NavigationalStatus"),
+            "position_received_at": now_iso,
+            "position_received_epoch": now_epoch,
+        })
+
     with _LOCK:
         previous = _VESSELS.get(mmsi, {})
         merged = {**previous, **{key: value for key, value in row.items() if value is not None}}
@@ -290,7 +381,23 @@ def _consume(raw: object, *, max_vessels: int) -> None:
             oldest = sorted(_VESSELS.items(), key=lambda item: float(item[1].get("received_epoch", 0)))[: len(_VESSELS) - max_vessels]
             for key, _ in oldest:
                 _VESSELS.pop(key, None)
-        _STATE["last_message_at"] = row["received_at"]
+        _STATE.update({"last_message_at": now_iso, "last_message_epoch": now_epoch})
+
+    if is_position:
+        try:
+            _TRACKS.record(
+                mmsi,
+                row.get("lat"),
+                row.get("lon"),
+                observed_at=now_iso,
+                epoch=now_epoch,
+                properties={
+                    "speed_over_ground_kt": row.get("speed_over_ground_kt"),
+                    "course_over_ground_deg": row.get("course_over_ground_deg"),
+                },
+            )
+        except ValueError:
+            pass
 
 
 def reset_for_tests() -> None:
@@ -302,7 +409,9 @@ def reset_for_tests() -> None:
             "connected": False,
             "started_at": None,
             "last_message_at": None,
+            "last_message_epoch": None,
             "last_error": None,
             "reconnect_count": 0,
         })
         _THREAD = None
+    _TRACKS.clear()
