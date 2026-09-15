@@ -52,7 +52,7 @@ html,body{height:100%}body{font-family:system-ui,sans-serif;margin:0;background:
 <script>
 const map=L.map('map',{worldCopyJump:true}).setView([20,10],2);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'OpenStreetMap'}).addTo(map);
-const conflicts=L.layerGroup().addTo(map), infrastructure=L.layerGroup().addTo(map), aircraft=L.layerGroup().addTo(map), aircraftRoute=L.layerGroup().addTo(map), vessels=L.layerGroup().addTo(map);
+const conflicts=L.layerGroup().addTo(map), infrastructure=L.layerGroup().addTo(map), aircraft=L.layerGroup().addTo(map), aircraftRoute=L.layerGroup().addTo(map), vessels=L.layerGroup();
 L.control.layers(null,{'Conflitos':conflicts,'Infraestrutura crítica':infrastructure,'Aeronaves ao vivo':aircraft,'Rota da aeronave selecionada':aircraftRoute,'Navios AIS':vessels},{collapsed:false}).addTo(map);
 let lastCounts={episodes:0,conflicts:0,infra:0,infraTotal:0,aircraft:0,vessels:0,aisConfigured:false};
 let aircraftRequest=0;
@@ -61,7 +61,7 @@ async function api(path){const token=document.getElementById('token').value;sess
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function validCoord(v,min,max){const n=Number(v);return Number.isFinite(n)&&n>=min&&n<=max}
 function fmt(v,suffix=''){return v===undefined||v===null||v===''?'—':esc(v)+suffix}
-function updateStatus(){const ais=lastCounts.aisConfigured?'':' (AIS aguardando chave)';document.getElementById('status').textContent=lastCounts.episodes+' episódios | '+lastCounts.conflicts+' conflitos | '+lastCounts.infra+'/'+lastCounts.infraTotal+' infraestruturas | '+lastCounts.aircraft+' aeronaves | '+lastCounts.vessels+' navios'+ais}
+function updateStatus(){const ais=lastCounts.aisConfigured?'':' (AIS aguardando chave/ativação)';document.getElementById('status').textContent=lastCounts.episodes+' episódios | '+lastCounts.conflicts+' conflitos | '+lastCounts.infra+'/'+lastCounts.infraTotal+' infraestruturas | '+lastCounts.aircraft+' aeronaves | '+lastCounts.vessels+' navios'+ais}
 function popupEpisode(p){return '<b>'+esc(p.title)+'</b><br>'+esc(p.state)+' | força '+esc(p.evidence_strength_index)+'<br>'+esc(p.location_name)+'<br><span class="meta">'+esc(p.last_updated_at)+'</span>'}
 function popupInfrastructure(n){const themes=(n.themes||n.facilities||[]).join(', ');return '<b>'+esc(n.name)+'</b><br>'+esc(n.type||'infraestrutura')+'<br>'+esc(n.region||n.water_body||'')+(themes?'<br><span class="meta">'+esc(themes)+'</span>':'')+'<br><span class="meta">Contexto estrutural; não implica status operacional atual.</span>'}
 function aircraftLabel(a){return (a.flight||a.r||a.hex||'aeronave').trim()}
@@ -162,6 +162,6 @@ async function loadVessels(){
 
 async function showEpisode(id){try{const d=await api('/v2/episodes/'+encodeURIComponent(id));const target=document.getElementById('d-'+id);target.innerHTML='<div class="meta">Claims: '+d.claims.length+' | Evidências: '+d.evidence.length+' | Eventos: '+d.events.length+'</div>'+d.events.slice(0,12).map(e=>'<div class="meta">'+esc(e.reference_at)+' — '+esc(e.title)+'</div>').join('')}catch(e){}}
 document.getElementById('token').value=sessionStorage.getItem('geowatch_token')||'';
-let aircraftMoveTimer=null;map.on('moveend',()=>{clearTimeout(aircraftMoveTimer);aircraftMoveTimer=setTimeout(loadAircraft,800)});map.on('overlayadd',e=>{if(e.layer===aircraft)loadAircraft();if(e.layer===vessels)loadVessels()});setInterval(loadAircraft,60000);setInterval(loadVessels,30000);
+let aircraftMoveTimer=null;map.on('moveend',()=>{clearTimeout(aircraftMoveTimer);aircraftMoveTimer=setTimeout(loadAircraft,800)});map.on('overlayadd',e=>{if(e.layer===aircraft)loadAircraft();if(e.layer===vessels)loadVessels()});setInterval(loadAircraft,60000);setInterval(loadVessels,60000);
 </script>
 </body></html>'''
