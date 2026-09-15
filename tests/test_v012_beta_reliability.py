@@ -29,8 +29,10 @@ class V012BetaReliabilityTests(unittest.TestCase):
     def test_public_beta_workflow_has_strict_health_and_persistence(self):
         text = Path('.github/workflows/public-beta-monitor.yml').read_text(encoding='utf-8')
         self.assertIn('concurrency:', text)
-        self.assertIn('actions/cache/restore@v4', text)
-        self.assertIn('actions/cache/save@v4', text)
+        self.assertIn('actions/cache/restore@', text)
+        self.assertIn('actions/cache/save@', text)
+        self.assertNotIn('actions/cache/restore@v4', text)
+        self.assertNotIn('actions/cache/save@v4', text)
         self.assertIn('geowatch-public-beta-v3-', text)
         self.assertIn('state/beta/', text)
         self.assertIn('set -o pipefail', text)
