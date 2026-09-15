@@ -1,0 +1,81 @@
+{
+  "events": [
+    {
+      "event_id": "ep_o1",
+      "source_id": "gdelt_conflict_news",
+      "source_kind": "news",
+      "title": "Port of Odesa damaged after missile strike",
+      "event_type": "media_report",
+      "reference_at": "2026-09-15T08:00:00+00:00",
+      "collected_at": "2026-09-15T08:05:00+00:00",
+      "published_at": "2026-09-15T08:00:00+00:00",
+      "verification_level": "osint_signal",
+      "country": "Ukraine",
+      "region": "Odesa",
+      "latitude": 46.49,
+      "longitude": 30.74,
+      "source_url": "https://one.example/ep_o1",
+      "publisher": "one.example",
+      "impact_areas": ["shipping", "infrastructure"]
+    },
+    {
+      "event_id": "ep_o2",
+      "source_id": "gdelt_conflict_news",
+      "source_kind": "news",
+      "title": "Odessa Port halted operations following attack",
+      "event_type": "media_report",
+      "reference_at": "2026-09-15T09:00:00+00:00",
+      "collected_at": "2026-09-15T09:05:00+00:00",
+      "published_at": "2026-09-15T09:00:00+00:00",
+      "verification_level": "osint_signal",
+      "country": "Ukraine",
+      "region": "Odesa",
+      "latitude": 46.49,
+      "longitude": 30.74,
+      "source_url": "https://two.example/ep_o2",
+      "publisher": "two.example",
+      "impact_areas": ["shipping", "infrastructure"]
+    },
+    {
+      "event_id": "ep_c1",
+      "source_id": "gdelt_conflict_news",
+      "source_kind": "news",
+      "title": "Port of Chornomorsk attacked",
+      "event_type": "media_report",
+      "reference_at": "2026-09-15T09:10:00+00:00",
+      "collected_at": "2026-09-15T09:15:00+00:00",
+      "published_at": "2026-09-15T09:10:00+00:00",
+      "verification_level": "osint_signal",
+      "country": "Ukraine",
+      "region": "Odesa",
+      "latitude": 46.30,
+      "longitude": 30.66,
+      "source_url": "https://three.example/ep_c1",
+      "publisher": "three.example",
+      "impact_areas": ["shipping", "infrastructure"]
+    },
+    {
+      "event_id": "ep_g1",
+      "source_id": "gdelt_conflict_news",
+      "source_kind": "news",
+      "title": "Ceasefire announced in Gaza",
+      "event_type": "media_report",
+      "reference_at": "2026-09-15T10:00:00+00:00",
+      "collected_at": "2026-09-15T10:05:00+00:00",
+      "published_at": "2026-09-15T10:00:00+00:00",
+      "verification_level": "osint_signal",
+      "country": "Palestine",
+      "region": "Gaza",
+      "latitude": 31.50,
+      "longitude": 34.47,
+      "source_url": "https://four.example/ep_g1",
+      "publisher": "four.example",
+      "impact_areas": ["humanitarian"]
+    }
+  ],
+  "expected_episodes": [
+    ["ep_o1", "ep_o2"],
+    ["ep_c1"],
+    ["ep_g1"]
+  ]
+}
