@@ -17,12 +17,7 @@ def _secure_cookie() -> bool:
 
 
 class PrivateHandler(CorePrivateHandler):
-    """Final HTTP handler.
-
-    The core routes stay in ``private_api.PrivateHandler``. This final handler only
-    owns browser security headers so the MapLibre Web Worker can run without
-    relaxing script execution to arbitrary origins.
-    """
+    """Final HTTP handler with a MapLibre-compatible restrictive CSP."""
 
     def end_headers(self) -> None:
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -42,8 +37,6 @@ class PrivateHandler(CorePrivateHandler):
         )
         if _secure_cookie():
             self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-        # Bypass CorePrivateHandler.end_headers so an older, more restrictive CSP
-        # is not emitted in parallel and combined by the browser.
         BaseHandler.end_headers(self)
 
 
@@ -51,8 +44,10 @@ def main() -> int:
     validate_production_runtime()
     if _flag("GEOWATCH_SOURCE_SCHEDULER"):
         ensure_source_scheduler_started()
-    else:
+    elif _flag("GEOWATCH_EMBEDDED_COLLECTOR"):
         ensure_collector_started()
+    # GEOWATCH_EXTERNAL_SCHEDULER deliberately starts no batch-collection thread.
+    # Cloud Scheduler invokes a one-shot Cloud Run Job instead.
     ensure_vessel_started()
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8080"))
