@@ -5,6 +5,8 @@
       "severity": "high",
       "states": ["escalating"],
       "min_strength": 30,
+      "allowed_verdicts": ["CONFIRMADO", "PROVÁVEL"],
+      "min_verdict_confidence": 58,
       "enabled": true
     },
     {
@@ -13,12 +15,16 @@
       "change_types": ["state_transition"],
       "min_strength": 35,
       "infrastructure_required": true,
+      "allowed_verdicts": ["CONFIRMADO", "PROVÁVEL"],
+      "min_verdict_confidence": 58,
       "enabled": true
     },
     {
       "policy_id": "contradiction-review",
       "severity": "medium",
       "required_flags": ["contradiction_present", "retraction_present"],
+      "allowed_verdicts": ["CONFLITANTE", "FALSO"],
+      "min_verdict_confidence": 0,
       "enabled": true
     },
     {
@@ -26,6 +32,8 @@
       "severity": "medium",
       "states": ["ceasefire", "deescalating"],
       "min_strength": 20,
+      "allowed_verdicts": ["CONFIRMADO", "PROVÁVEL"],
+      "min_verdict_confidence": 58,
       "enabled": true
     }
   ]
