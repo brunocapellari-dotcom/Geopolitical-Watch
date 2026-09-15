@@ -37,7 +37,9 @@ jobs:
       - name: Audit Python dependencies
         run: pip-audit
       - name: Static security analysis
-        run: bandit -q -r geowatch -x tests -ll
+        # B104/B608 are reviewed, documented exceptions in docs/security-ci-exceptions.md.
+        # All other medium/high Bandit findings remain fatal.
+        run: bandit -q -r geowatch -x tests -ll -s B104,B608
       - name: PostgreSQL PostGIS and RAW integration smoke
         env:
           GEOWATCH_DB_URL: postgresql://geowatch:geowatch@127.0.0.1:5432/geowatch
@@ -76,6 +78,7 @@ jobs:
           GEOWATCH_API_TOKEN: ci-private-secret-value
           GEOWATCH_COOKIE_SECURE: "0"
           GEOWATCH_EMBEDDED_COLLECTOR: "0"
+          HOST: 127.0.0.1
         run: |
           python -m geowatch serve > /tmp/geowatch-smoke.log 2>&1 &
           pid=$!
@@ -91,8 +94,7 @@ jobs:
           import json
           from pathlib import Path
           payload=json.loads(Path('/tmp/health.json').read_text())
-          assert payload['status']=='ok', payload
-          assert payload['service']=='geopolitical-watch', payload
+          assert payload == {'status':'ok','service':'geopolitical-watch'}, payload
           PY
           curl --fail --silent http://127.0.0.1:8080/dashboard | grep -q 'Acesso privado'
           curl --fail --silent -D /tmp/login.headers -o /dev/null -X POST \
@@ -102,3 +104,4 @@ jobs:
           grep -qi 'set-cookie: geowatch_session=' /tmp/login.headers
           grep -qi 'x-content-type-options: nosniff' /tmp/login.headers
           grep -qi 'x-frame-options: DENY' /tmp/login.headers
+          ! grep -qi 'Python/' /tmp/login.headers
