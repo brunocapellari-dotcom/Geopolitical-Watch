@@ -23,6 +23,13 @@ _ALLOWED_AI_ROLES = {
     "VERIFICATION AI",
 }
 _HOSTILE_TRUST = {"hostile_untrusted"}
+_DELEGATED_RUNTIME_MODES = {
+    "reference_only",
+    "registry_family",
+    "pull_on_view",
+    "continuous_stream",
+    "runtime_on_demand",
+}
 
 
 @dataclass(frozen=True)
@@ -153,7 +160,7 @@ class SourceRegistry:
         now = now or datetime.now(timezone.utc)
         due: list[SourceSpec] = []
         for spec in self.specs:
-            if not spec.can_run or spec.runtime_mode in {"reference_only", "registry_family", "pull_on_view", "continuous_stream"}:
+            if not spec.can_run or spec.runtime_mode in _DELEGATED_RUNTIME_MODES:
                 continue
             value = last_success_at.get(spec.source_id)
             if not value:
@@ -175,7 +182,7 @@ class SourceRegistry:
         planned = [spec for spec in self.specs if spec.activation.startswith("planned")]
         blocked = [spec for spec in self.specs if spec.activation.startswith("blocked")]
         return {
-            "schema_version": "geowatch-source-registry-summary-v1",
+            "schema_version": "geowatch-source-registry-summary-v2",
             "source_count": len(self.specs),
             "active_count": len(active),
             "planned_count": len(planned),
@@ -186,6 +193,7 @@ class SourceRegistry:
                 if spec.missing_credentials()
             },
             "domains": sorted({spec.domain for spec in self.specs}),
+            "delegated_runtime_modes": sorted(_DELEGATED_RUNTIME_MODES),
         }
 
 
