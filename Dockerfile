@@ -6,6 +6,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# The upstream slim image can lag Debian point-security packages between image
+# rebuilds. Apply available security fixes before installing the application,
+# then remove APT metadata so the final runtime remains small.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml README.md /app/
 COPY geowatch /app/geowatch
 RUN pip install --no-cache-dir ".[production]"
