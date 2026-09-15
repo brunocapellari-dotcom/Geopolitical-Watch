@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from .geo import canonicalize_event
 from .pipeline import _collect_incremental
 from .raw_store import open_raw_store
 from .security_redaction import redact_runtime_secrets, redact_url
@@ -84,7 +85,8 @@ def collect_source_once(
                 path=raw_ref,
                 bytes_count=len(payload),
             )
-            events.extend(parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=raw_ref))
+            parsed = parser(payload, source_id=source_id, collected_at=collected_at, raw_ref=raw_ref)
+            events.extend(canonicalize_event(event) for event in parsed)
         store.upsert_events(events)
         last_reference = max((event.reference_at for event in events), default=None)
         store.update_checkpoint(
