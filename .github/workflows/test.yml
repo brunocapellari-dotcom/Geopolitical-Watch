@@ -7,6 +7,20 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: geowatch
+          POSTGRES_PASSWORD: geowatch
+          POSTGRES_DB: geowatch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U geowatch -d geowatch"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -14,13 +28,52 @@ jobs:
           python-version: "3.12"
       - name: Install production dependencies
         run: pip install -e '.[production]'
+      - name: Install audit tools
+        run: pip install pip-audit bandit
       - name: Compile package
         run: python -m compileall -q geowatch
       - name: Run unit and contract tests
         run: python -m unittest discover -s tests -v
+      - name: Audit Python dependencies
+        run: pip-audit
+      - name: Static security analysis
+        run: bandit -q -r geowatch -x tests -ll
+      - name: PostgreSQL PostGIS and RAW integration smoke
+        env:
+          GEOWATCH_DB_URL: postgresql://geowatch:geowatch@127.0.0.1:5432/geowatch
+          GEOWATCH_RAW_BACKEND: postgres
+        run: |
+          python - <<'PY'
+          from geowatch.storage_factory import backend_name, open_store
+          from geowatch.raw_store import open_raw_store, raw_backend_name
+
+          assert backend_name() == 'postgresql-postgis'
+          store = open_store()
+          try:
+              with store.db.cursor() as cur:
+                  cur.execute('SELECT PostGIS_Version()')
+                  version = cur.fetchone()[0]
+                  assert version
+          finally:
+              store.close()
+
+          raw = open_raw_store()
+          ref, digest = raw.put('ci-source', '2026-09-14T12:00:00+00:00', b'geowatch-ci-payload', 'txt')
+          assert ref.startswith('pgraw://')
+          assert raw.get('ci-source', digest) == b'geowatch-ci-payload'
+          assert raw_backend_name() == 'postgresql-compressed'
+          PY
+      - name: Verify published Replit fails closed when incomplete
+        run: |
+          set +e
+          REPLIT_DEPLOYMENT=1 python -m geowatch serve > /tmp/geowatch-failclosed.log 2>&1
+          code=$?
+          set -e
+          test "$code" -ne 0
+          grep -q 'Refusing to start incomplete production runtime' /tmp/geowatch-failclosed.log
       - name: Smoke private server
         env:
-          GEOWATCH_API_TOKEN: ci-private-secret
+          GEOWATCH_API_TOKEN: ci-private-secret-value
           GEOWATCH_COOKIE_SECURE: "0"
           GEOWATCH_EMBEDDED_COLLECTOR: "0"
         run: |
@@ -44,7 +97,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:8080/dashboard | grep -q 'Acesso privado'
           curl --fail --silent -D /tmp/login.headers -o /dev/null -X POST \
             -H 'Content-Type: application/x-www-form-urlencoded' \
-            --data 'password=ci-private-secret' \
+            --data 'password=ci-private-secret-value' \
             http://127.0.0.1:8080/login
           grep -qi 'set-cookie: geowatch_session=' /tmp/login.headers
           grep -qi 'x-content-type-options: nosniff' /tmp/login.headers
