@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 from .ai_roles import load_ai_roles
 from .api import API_TOKEN, Handler as BaseHandler
 from .architecture_status import build_architecture_status
-from .collector_scheduler import status as source_scheduler_status
+from .collector_scheduler import ensure_started as ensure_source_scheduler_started, status as source_scheduler_status
 from .dashboard import dashboard_html
 from .embedded_collector import ensure_started as ensure_collector_started, status as collector_status
 from .live_vessels import ensure_started as ensure_vessel_started, vessel_snapshot
@@ -21,6 +21,10 @@ from .web_auth import clear_cookie, login_html, session_cookie, verify_login_bod
 def _secure_cookie() -> bool:
     value = os.environ.get("GEOWATCH_COOKIE_SECURE", "1").strip().casefold()
     return value not in {"0", "false", "no", "off"}
+
+
+def _flag(name: str) -> bool:
+    return os.environ.get(name, "").strip().casefold() in {"1", "true", "yes", "on"}
 
 
 def _private_dashboard_html() -> str:
@@ -167,10 +171,11 @@ class PrivateHandler(BaseHandler):
 
 def main() -> int:
     validate_production_runtime()
-    ensure_collector_started()
+    if _flag("GEOWATCH_SOURCE_SCHEDULER"):
+        ensure_source_scheduler_started()
+    else:
+        ensure_collector_started()
     ensure_vessel_started()
-    # The registry-driven source scheduler remains deliberately opt-in until the
-    # legacy analysis loop is split from collection. Status is exposed above.
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8080"))
     server = ThreadingHTTPServer((host, port), PrivateHandler)
