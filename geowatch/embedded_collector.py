@@ -39,6 +39,15 @@ def interval_seconds() -> int:
     return max(900, min(value, 86400))
 
 
+def config_path() -> str:
+    explicit = os.environ.get("GEOWATCH_COLLECT_CONFIG", "").strip()
+    if explicit:
+        return explicit
+    if os.environ.get("REPLIT_DEPLOYMENT") == "1" or os.environ.get("GEOWATCH_STRICT_PRODUCTION", "").strip().casefold() in {"1", "true", "yes", "on"}:
+        return "config/sources.production.json"
+    return "config/sources.public-beta.json"
+
+
 def status() -> dict:
     with _LOCK:
         return {
@@ -46,6 +55,7 @@ def status() -> dict:
             **_STATE,
             "enabled": enabled(),
             "interval_seconds": interval_seconds(),
+            "config_path": config_path(),
         }
 
 
@@ -71,7 +81,7 @@ def run_once() -> dict:
         started = _utc_now()
         with _LOCK:
             _STATE.update({"running": True, "last_started_at": started, "last_error": None})
-        config = os.environ.get("GEOWATCH_COLLECT_CONFIG", "config/sources.public-beta.json")
+        config = config_path()
         raw_root = os.environ.get("GEOWATCH_RAW_ROOT", "data/raw")
         reports_root = os.environ.get("GEOWATCH_REPORTS_ROOT", "reports")
         result = run(config_path=config, db_path=None, raw_root=raw_root, reports_root=reports_root)
@@ -101,8 +111,6 @@ def run_once() -> dict:
 
 
 def _loop() -> None:
-    # First collection happens immediately so a fresh deployment does not wait
-    # one full interval before producing data.
     while enabled():
         started = time.monotonic()
         run_once()
