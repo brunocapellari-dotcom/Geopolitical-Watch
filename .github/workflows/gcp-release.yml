@@ -36,7 +36,7 @@ jobs:
           test -n "${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}"
 
       - name: Checkout exact commit
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Authenticate to Google Cloud without a service-account key
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
@@ -52,13 +52,31 @@ jobs:
       - name: Configure Artifact Registry Docker authentication
         run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
-      - name: Build and push immutable commit image
+      - name: Build immutable commit image locally
         id: image
         shell: bash
         run: |
           set -euo pipefail
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/geowatch/geowatch:${GITHUB_SHA}"
           docker build --pull -t "$IMAGE" .
+          echo "tag=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Scan exact release image before publication
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.tag }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+      - name: Push exact scanned image and resolve digest
+        id: push
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="${{ steps.image.outputs.tag }}"
           docker push "$IMAGE"
           DIGEST="$(gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${PROJECT_ID}/geowatch/geowatch" --include-tags --filter="tags:${GITHUB_SHA}" --format='value(version)' --limit=1)"
           test -n "$DIGEST"
@@ -70,7 +88,7 @@ jobs:
           gcloud run services update "$SERVICE_NAME" \
             --project "$PROJECT_ID" \
             --region "$REGION" \
-            --image "${{ steps.image.outputs.pinned }}" \
+            --image "${{ steps.push.outputs.pinned }}" \
             --quiet
 
       - name: Update scheduler job to exact image digest
@@ -78,7 +96,7 @@ jobs:
           gcloud run jobs update "$JOB_NAME" \
             --project "$PROJECT_ID" \
             --region "$REGION" \
-            --image "${{ steps.image.outputs.pinned }}" \
+            --image "${{ steps.push.outputs.pinned }}" \
             --quiet
 
       - name: Execute one production source tick

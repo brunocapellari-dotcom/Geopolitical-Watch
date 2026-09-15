@@ -4,6 +4,7 @@ import os
 import sys
 from urllib.parse import urljoin
 
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 
@@ -15,11 +16,13 @@ def main() -> int:
 
     page_errors: list[str] = []
     severe_console: list[str] = []
+    network_failures: list[str] = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         page.on("pageerror", lambda exc: page_errors.append(str(exc)))
+        page.on("requestfailed", lambda request: network_failures.append(f"{request.method} {request.url}: {request.failure}"))
 
         def console_handler(message) -> None:
             text = message.text
@@ -33,15 +36,28 @@ def main() -> int:
                 severe_console.append(text)
 
         page.on("console", console_handler)
-        page.goto(urljoin(base, "dashboard"), wait_until="domcontentloaded", timeout=30000)
-        page.locator('input[name="password"]').fill(token)
-        page.locator('button[type="submit"]').click()
-        page.wait_for_url("**/dashboard", timeout=10000)
-        page.wait_for_selector(".maplibregl-canvas", timeout=30000)
-        page.wait_for_function(
-            "() => document.getElementById('status') && document.getElementById('status').textContent !== 'carregando'",
-            timeout=30000,
-        )
+        try:
+            page.goto(urljoin(base, "dashboard"), wait_until="domcontentloaded", timeout=30000)
+            page.locator('input[name="password"]').fill(token)
+            page.locator('button[type="submit"]').click()
+            page.wait_for_url("**/dashboard", timeout=10000)
+            page.wait_for_selector(".maplibregl-canvas", timeout=30000)
+            page.wait_for_function("() => window.__geowatchMapReady === true", timeout=30000)
+            page.wait_for_function(
+                "() => document.getElementById('status') && document.getElementById('status').textContent !== 'carregando'",
+                timeout=30000,
+            )
+        except PlaywrightTimeoutError as exc:
+            snapshot = page.content()[:4000]
+            diagnostics = [
+                f"timeout: {exc}",
+                "page_errors=" + repr(page_errors[:8]),
+                "console_errors=" + repr(severe_console[:8]),
+                "network_failures=" + repr(network_failures[:8]),
+                "html_prefix=" + repr(snapshot),
+            ]
+            browser.close()
+            raise AssertionError("browser bootstrap failed: " + " | ".join(diagnostics)) from exc
 
         html = page.content()
         if "maplibregl-canvas" not in html:

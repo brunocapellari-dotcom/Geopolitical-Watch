@@ -11,9 +11,12 @@ from geowatch.runtime_readiness import build_runtime_readiness
 
 
 class FinalWebRuntimeTests(unittest.TestCase):
-    def test_dashboard_uses_maplibre_not_leaflet(self) -> None:
+    def test_dashboard_uses_maplibre_v6_esm_not_legacy_bundle_or_leaflet(self) -> None:
         html = dashboard_html()
         self.assertIn("maplibre-gl@6.9.1", html)
+        self.assertIn('<script type="module">', html)
+        self.assertIn("dist/maplibre-gl.mjs", html)
+        self.assertNotIn('src="https://unpkg.com/maplibre-gl@6.9.1/dist/maplibre-gl.js"', html)
         self.assertIn("new maplibregl.Map", html)
         self.assertNotIn("leaflet@", html.casefold())
         self.assertNotIn("L.map(", html)
@@ -23,6 +26,8 @@ class FinalWebRuntimeTests(unittest.TestCase):
         self.assertIn("/v2/verification/episode", html)
         self.assertIn("/v2/context/physical", html)
         self.assertIn("/v2/context/network", html)
+        self.assertIn("geowatch-map-layers-v1", html)
+        self.assertIn("window.__geowatchMapReady", html)
 
     def test_custom_map_style_is_serialized_not_interpolated_as_code(self) -> None:
         malicious = 'https://maps.example/style.json";alert(1);//'

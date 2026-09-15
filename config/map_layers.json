@@ -1,0 +1,71 @@
+{
+  "schema_version": "geowatch-map-layers-v1",
+  "layers": [
+    {
+      "id": "conflicts",
+      "label": "Conflitos",
+      "source": "episodios_convergidos",
+      "semantic_class": "INFERIDO",
+      "evidentiary_role": "evidence",
+      "default_visible": true,
+      "refresh_seconds": 60,
+      "freshness_seconds": 3600,
+      "note": "Episodios sao agrupamentos analiticos; claims, eventos e evidencias preservam proveniencia propria."
+    },
+    {
+      "id": "infrastructure",
+      "label": "Infraestrutura",
+      "source": "catalogo_estrutural_publico",
+      "semantic_class": "INFORMADO",
+      "evidentiary_role": "context",
+      "default_visible": true,
+      "refresh_seconds": 86400,
+      "freshness_seconds": 2592000,
+      "note": "Identidade e localizacao estrutural publica; nao implica estado operacional atual nem vulnerabilidade."
+    },
+    {
+      "id": "physical",
+      "label": "Contexto fisico",
+      "source": "USGS/FIRMS",
+      "semantic_class": "OBSERVADO",
+      "evidentiary_role": "context",
+      "default_visible": false,
+      "refresh_seconds": 900,
+      "freshness_seconds": 3600,
+      "note": "Sinais fisicos observados; nao estabelecem causa, ator ou atribuicao militar."
+    },
+    {
+      "id": "network",
+      "label": "Rede",
+      "source": "IODA/RIPEstat",
+      "semantic_class": "OBSERVADO",
+      "evidentiary_role": "context",
+      "default_visible": false,
+      "refresh_seconds": 900,
+      "freshness_seconds": 3600,
+      "note": "Telemetria de conectividade; degradacao nao equivale a atribuicao de ataque."
+    },
+    {
+      "id": "aircraft",
+      "label": "Aeronaves",
+      "source": "ADSB.lol",
+      "semantic_class": "OBSERVADO",
+      "evidentiary_role": "context",
+      "default_visible": true,
+      "refresh_seconds": 60,
+      "freshness_seconds": 120,
+      "note": "Posicao ADS-B/MLAT publica com cobertura variavel; rota exibida e contexto plausivel, nao plano de voo confirmado."
+    },
+    {
+      "id": "vessels",
+      "label": "Navios AIS",
+      "source": "AISStream",
+      "semantic_class": "OBSERVADO",
+      "evidentiary_role": "context",
+      "default_visible": false,
+      "refresh_seconds": 60,
+      "freshness_seconds": 900,
+      "note": "Posicao AIS observada; destino e ETA, quando presentes, sao autodeclarados. Origem exige inferencia historica explicita."
+    }
+  ]
+}
