@@ -73,13 +73,20 @@ class V07ProductTests(unittest.TestCase):
 
     def test_dashboard_is_static_shell(self) -> None:
         html = dashboard_html()
-        self.assertIn("leaflet", html.casefold()); self.assertIn("/v2/map", html); self.assertIn("API bearer token", html)
+        self.assertIn("maplibre", html.casefold())
+        self.assertNotIn("leaflet", html.casefold())
+        self.assertIn("/v2/map", html)
+        self.assertIn("API bearer token", html)
 
     def test_dispatch_marks_webhook_delivery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             store = SQLiteStore(Path(tmp) / "g.db")
             store.enqueue_alert({"alert_id":"alt_test","episode_id":"ep_test","created_at":self.now.isoformat(),"severity":"high","policy_id":"test"})
-            response = MagicMock(); response.__enter__.return_value.status = 204; response.__exit__.return_value = False
+            response = MagicMock()
+            response.__enter__.return_value = response
+            response.__exit__.return_value = False
+            response.status = 204
+            response.geturl.return_value = "https://example.invalid/hook"
             with patch("geowatch.delivery.urlopen", return_value=response):
                 result = dispatch_pending(store, webhook_url="https://example.invalid/hook")
             self.assertEqual(1, result["delivered"]); self.assertEqual([], store.pending_alerts()); store.close()
