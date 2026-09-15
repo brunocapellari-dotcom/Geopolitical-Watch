@@ -20,12 +20,7 @@ class LocalRawStore:
 
 
 class PostgresRawStore:
-    """Compressed raw payload store sharing the structured PostgreSQL database.
-
-    This is intended for compact public-source snapshots when external object
-    storage is not configured. It preserves byte-level provenance across web
-    service restarts without requiring a persistent local disk.
-    """
+    """Compressed raw payload store sharing the structured PostgreSQL database."""
 
     def __init__(self, dsn: str) -> None:
         if not dsn.startswith(("postgresql://", "postgres://")):
@@ -106,15 +101,19 @@ class GCSRawStore:
         return f"gs://{self.bucket.name}/{key}", digest
 
 
+def _database_url() -> str:
+    return (os.environ.get("GEOWATCH_DB_URL") or os.environ.get("DATABASE_URL") or "").strip()
+
+
 def open_raw_store(location: str | Path | None = None):
     bucket = os.environ.get("GEOWATCH_RAW_BUCKET")
     if bucket:
         return GCSRawStore(bucket, os.environ.get("GEOWATCH_RAW_PREFIX", "raw"))
     backend = os.environ.get("GEOWATCH_RAW_BACKEND", "").strip().casefold()
-    db_url = os.environ.get("GEOWATCH_DB_URL", "")
+    db_url = _database_url()
     if backend in {"postgres", "postgresql"}:
         if not db_url:
-            raise RuntimeError("GEOWATCH_DB_URL is required for PostgreSQL RAW storage")
+            raise RuntimeError("GEOWATCH_DB_URL or DATABASE_URL is required for PostgreSQL RAW storage")
         return PostgresRawStore(db_url)
     value = str(location) if location is not None else os.environ.get("GEOWATCH_RAW") or "data/raw"
     if value.startswith("gs://"):
