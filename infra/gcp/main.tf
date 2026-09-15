@@ -192,9 +192,9 @@ resource "google_sql_database_instance" "main" {
     disk_autoresize   = true
 
     backup_configuration {
-      enabled                        = true
+      enabled                         = true
       point_in_time_recovery_enabled = true
-      start_time                     = "03:00"
+      start_time                      = "03:00"
     }
 
     ip_configuration {
@@ -224,6 +224,7 @@ resource "google_sql_user" "geowatch" {
 }
 
 resource "google_cloud_run_v2_service" "web" {
+  count               = var.deploy_runtime ? 1 : 0
   name                = local.service_name
   location            = var.region
   deletion_protection = true
@@ -353,6 +354,14 @@ resource "google_cloud_run_v2_service" "web" {
     }
   }
 
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(var.container_image)) > 0
+      error_message = "container_image must be an immutable scanned image when deploy_runtime=true."
+    }
+    ignore_changes = [template[0].containers[0].image]
+  }
+
   depends_on = [
     google_project_iam_member.runtime_cloudsql,
     google_project_iam_member.runtime_secret_accessor,
@@ -364,14 +373,16 @@ resource "google_cloud_run_v2_service" "web" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "web_public_invoker" {
+  count    = var.deploy_runtime ? 1 : 0
   project  = var.project_id
-  location = google_cloud_run_v2_service.web.location
-  name     = google_cloud_run_v2_service.web.name
+  location = google_cloud_run_v2_service.web[0].location
+  name     = google_cloud_run_v2_service.web[0].name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
 resource "google_cloud_run_v2_job" "source_tick" {
+  count               = var.deploy_runtime ? 1 : 0
   name                = local.scheduler_job
   location            = var.region
   deletion_protection = true
@@ -448,6 +459,14 @@ resource "google_cloud_run_v2_job" "source_tick" {
     }
   }
 
+  lifecycle {
+    precondition {
+      condition     = length(trimspace(var.container_image)) > 0
+      error_message = "container_image must be an immutable scanned image when deploy_runtime=true."
+    }
+    ignore_changes = [template[0].template[0].containers[0].image]
+  }
+
   depends_on = [
     google_project_iam_member.runtime_cloudsql,
     google_project_iam_member.runtime_secret_accessor,
@@ -458,14 +477,16 @@ resource "google_cloud_run_v2_job" "source_tick" {
 }
 
 resource "google_cloud_run_v2_job_iam_member" "scheduler_invoker" {
+  count    = var.deploy_runtime ? 1 : 0
   project  = var.project_id
-  location = google_cloud_run_v2_job.source_tick.location
-  name     = google_cloud_run_v2_job.source_tick.name
+  location = google_cloud_run_v2_job.source_tick[0].location
+  name     = google_cloud_run_v2_job.source_tick[0].name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.scheduler.email}"
 }
 
 resource "google_cloud_scheduler_job" "source_tick" {
+  count            = var.deploy_runtime ? 1 : 0
   name             = "geowatch-source-schedule"
   description      = "Invoke the registry-driven Geopolitical-Watch source tick"
   schedule         = var.scheduler_cron
@@ -481,7 +502,7 @@ resource "google_cloud_scheduler_job" "source_tick" {
 
   http_target {
     http_method = "POST"
-    uri         = "https://run.googleapis.com/v2/projects/${var.project_id}/locations/${var.region}/jobs/${google_cloud_run_v2_job.source_tick.name}:run"
+    uri         = "https://run.googleapis.com/v2/projects/${var.project_id}/locations/${var.region}/jobs/${google_cloud_run_v2_job.source_tick[0].name}:run"
     body        = base64encode("{}")
     headers = {
       "Content-Type" = "application/json"
