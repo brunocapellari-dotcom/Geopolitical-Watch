@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69"]
+requires = ["setuptools>=69,<82"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,9 +10,14 @@ requires-python = ">=3.12"
 license = {text = "Proprietary project scaffold; review upstream source terms before redistribution"}
 
 [project.optional-dependencies]
-postgres = ["psycopg[binary]>=3.2"]
-gcp = ["google-cloud-storage>=2.18"]
-production = ["psycopg[binary]>=3.2", "google-cloud-storage>=2.18", "websockets>=15,<17"]
+postgres = ["psycopg[binary]>=3.2,<4"]
+gcp = ["google-cloud-storage>=2.18,<4"]
+production = [
+  "psycopg[binary]>=3.2,<4",
+  "google-cloud-storage>=2.18,<4",
+  "websockets>=15,<17",
+  "defusedxml>=0.7.1,<1",
+]
 
 [tool.setuptools.packages.find]
 include = ["geowatch*"]
