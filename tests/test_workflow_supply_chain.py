@@ -54,15 +54,15 @@ class WorkflowSupplyChainTests(unittest.TestCase):
                 violations.append(f'{path}: missing explicit contents: read permissions')
         self.assertEqual(violations, [], '\n'.join(violations))
 
-    def test_public_data_integration_revalidates_main_after_merge(self) -> None:
+    def test_public_data_integration_runs_for_every_pr_and_main_push(self) -> None:
         path = WORKFLOWS / 'public-data-integration.yml'
         text = path.read_text(encoding='utf-8')
-        pull_request_index = text.index('  pull_request:')
-        push_section = text[:pull_request_index]
-        self.assertIn('  push:', push_section)
-        self.assertIn('    branches:', push_section)
-        self.assertRegex(push_section, r'(?m)^\s+- main\s*$')
-        self.assertIn('    paths:', push_section)
+        trigger_section = text.split('permissions:', 1)[0]
+        self.assertIn('  push:', trigger_section)
+        self.assertIn('    branches:', trigger_section)
+        self.assertRegex(trigger_section, r'(?m)^\s+- main\s*$')
+        self.assertIn('  pull_request:', trigger_section)
+        self.assertNotIn('    paths:', trigger_section)
 
 
 if __name__ == '__main__':
