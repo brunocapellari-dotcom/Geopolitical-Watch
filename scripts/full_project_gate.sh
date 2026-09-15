@@ -49,10 +49,18 @@ python -m geowatch evaluate-episodes --fixture tests/fixtures/episode_eval.json 
 python - <<'PY'
 import json
 from pathlib import Path
-for path in ('/tmp/geowatch-clustering-eval.json', '/tmp/geowatch-episode-eval.json'):
-    data=json.loads(Path(path).read_text(encoding='utf-8'))
-    assert isinstance(data, dict) and data, (path, data)
-print('evaluation fixtures: ok')
+cluster_path = Path('/tmp/geowatch-clustering-eval.json')
+episode_path = Path('/tmp/geowatch-episode-eval.json')
+cluster = json.loads(cluster_path.read_text(encoding='utf-8'))
+episode = json.loads(episode_path.read_text(encoding='utf-8'))
+assert cluster.get('pairwise_precision') == 1.0, cluster
+assert cluster.get('pairwise_recall') == 1.0, cluster
+assert episode.get('pairwise_precision') == 1.0, episode
+assert episode.get('pairwise_recall') == 1.0, episode
+assert episode.get('predicted_episodes') == episode.get('expected_episodes'), episode
+assert episode.get('false_positive_pair_count') == 0, episode
+assert episode.get('missed_pair_count') == 0, episode
+print('evaluation fixtures: perfect deterministic scores')
 PY
 
 printf '\n== 6/12 audit dependencies ==\n'
