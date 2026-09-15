@@ -10,6 +10,7 @@ VERSIONS_TF = ROOT / "infra" / "gcp" / "versions.tf"
 BACKEND_TF = ROOT / "infra" / "gcp" / "backend.tf"
 VARIABLES_TF = ROOT / "infra" / "gcp" / "variables.tf"
 RELEASE_YML = ROOT / ".github" / "workflows" / "gcp-release.yml"
+RAW_STORE_PY = ROOT / "geowatch" / "raw_store.py"
 
 
 class GcpSecurityArchitectureTests(unittest.TestCase):
@@ -20,6 +21,7 @@ class GcpSecurityArchitectureTests(unittest.TestCase):
         cls.backend_tf = BACKEND_TF.read_text(encoding="utf-8")
         cls.variables_tf = VARIABLES_TF.read_text(encoding="utf-8")
         cls.release_yml = RELEASE_YML.read_text(encoding="utf-8")
+        cls.raw_store_py = RAW_STORE_PY.read_text(encoding="utf-8")
 
     def test_cloud_sql_has_no_public_ipv4_and_requires_encryption(self) -> None:
         self.assertIn('ipv4_enabled                                  = false', self.main_tf)
@@ -37,6 +39,19 @@ class GcpSecurityArchitectureTests(unittest.TestCase):
         self.assertGreaterEqual(self.main_tf.count('egress = "PRIVATE_RANGES_ONLY"'), 2)
         self.assertGreaterEqual(self.main_tf.count('network    = google_compute_network.runtime.name'), 2)
         self.assertGreaterEqual(self.main_tf.count('subnetwork = google_compute_subnetwork.runtime.name'), 2)
+
+    def test_raw_bucket_runtime_iam_is_append_only(self) -> None:
+        self.assertIn('resource "google_storage_bucket_iam_member" "runtime_raw_create"', self.main_tf)
+        self.assertIn('role   = "roles/storage.objectCreator"', self.main_tf)
+        self.assertIn('resource "google_storage_bucket_iam_member" "runtime_raw_read"', self.main_tf)
+        self.assertIn('role   = "roles/storage.objectViewer"', self.main_tf)
+        self.assertNotIn('roles/storage.objectAdmin', self.main_tf)
+        self.assertNotIn('roles/storage.objectUser', self.main_tf)
+
+    def test_gcs_raw_writes_require_object_absence(self) -> None:
+        self.assertGreaterEqual(self.raw_store_py.count('if_generation_match=0'), 2)
+        self.assertIn('if not blob.exists(self.client):', self.raw_store_py)
+        self.assertIn('if not observation.exists(self.client):', self.raw_store_py)
 
     def test_terraform_state_does_not_receive_secret_payload_fields(self) -> None:
         self.assertIn('secret_data_wo         = var.api_token', self.main_tf)
