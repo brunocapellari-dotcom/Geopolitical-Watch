@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from geowatch.dashboard import dashboard_html
 from geowatch.live_vessels import _consume, provider_status, reset_for_tests, vessel_snapshot
+from geowatch.map_layers import layer_index
 
 
 class LiveVesselTests(unittest.TestCase):
@@ -114,8 +115,14 @@ class LiveVesselTests(unittest.TestCase):
 
     def test_dashboard_keeps_ais_opt_in(self) -> None:
         html = dashboard_html()
-        self.assertIn('data-layer="vessels">AIS', html)
+        vessels = layer_index()["vessels"]
+        self.assertEqual(vessels["label"], "Navios AIS")
+        self.assertEqual(vessels["semantic_class"], "OBSERVADO")
+        self.assertEqual(vessels["source"], "AISStream")
+        self.assertFalse(vessels["default_visible"])
+        self.assertIn('data-layer="vessels">Navios AIS', html)
         self.assertNotIn('data-layer="vessels" checked', html)
+        self.assertIn("/v2/live/vessels", html)
         self.assertIn("if(!visible('vessels'))return", html)
         self.assertIn("if(visible('vessels'))loadVessels()", html)
         self.assertIn("60000", html)
