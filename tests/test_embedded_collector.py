@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from geowatch.embedded_collector import config_path, enabled, interval_seconds, reset_for_tests, run_once, status
@@ -28,6 +30,20 @@ class EmbeddedCollectorTests(unittest.TestCase):
         env = {"REPLIT_DEPLOYMENT": "1", "GEOWATCH_COLLECT_CONFIG": "config/custom.json"}
         with patch.dict(os.environ, env, clear=True):
             self.assertEqual(config_path(), "config/custom.json")
+
+    def test_production_profile_has_cost_bounds(self) -> None:
+        production = json.loads(Path("config/sources.production.json").read_text(encoding="utf-8"))
+        public_beta = json.loads(Path("config/sources.public-beta.json").read_text(encoding="utf-8"))
+        self.assertLessEqual(production["history"]["checkpoint_overlap_minutes"], 120)
+        self.assertLessEqual(production["convergence"]["episode_lookback_days"], 60)
+        self.assertLess(
+            production["history"]["checkpoint_overlap_minutes"],
+            public_beta["history"]["checkpoint_overlap_minutes"],
+        )
+        self.assertLess(
+            production["convergence"]["episode_lookback_days"],
+            public_beta["convergence"]["episode_lookback_days"],
+        )
 
     def test_interval_is_bounded(self) -> None:
         with patch.dict(os.environ, {"GEOWATCH_COLLECT_INTERVAL_SECONDS": "10"}, clear=True):
