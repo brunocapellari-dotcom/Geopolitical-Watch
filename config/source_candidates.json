@@ -1,0 +1,63 @@
+{
+  "schema_version": "geowatch-source-candidates-v1",
+  "as_of": "2026-09-15",
+  "purpose": "Candidate upstreams discovered during source research. Presence here does not authorize collection or imply evidentiary equivalence.",
+  "activation_rule": "Promote into config/source_registry.json only after endpoint, terms/license, cadence, parser, provenance and evidence-role review.",
+  "candidates": [
+    {
+      "source_id": "polecat_events",
+      "name": "POLECAT / PLOVER Event Data",
+      "domain": "conflict",
+      "priority": "high",
+      "access": "public_dataset",
+      "intended_role": "machine_coded_political_event_context",
+      "preferred_use": "historical validation, anomaly comparison and secondary event context",
+      "must_not_do": "Do not treat machine-coded events as independently verified human-gold evidence.",
+      "status": "endpoint_and_terms_review_required"
+    },
+    {
+      "source_id": "sipri_structural",
+      "name": "SIPRI Databases",
+      "domain": "security_systems",
+      "priority": "high",
+      "access": "public_web_or_download",
+      "intended_role": "structural_security_context",
+      "preferred_use": "arms transfers, military expenditure, embargo and peace-operation context",
+      "must_not_do": "Do not use structural SIPRI series as real-time conflict-event confirmation.",
+      "status": "dataset_specific_rights_and_endpoint_review_required"
+    },
+    {
+      "source_id": "airwars_civilian_harm",
+      "name": "Airwars",
+      "domain": "conflict_humanitarian",
+      "priority": "high",
+      "access": "public_web",
+      "intended_role": "curated_civilian_harm_claim_context",
+      "preferred_use": "cross-checking strike and civilian-harm claims with preserved source methodology",
+      "must_not_do": "Do not collapse Airwars assessments into confirmed attribution without claim-level provenance and methodology labels.",
+      "status": "terms_endpoint_and_methodology_review_required"
+    },
+    {
+      "source_id": "crisiswatch_early_warning",
+      "name": "International Crisis Group CrisisWatch",
+      "domain": "early_warning",
+      "priority": "high",
+      "access": "public_web",
+      "intended_role": "analytical_early_warning_context",
+      "preferred_use": "monthly escalation/de-escalation context and hypothesis generation",
+      "must_not_do": "Do not use analytical prose as sensor observation or automatic event verification.",
+      "status": "terms_feed_and_attribution_review_required"
+    },
+    {
+      "source_id": "cow_mid_historical",
+      "name": "Correlates of War Militarized Interstate Disputes",
+      "domain": "historical_validation",
+      "priority": "medium",
+      "access": "public_dataset",
+      "intended_role": "historical_structural_benchmark",
+      "preferred_use": "long-run interstate-dispute base rates and validation baselines",
+      "must_not_do": "Do not represent historical MID records as current operational reporting.",
+      "status": "dataset_version_and_license_review_required"
+    }
+  ]
+}
