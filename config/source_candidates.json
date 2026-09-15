@@ -58,6 +58,28 @@
       "preferred_use": "long-run interstate-dispute base rates and validation baselines",
       "must_not_do": "Do not represent historical MID records as current operational reporting.",
       "status": "dataset_version_and_license_review_required"
+    },
+    {
+      "source_id": "ooni_measurements",
+      "name": "OONI Measurements",
+      "domain": "internet_censorship",
+      "priority": "high",
+      "access": "public_data_or_api",
+      "intended_role": "observed_network_interference_context",
+      "preferred_use": "corroborate censorship, blocking and connectivity-interference hypotheses alongside IODA and RIPEstat",
+      "must_not_do": "Do not equate an anomalous OONI measurement with deliberate state attribution without independent evidence and methodology-aware interpretation.",
+      "status": "api_terms_schema_and_aggregation_review_required"
+    },
+    {
+      "source_id": "opensanctions_entities",
+      "name": "OpenSanctions / Yente",
+      "domain": "sanctions_entity_resolution",
+      "priority": "medium",
+      "access": "aggregated_dataset_or_api",
+      "intended_role": "entity_alias_resolution_and_secondary_crosscheck",
+      "preferred_use": "improve alias/entity matching around official sanctions records while preserving the official source as the legal authority",
+      "must_not_do": "Do not replace official UN, OFAC, UK or other issuing-authority records with an aggregator, and do not ingest datasets before commercial/license terms are cleared.",
+      "status": "license_terms_dataset_and_api_review_required"
     }
   ]
 }
