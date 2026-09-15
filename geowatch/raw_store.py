@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import threading
 import zlib
@@ -10,21 +11,94 @@ _RAW_SCHEMA_LOCK = threading.Lock()
 _RAW_SCHEMA_READY: set[str] = set()
 
 
+def _observation_id(source_id: str, digest: str, collected_at: str, collector_id: str | None, source_url: str | None) -> str:
+    seed = f"{source_id}|{digest}|{collected_at}|{collector_id or ''}|{source_url or ''}"
+    return "rawobs_" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:32]
+
+
 class LocalRawStore:
     def __init__(self, root: str | Path = "data/raw") -> None:
         self.root = Path(root)
 
-    def put(self, source_id: str, collected_at: str, payload: bytes, extension: str) -> tuple[str, str]:
+    def put(
+        self,
+        source_id: str,
+        collected_at: str,
+        payload: bytes,
+        extension: str,
+        *,
+        collector_id: str | None = None,
+        source_url: str | None = None,
+    ) -> tuple[str, str]:
         digest = hashlib.sha256(payload).hexdigest()
         path = self.root / source_id / collected_at[:10] / f"{digest}.{extension}"
         path.parent.mkdir(parents=True, exist_ok=True)
         if not path.exists():
             path.write_bytes(payload)
+        self._record_observation(
+            source_id=source_id,
+            digest=digest,
+            collected_at=collected_at,
+            collector_id=collector_id,
+            source_url=source_url,
+            raw_ref=str(path),
+            bytes_count=len(payload),
+        )
         return str(path), digest
+
+    def _record_observation(
+        self,
+        *,
+        source_id: str,
+        digest: str,
+        collected_at: str,
+        collector_id: str | None,
+        source_url: str | None,
+        raw_ref: str,
+        bytes_count: int,
+    ) -> None:
+        ledger = self.root / "_ledger" / "observations.jsonl"
+        ledger.parent.mkdir(parents=True, exist_ok=True)
+        obs_id = _observation_id(source_id, digest, collected_at, collector_id, source_url)
+        record = {
+            "observation_id": obs_id,
+            "source_id": source_id,
+            "sha256": digest,
+            "timestamp": collected_at,
+            "collector": collector_id,
+            "source_url": source_url,
+            "raw_ref": raw_ref,
+            "bytes": bytes_count,
+        }
+        with ledger.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+
+        index = self.root / "_ledger" / "index" / source_id / f"{digest}.json"
+        index.parent.mkdir(parents=True, exist_ok=True)
+        previous: dict[str, object] = {}
+        if index.exists():
+            try:
+                previous = json.loads(index.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                previous = {}
+        first_seen = str(previous.get("first_seen") or collected_at)
+        last_seen = max(str(previous.get("last_seen") or collected_at), collected_at)
+        payload_index = {
+            "source_id": source_id,
+            "sha256": digest,
+            "first_seen": min(first_seen, collected_at),
+            "last_seen": last_seen,
+            "first_collector": previous.get("first_collector") or collector_id,
+            "last_collector": collector_id,
+            "raw_ref": previous.get("raw_ref") or raw_ref,
+        }
+        tmp = index.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload_index, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+        tmp.replace(index)
 
 
 class PostgresRawStore:
-    """Compressed raw payload store sharing the structured PostgreSQL database."""
+    """Compressed immutable raw payloads plus append-only observation provenance."""
 
     def __init__(self, dsn: str) -> None:
         if not dsn.startswith(("postgresql://", "postgres://")):
@@ -32,7 +106,7 @@ class PostgresRawStore:
         self.dsn = dsn
         self._schema_key = hashlib.sha256(dsn.encode("utf-8")).hexdigest()
 
-    def _ensure_table(self, db) -> None:
+    def _ensure_table(self, db) -> None:  # type: ignore[no-untyped-def]
         if self._schema_key in _RAW_SCHEMA_READY:
             return
         with _RAW_SCHEMA_LOCK:
@@ -52,16 +126,59 @@ class PostgresRawStore:
                         PRIMARY KEY(source_id, sha256)
                     )
                 """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS raw_evidence_observations (
+                        observation_id TEXT PRIMARY KEY,
+                        source_id TEXT NOT NULL,
+                        sha256 TEXT NOT NULL,
+                        observed_at TIMESTAMPTZ NOT NULL,
+                        collector_id TEXT,
+                        source_url TEXT,
+                        raw_ref TEXT NOT NULL,
+                        bytes BIGINT NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                        FOREIGN KEY(source_id, sha256) REFERENCES raw_payloads(source_id, sha256)
+                    )
+                """)
+                cur.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_raw_evidence_observations_source_time
+                    ON raw_evidence_observations(source_id, observed_at DESC)
+                """)
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS raw_evidence_index (
+                        source_id TEXT NOT NULL,
+                        sha256 TEXT NOT NULL,
+                        first_seen_at TIMESTAMPTZ NOT NULL,
+                        last_seen_at TIMESTAMPTZ NOT NULL,
+                        first_collector_id TEXT,
+                        last_collector_id TEXT,
+                        raw_ref TEXT NOT NULL,
+                        observation_count BIGINT NOT NULL DEFAULT 1,
+                        PRIMARY KEY(source_id, sha256),
+                        FOREIGN KEY(source_id, sha256) REFERENCES raw_payloads(source_id, sha256)
+                    )
+                """)
             db.commit()
             _RAW_SCHEMA_READY.add(self._schema_key)
 
-    def put(self, source_id: str, collected_at: str, payload: bytes, extension: str) -> tuple[str, str]:
+    def put(
+        self,
+        source_id: str,
+        collected_at: str,
+        payload: bytes,
+        extension: str,
+        *,
+        collector_id: str | None = None,
+        source_url: str | None = None,
+    ) -> tuple[str, str]:
         try:
             import psycopg  # type: ignore
         except ImportError as exc:
             raise RuntimeError("PostgreSQL RAW backend requires psycopg") from exc
         digest = hashlib.sha256(payload).hexdigest()
         compressed = zlib.compress(payload, level=6)
+        ref = f"pgraw://{source_id}/{collected_at[:10]}/{digest}.{extension}"
+        obs_id = _observation_id(source_id, digest, collected_at, collector_id, source_url)
         with psycopg.connect(self.dsn) as db:
             self._ensure_table(db)
             with db.cursor() as cur:
@@ -75,8 +192,33 @@ class PostgresRawStore:
                     source_id, digest, collected_at, extension,
                     len(payload), len(compressed), compressed,
                 ))
+                cur.execute("""
+                    INSERT INTO raw_evidence_observations(
+                        observation_id, source_id, sha256, observed_at,
+                        collector_id, source_url, raw_ref, bytes
+                    ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT(observation_id) DO NOTHING
+                """, (
+                    obs_id, source_id, digest, collected_at,
+                    collector_id, source_url, ref, len(payload),
+                ))
+                inserted = cur.rowcount > 0
+                cur.execute("""
+                    INSERT INTO raw_evidence_index(
+                        source_id, sha256, first_seen_at, last_seen_at,
+                        first_collector_id, last_collector_id, raw_ref, observation_count
+                    ) VALUES(%s,%s,%s,%s,%s,%s,%s,1)
+                    ON CONFLICT(source_id, sha256) DO UPDATE SET
+                        first_seen_at=LEAST(raw_evidence_index.first_seen_at, EXCLUDED.first_seen_at),
+                        last_seen_at=GREATEST(raw_evidence_index.last_seen_at, EXCLUDED.last_seen_at),
+                        first_collector_id=COALESCE(raw_evidence_index.first_collector_id, EXCLUDED.first_collector_id),
+                        last_collector_id=EXCLUDED.last_collector_id,
+                        observation_count=raw_evidence_index.observation_count + %s
+                """, (
+                    source_id, digest, collected_at, collected_at,
+                    collector_id, collector_id, ref, 1 if inserted else 0,
+                ))
             db.commit()
-        ref = f"pgraw://{source_id}/{collected_at[:10]}/{digest}.{extension}"
         return ref, digest
 
     def get(self, source_id: str, digest: str) -> bytes | None:
@@ -109,13 +251,43 @@ class GCSRawStore:
         self.bucket = self.client.bucket(bucket_name)
         self.prefix = prefix.strip("/")
 
-    def put(self, source_id: str, collected_at: str, payload: bytes, extension: str) -> tuple[str, str]:
+    def put(
+        self,
+        source_id: str,
+        collected_at: str,
+        payload: bytes,
+        extension: str,
+        *,
+        collector_id: str | None = None,
+        source_url: str | None = None,
+    ) -> tuple[str, str]:
         digest = hashlib.sha256(payload).hexdigest()
         key = "/".join(part for part in (self.prefix, source_id, collected_at[:10], f"{digest}.{extension}") if part)
         blob = self.bucket.blob(key)
         if not blob.exists(self.client):
             blob.upload_from_string(payload, content_type=_content_type(extension), if_generation_match=0)
-        return f"gs://{self.bucket.name}/{key}", digest
+        ref = f"gs://{self.bucket.name}/{key}"
+        obs_id = _observation_id(source_id, digest, collected_at, collector_id, source_url)
+        observation_key = "/".join(part for part in (
+            self.prefix, "_ledger", "observations", source_id, collected_at[:10], f"{obs_id}.json"
+        ) if part)
+        observation = self.bucket.blob(observation_key)
+        if not observation.exists(self.client):
+            observation.upload_from_string(
+                json.dumps({
+                    "observation_id": obs_id,
+                    "source_id": source_id,
+                    "sha256": digest,
+                    "timestamp": collected_at,
+                    "collector": collector_id,
+                    "source_url": source_url,
+                    "raw_ref": ref,
+                    "bytes": len(payload),
+                }, ensure_ascii=False, sort_keys=True),
+                content_type="application/json",
+                if_generation_match=0,
+            )
+        return ref, digest
 
 
 def _database_url() -> str:
