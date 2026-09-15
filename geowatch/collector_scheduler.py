@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from .analysis_runner import run_analysis
 from .sanctions_runtime import refresh_official_sanctions
+from .satellite_runtime import refresh_celestrak
 from .source_collection import collect_source_once, load_collection_spec
 from .source_registry import load_registry
 from .storage_factory import open_store
@@ -24,7 +25,7 @@ _STATE: dict[str, object] = {
     "analysis_count": 0,
 }
 _SANCTIONS_IDS = {"unsc_sanctions", "uk_sanctions"}
-_NON_ANALYSIS_SOURCES = _SANCTIONS_IDS | {"ofac_sanctions", "wpi_ports"}
+_NON_ANALYSIS_SOURCES = _SANCTIONS_IDS | {"ofac_sanctions", "wpi_ports", "celestrak"}
 
 
 def enabled() -> bool:
@@ -54,7 +55,7 @@ def analysis_config_path() -> str:
 def status() -> dict[str, object]:
     with _LOCK:
         return {
-            "schema_version": "geowatch-source-scheduler-status-v3",
+            "schema_version": "geowatch-source-scheduler-status-v4",
             **_STATE,
             "enabled": enabled(),
             "tick_seconds": tick_seconds(),
@@ -100,6 +101,9 @@ def run_tick() -> dict[str, object]:
             bundle_results = sanctions_bundle.get("results") or {}
             results[spec.source_id] = bundle_results.get(spec.source_id, {"status": "error", "error": "sanctions bundle missing source result"}) if isinstance(bundle_results, dict) else {"status": "error"}
             continue
+        if spec.source_id == "celestrak":
+            results[spec.source_id] = refresh_celestrak(group="military")
+            continue
         if load_collection_spec(spec.source_id) is None:
             results[spec.source_id] = {
                 "status": "delegated",
@@ -143,10 +147,12 @@ def _should_run_analysis(now: datetime, results: dict[str, object]) -> bool:
         and int(result.get("records") or 0) > 0
         for source_id, result in results.items()
     )
-    if not changed:
-        return False
     with _LOCK:
         last = _STATE.get("last_analysis_at")
+    if last is None and any(isinstance(result, dict) and result.get("status") == "ok" for result in results.values()):
+        return True
+    if not changed:
+        return False
     if not last:
         return True
     try:
