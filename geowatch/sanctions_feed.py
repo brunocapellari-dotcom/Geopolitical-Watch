@@ -5,9 +5,10 @@ import hashlib
 import io
 import json
 import re
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass, asdict
 from typing import Iterable
+
+from defusedxml import ElementTree as ET
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,6 @@ def parse_uk_csv(payload: bytes, *, collected_at: str, source_url: str | None = 
         normalized={_header_key(k): str(v or "").strip() for k,v in item.items() if k is not None}
         ref=(normalized.get("unique_id") or normalized.get("uk_sanctions_list_ref") or normalized.get("group_id") or "").strip() or None
         parts=[normalized.get(f"name_{idx}", "") for idx in range(1,7)]
-        # UKSL documents Name 6 as entity/ship full name or individual surname.
         name=" ".join(part for part in parts if part).strip()
         if not name:
             name=(normalized.get("name") or normalized.get("primary_name") or "").strip()
