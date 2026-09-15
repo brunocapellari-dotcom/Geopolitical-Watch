@@ -4,5 +4,10 @@ __pycache__/
 data/
 reports/
 .env
+.env.*
+*.pem
+*.key
+*.p12
 *.sqlite
 *.db
+.secrets/
