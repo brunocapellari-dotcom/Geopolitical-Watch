@@ -5,6 +5,7 @@ import threading
 import time
 from datetime import datetime, timezone
 
+from .analysis_runner import run_analysis
 from .source_collection import collect_source_once, load_collection_spec
 from .source_registry import load_registry
 from .storage_factory import open_store
@@ -16,7 +17,10 @@ _STATE: dict[str, object] = {
     "running": False,
     "last_tick_at": None,
     "last_results": {},
+    "last_analysis_at": None,
+    "last_analysis_result": None,
     "tick_count": 0,
+    "analysis_count": 0,
 }
 
 
@@ -32,13 +36,27 @@ def tick_seconds() -> int:
     return max(15, min(value, 300))
 
 
+def analysis_min_interval_seconds() -> int:
+    try:
+        value = int(os.environ.get("GEOWATCH_ANALYSIS_MIN_INTERVAL_SECONDS", "300"))
+    except ValueError:
+        value = 300
+    return max(60, min(value, 3600))
+
+
+def analysis_config_path() -> str:
+    return os.environ.get("GEOWATCH_ANALYSIS_CONFIG", "config/sources.production.json").strip() or "config/sources.production.json"
+
+
 def status() -> dict[str, object]:
     with _LOCK:
         return {
-            "schema_version": "geowatch-source-scheduler-status-v1",
+            "schema_version": "geowatch-source-scheduler-status-v2",
             **_STATE,
             "enabled": enabled(),
             "tick_seconds": tick_seconds(),
+            "analysis_min_interval_seconds": analysis_min_interval_seconds(),
+            "analysis_config": analysis_config_path(),
         }
 
 
@@ -72,9 +90,6 @@ def run_tick() -> dict[str, object]:
     due = registry.due_sources(last_success, now=now)
     results: dict[str, object] = {}
     for spec in due:
-        # A registry entry can be implemented by a specialized runtime (WPI, AIS,
-        # ADS-B) without belonging to the batch collector. Those are not forced
-        # through this scheduler.
         if load_collection_spec(spec.source_id) is None:
             results[spec.source_id] = {
                 "status": "delegated",
@@ -84,6 +99,18 @@ def run_tick() -> dict[str, object]:
             continue
         results[spec.source_id] = collect_source_once(spec.source_id)
 
+    should_analyze = _should_run_analysis(now, results)
+    analysis_result: dict[str, object] | None = None
+    if should_analyze:
+        try:
+            analysis_result = {"status": "ok", **run_analysis(config_path=analysis_config_path())}
+        except Exception as exc:
+            analysis_result = {"status": "error", "error_type": type(exc).__name__, "error": str(exc)[:500]}
+        with _LOCK:
+            _STATE["last_analysis_at"] = datetime.now(timezone.utc).isoformat()
+            _STATE["last_analysis_result"] = analysis_result
+            _STATE["analysis_count"] = int(_STATE.get("analysis_count") or 0) + 1
+
     with _LOCK:
         _STATE.update({
             "running": False,
@@ -91,7 +118,34 @@ def run_tick() -> dict[str, object]:
             "last_results": results,
             "tick_count": int(_STATE.get("tick_count") or 0) + 1,
         })
-    return {"due": [spec.source_id for spec in due], "results": results}
+    return {
+        "due": [spec.source_id for spec in due],
+        "results": results,
+        "analysis": analysis_result,
+    }
+
+
+def _should_run_analysis(now: datetime, results: dict[str, object]) -> bool:
+    changed = any(
+        isinstance(result, dict)
+        and result.get("status") == "ok"
+        and int(result.get("records") or 0) > 0
+        for result in results.values()
+    )
+    if not changed:
+        return False
+    with _LOCK:
+        last = _STATE.get("last_analysis_at")
+    if not last:
+        return True
+    try:
+        parsed = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        elapsed = (now - parsed.astimezone(timezone.utc)).total_seconds()
+        return elapsed >= analysis_min_interval_seconds()
+    except ValueError:
+        return True
 
 
 def _loop() -> None:
@@ -123,6 +177,9 @@ def reset_for_tests() -> None:
             "running": False,
             "last_tick_at": None,
             "last_results": {},
+            "last_analysis_at": None,
+            "last_analysis_result": None,
             "tick_count": 0,
+            "analysis_count": 0,
         })
         _THREAD = None
