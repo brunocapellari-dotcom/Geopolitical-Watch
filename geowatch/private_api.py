@@ -28,6 +28,9 @@ def _private_dashboard_html() -> str:
 
 
 class PrivateHandler(BaseHandler):
+    server_version = "GeopoliticalWatch"
+    sys_version = ""
+
     def end_headers(self) -> None:
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
@@ -47,6 +50,8 @@ class PrivateHandler(BaseHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"
+        if path == "/health":
+            return self._send_json(200, {"status": "ok", "service": "geopolitical-watch"})
         if path == "/login":
             if verify_session(self.headers.get("Cookie"), API_TOKEN):
                 return self._redirect("/dashboard")
@@ -111,7 +116,7 @@ def main() -> int:
     validate_production_runtime()
     ensure_collector_started()
     ensure_vessel_started()
-    host = os.environ.get("HOST", "0.0.0.0")
+    host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8080"))
     server = ThreadingHTTPServer((host, port), PrivateHandler)
     server.serve_forever()
