@@ -28,8 +28,8 @@ def open_store(location: str | Path | None = None):
     """
     value = _location(location)
     if value.startswith(("postgresql://", "postgres://")):
-        from .storage_postgres import PostgresStore
-        return PostgresStore(value)
+        from .storage_postgres_runtime import RuntimePostgresStore
+        return RuntimePostgresStore(value)
     return SQLiteStore(value)
 
 
