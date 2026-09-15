@@ -1,0 +1,15 @@
+project_id      = "YOUR-GCP-PROJECT-ID"
+region          = "southamerica-east1"
+container_image = "southamerica-east1-docker.pkg.dev/YOUR-GCP-PROJECT-ID/geowatch/geowatch:INITIAL-TAG"
+
+# Costs are intentionally opt-in. Enabling continuous AIS keeps one Cloud Run
+# instance alive with CPU available between requests.
+enable_continuous_ais        = false
+database_high_availability   = false
+database_tier                = "db-g1-small"
+scheduler_cron               = "*/5 * * * *"
+github_repository            = "brunocapellari-dotcom/Geopolitical-Watch"
+
+# Do NOT put api_token, db_password or aisstream_api_key in a committed file.
+# Supply them through TF_VAR_api_token, TF_VAR_db_password and
+# TF_VAR_aisstream_api_key in a secure shell/session or CI secret store.
