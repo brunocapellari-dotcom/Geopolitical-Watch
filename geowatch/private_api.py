@@ -8,6 +8,7 @@ from .api import API_TOKEN, Handler as BaseHandler
 from .dashboard import dashboard_html
 from .embedded_collector import ensure_started as ensure_collector_started, status as collector_status
 from .live_vessels import ensure_started as ensure_vessel_started, vessel_snapshot
+from .login_guard import clear_login_failures, login_allowed, record_login_failure
 from .runtime_guard import validate_production_runtime
 from .runtime_readiness import build_runtime_readiness
 from .web_auth import clear_cookie, login_html, session_cookie, verify_login_body, verify_session
@@ -52,6 +53,12 @@ class PrivateHandler(BaseHandler):
         if _secure_cookie():
             self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         super().end_headers()
+
+    def _login_key(self) -> str:
+        try:
+            return str(self.client_address[0])
+        except (AttributeError, IndexError, TypeError):
+            return "unknown"
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -106,15 +113,21 @@ class PrivateHandler(BaseHandler):
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path != "/login":
             return self._send_json(405, {"error": "method not allowed"})
+        login_key = self._login_key()
+        if not login_allowed(login_key):
+            return self._send_text(429, login_html(invalid=True), "text/html; charset=utf-8")
         try:
             length = int(self.headers.get("Content-Length") or "0")
         except ValueError:
             length = 0
         if length < 0 or length > 4096:
+            record_login_failure(login_key)
             return self._send_json(413, {"error": "request too large"})
         body = self.rfile.read(length)
         if not verify_login_body(body, API_TOKEN):
+            record_login_failure(login_key)
             return self._send_text(401, login_html(invalid=True), "text/html; charset=utf-8")
+        clear_login_failures(login_key)
         if not API_TOKEN:
             return self._redirect("/dashboard")
         self.send_response(303)
