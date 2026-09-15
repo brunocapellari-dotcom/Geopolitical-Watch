@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from .pipeline import _collect_incremental
 from .raw_store import open_raw_store
 from .security_redaction import redact_runtime_secrets, redact_url
 from .storage_factory import open_store
+from .sources import ioda, ripestat, usgs
 
 _DEFAULT_CONFIGS = (
     "config/sources.production.json",
@@ -53,7 +55,7 @@ def collect_source_once(
     request_meta: dict[str, object] = {"kind": kind, "collector_id": collector_id, "scheduler": "source_registry"}
     try:
         checkpoint = store.get_checkpoint(source_id)
-        payloads, urls, parser = _collect_incremental(
+        payloads, urls, parser = _collect_payloads(
             spec,
             checkpoint=checkpoint,
             now=now,
@@ -129,3 +131,51 @@ def collect_source_once(
         return {"source_id": source_id, "status": "error", "error": error, "finished_at": finished_at}
     finally:
         store.close()
+
+
+def _collect_payloads(
+    spec: dict,
+    *,
+    checkpoint: dict | None,
+    now: datetime,
+    default_lookback_hours: int,
+    overlap_minutes: int,
+    request_meta: dict[str, object],
+):
+    kind = str(spec.get("kind") or "")
+    if kind == "usgs":
+        feed = str(spec.get("feed") or "significant_day")
+        request_meta["feed"] = feed
+        payload, url = usgs.collect(feed=feed)
+        return [payload], [url], usgs.parse
+    if kind == "ioda":
+        endpoint = str(spec.get("endpoint") or "alerts")
+        limit = int(spec.get("limit", 100))
+        request_meta.update({"endpoint": endpoint, "limit": limit})
+        payload, url = ioda.collect(endpoint=endpoint, limit=limit)
+        return [payload], [url], ioda.parse
+    if kind == "ripestat":
+        raw_resources = spec.get("resources") or []
+        if isinstance(raw_resources, str):
+            raw_resources = [raw_resources]
+        resources = [str(value).strip() for value in raw_resources if str(value).strip()]
+        if not resources:
+            raise ValueError("RIPEstat collector requires an explicit resources list")
+        if len(resources) > 100:
+            raise ValueError("RIPEstat resources list exceeds the bounded limit of 100")
+        payloads: list[bytes] = []
+        urls: list[str] = []
+        for resource in resources:
+            payload, url = ripestat.collect(resource=resource)
+            payloads.append(payload); urls.append(url)
+        threshold = float(spec.get("visibility_threshold", 0.85))
+        request_meta.update({"resource_count": len(resources), "visibility_threshold": threshold})
+        return payloads, urls, partial(ripestat.parse, visibility_threshold=threshold)
+    return _collect_incremental(
+        spec,
+        checkpoint=checkpoint,
+        now=now,
+        default_lookback_hours=default_lookback_hours,
+        overlap_minutes=overlap_minutes,
+        request_meta=request_meta,
+    )
