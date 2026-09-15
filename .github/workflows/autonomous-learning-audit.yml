@@ -1,0 +1,40 @@
+name: autonomous-learning-audit
+
+on:
+  pull_request:
+    paths:
+      - "scripts/audit_autonomous_learning.py"
+      - ".github/workflows/autonomous-learning-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-functional-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install existing project
+        run: pip install -e .
+      - name: Run isolated live collect-to-retrieve probe
+        env:
+          PYTHONPATH: .
+          GEOWATCH_DB_URL: ""
+          DATABASE_URL: ""
+        run: python scripts/audit_autonomous_learning.py
+      - name: Print audit verdict
+        if: always()
+        run: cat audit-output/autonomous-learning-audit.json || true
+      - name: Upload functional audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autonomous-learning-audit-${{ github.run_id }}
+          path: audit-output/autonomous-learning-audit.json
+          retention-days: 30
