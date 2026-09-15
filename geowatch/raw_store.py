@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import os
+import threading
 import zlib
 from pathlib import Path
+
+_RAW_SCHEMA_LOCK = threading.Lock()
+_RAW_SCHEMA_READY: set[str] = set()
 
 
 class LocalRawStore:
@@ -26,15 +30,14 @@ class PostgresRawStore:
         if not dsn.startswith(("postgresql://", "postgres://")):
             raise ValueError("PostgresRawStore requires a PostgreSQL DSN")
         self.dsn = dsn
+        self._schema_key = hashlib.sha256(dsn.encode("utf-8")).hexdigest()
 
-    def put(self, source_id: str, collected_at: str, payload: bytes, extension: str) -> tuple[str, str]:
-        try:
-            import psycopg  # type: ignore
-        except ImportError as exc:
-            raise RuntimeError("PostgreSQL RAW backend requires psycopg") from exc
-        digest = hashlib.sha256(payload).hexdigest()
-        compressed = zlib.compress(payload, level=6)
-        with psycopg.connect(self.dsn) as db:
+    def _ensure_table(self, db) -> None:
+        if self._schema_key in _RAW_SCHEMA_READY:
+            return
+        with _RAW_SCHEMA_LOCK:
+            if self._schema_key in _RAW_SCHEMA_READY:
+                return
             with db.cursor() as cur:
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS raw_payloads (
@@ -49,6 +52,19 @@ class PostgresRawStore:
                         PRIMARY KEY(source_id, sha256)
                     )
                 """)
+            db.commit()
+            _RAW_SCHEMA_READY.add(self._schema_key)
+
+    def put(self, source_id: str, collected_at: str, payload: bytes, extension: str) -> tuple[str, str]:
+        try:
+            import psycopg  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("PostgreSQL RAW backend requires psycopg") from exc
+        digest = hashlib.sha256(payload).hexdigest()
+        compressed = zlib.compress(payload, level=6)
+        with psycopg.connect(self.dsn) as db:
+            self._ensure_table(db)
+            with db.cursor() as cur:
                 cur.execute("""
                     INSERT INTO raw_payloads(
                         source_id, sha256, collected_at, extension, compression,
@@ -69,6 +85,7 @@ class PostgresRawStore:
         except ImportError as exc:
             raise RuntimeError("PostgreSQL RAW backend requires psycopg") from exc
         with psycopg.connect(self.dsn) as db:
+            self._ensure_table(db)
             with db.cursor() as cur:
                 cur.execute(
                     "SELECT compression, payload FROM raw_payloads WHERE source_id=%s AND sha256=%s",
@@ -131,6 +148,11 @@ def raw_backend_name(location: str | Path | None = None) -> str:
     if backend in {"postgres", "postgresql"}:
         return "postgresql-compressed"
     return "filesystem"
+
+
+def reset_raw_schema_cache_for_tests() -> None:
+    with _RAW_SCHEMA_LOCK:
+        _RAW_SCHEMA_READY.clear()
 
 
 def _content_type(extension: str) -> str:
