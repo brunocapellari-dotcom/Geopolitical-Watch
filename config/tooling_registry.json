@@ -28,6 +28,24 @@
       "rationale": "Canonical production store for spatial queries, persistence and analytical joins; replacing it would add a second spatial data plane."
     },
     {
+      "capability": "infrastructure_as_code",
+      "name": "HashiCorp Terraform",
+      "status": "primary",
+      "integration_mode": "gcp_infrastructure_definition",
+      "license": "BUSL-1.1 for current Terraform distributions; provider licenses reviewed separately",
+      "decision": "keep_single_authority",
+      "rationale": "One declarative provisioning authority prevents drift from imperative gcloud/Replit scripts. The Google provider is pinned and write-only secret attributes keep supported secret payloads out of state."
+    },
+    {
+      "capability": "cloud_deployment_identity",
+      "name": "GitHub OIDC + Google Workload Identity Federation",
+      "status": "primary",
+      "integration_mode": "keyless_ci_to_gcp",
+      "license": "managed platform capability",
+      "decision": "keep",
+      "rationale": "Deploys an already-green immutable commit without storing long-lived Google service-account JSON keys in GitHub or development environments."
+    },
+    {
       "capability": "browser_e2e",
       "name": "Playwright",
       "status": "primary",
@@ -43,7 +61,7 @@
       "integration_mode": "ci_action",
       "license": "Apache-2.0",
       "decision": "expand",
-      "rationale": "Already gates the production image; reuse it for repository secret/misconfiguration scanning instead of adding a duplicate scanner."
+      "rationale": "Gates the production image and repository secret/misconfiguration posture, avoiding a duplicate scanner stack."
     },
     {
       "capability": "python_dependency_advisory_scan",
@@ -89,6 +107,15 @@
       "license": "review-before-code-incorporation",
       "decision": "adopt_for_self_hosted_basemap",
       "rationale": "Single-file range-request map archives fit GCS and reduce dependency on public raster tiles without introducing another server."
+    },
+    {
+      "capability": "sanctions_entity_matching",
+      "name": "OpenSanctions Yente",
+      "status": "conditional_reference",
+      "integration_mode": "not_installed",
+      "license": "software_and_dataset_terms_review_required",
+      "decision": "evaluate_after_data_rights_review",
+      "rationale": "Could improve alias/entity matching, but official issuing-authority sanctions data remains canonical and an aggregator must not create a second legal truth source."
     },
     {
       "capability": "global_intelligence_reference",
