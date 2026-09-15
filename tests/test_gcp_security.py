@@ -46,6 +46,10 @@ class GcpSecurityArchitectureTests(unittest.TestCase):
         self.assertIn('required_version = ">= 1.11.0, < 2.0.0"', self.versions_tf)
         self.assertIn('version = "= 7.46.1"', self.versions_tf)
 
+    def test_terraform_uses_canonical_remote_state_backend(self) -> None:
+        self.assertIn('backend "gcs"', self.versions_tf)
+        self.assertIn('prefix = "geowatch/terraform/state"', self.versions_tf)
+
 
 if __name__ == "__main__":
     unittest.main()
