@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from geowatch.dashboard import dashboard_html
 from geowatch.http import HttpResponse
-from geowatch.live_aircraft import aircraft_route, aircraft_snapshot, clear_live_aircraft_cache
+from geowatch.live_aircraft import aircraft_route, aircraft_snapshot, aircraft_track, clear_live_aircraft_cache
 
 
 class LiveTrackingTests(unittest.TestCase):
@@ -53,6 +53,26 @@ class LiveTrackingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             aircraft_snapshot(0, 0, 251)
 
+    def test_observed_aircraft_track_uses_backend_samples_only(self) -> None:
+        payloads = [
+            {"ac": [{"hex": "e49001", "flight": "GLO1234", "lat": -15.60, "lon": -56.10, "gs": 430}]},
+            {"ac": [{"hex": "e49001", "flight": "GLO1234", "lat": -15.50, "lon": -56.00, "gs": 435}]},
+        ]
+
+        def fake_get(url, **kwargs):
+            return HttpResponse(json.dumps(payloads.pop(0)).encode(), url, "application/json")
+
+        with patch("geowatch.live_aircraft.get", fake_get):
+            aircraft_snapshot(-15.6, -56.1, 120)
+            aircraft_snapshot(-10.0, -50.0, 120)
+        track = aircraft_track("E49001")
+        self.assertEqual(track["count"], 2)
+        self.assertEqual(track["points"][0]["lat"], -15.6)
+        self.assertEqual(track["points"][1]["lon"], -56.0)
+        self.assertIn("not a complete flight path", track["track_semantics"])
+        with self.assertRaises(ValueError):
+            aircraft_track("../../bad")
+
     def test_route_is_context_not_confirmed_flight_plan(self) -> None:
         payload = {
             "airport_codes": "SBGR-KMIA",
@@ -80,6 +100,8 @@ class LiveTrackingTests(unittest.TestCase):
         html = dashboard_html()
         self.assertIn("/v2/live/aircraft", html)
         self.assertIn("/v2/live/aircraft/route", html)
+        self.assertIn("/v2/live/aircraft/track", html)
+        self.assertIn("selected-observed-track", html)
         self.assertNotIn("https://api.adsb.lol", html)
         self.assertIn("API bearer token", html)
 
