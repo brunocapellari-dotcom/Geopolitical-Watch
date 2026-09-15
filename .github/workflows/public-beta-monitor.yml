@@ -19,12 +19,12 @@ jobs:
     env:
       PYTHONPATH: .
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Restore persistent beta state
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             data/beta.db
@@ -57,7 +57,7 @@ jobs:
           fi
       - name: Save persistent beta state
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             data/beta.db
@@ -66,7 +66,7 @@ jobs:
       - name: Upload public beta artifacts
         if: ${{ always() && github.event_name == 'workflow_dispatch' }}
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: geowatch-public-beta-${{ github.run_id }}
           path: |

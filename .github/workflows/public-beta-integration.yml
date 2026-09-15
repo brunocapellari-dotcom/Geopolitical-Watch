@@ -30,8 +30,8 @@ jobs:
     env:
       PYTHONPATH: .
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Run real GDELT and GDACS beta path
@@ -54,7 +54,7 @@ jobs:
       - name: Upload live beta evidence
         if: always()
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: geowatch-live-beta-smoke-${{ github.run_id }}
           path: |

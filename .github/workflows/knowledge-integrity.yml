@@ -18,8 +18,8 @@ jobs:
     env:
       PYTHONPATH: .
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Build and validate canonical knowledge bundle
@@ -28,7 +28,7 @@ jobs:
           python scripts/build_obsidian_bundle.py | tee obsidian-bundle-run.json
           test -s generated/obsidian/monitor_conflitos/manifest.json
       - name: Upload knowledge evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: geowatch-obsidian-knowledge-${{ github.run_id }}
           path: |

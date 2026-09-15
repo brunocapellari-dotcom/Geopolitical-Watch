@@ -36,7 +36,7 @@ jobs:
           test -n "${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}"
 
       - name: Checkout exact commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Authenticate to Google Cloud without a service-account key
         uses: google-github-actions/auth@v3

@@ -15,12 +15,12 @@ jobs:
     env:
       PYTHONPATH: .
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Restore previous sanctions snapshot cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .sanctions-cache
           key: sanctions-${{ github.run_id }}
@@ -32,7 +32,7 @@ jobs:
           python scripts/build_sanctions_artifacts.py | tee sanctions-run.json
       - name: Save current sanctions snapshot cache
         if: success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: .sanctions-cache
           key: sanctions-${{ github.run_id }}
@@ -48,7 +48,7 @@ jobs:
       - name: Upload sanctions artifacts
         if: ${{ always() && github.event_name == 'workflow_dispatch' }}
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: geowatch-sanctions-${{ github.run_id }}
           path: |
