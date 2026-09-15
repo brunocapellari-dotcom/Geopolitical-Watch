@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 MAIN_TF = ROOT / "infra" / "gcp" / "main.tf"
 VERSIONS_TF = ROOT / "infra" / "gcp" / "versions.tf"
+BACKEND_TF = ROOT / "infra" / "gcp" / "backend.tf"
 
 
 class GcpSecurityArchitectureTests(unittest.TestCase):
@@ -14,6 +15,7 @@ class GcpSecurityArchitectureTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.main_tf = MAIN_TF.read_text(encoding="utf-8")
         cls.versions_tf = VERSIONS_TF.read_text(encoding="utf-8")
+        cls.backend_tf = BACKEND_TF.read_text(encoding="utf-8")
 
     def test_cloud_sql_has_no_public_ipv4_and_requires_encryption(self) -> None:
         self.assertIn('ipv4_enabled                                  = false', self.main_tf)
@@ -46,9 +48,10 @@ class GcpSecurityArchitectureTests(unittest.TestCase):
         self.assertIn('required_version = ">= 1.11.0, < 2.0.0"', self.versions_tf)
         self.assertIn('version = "= 7.46.1"', self.versions_tf)
 
-    def test_terraform_uses_canonical_remote_state_backend(self) -> None:
-        self.assertIn('backend "gcs"', self.versions_tf)
-        self.assertIn('prefix = "geowatch/terraform/state"', self.versions_tf)
+    def test_terraform_uses_single_canonical_remote_state_backend(self) -> None:
+        self.assertIn('backend "gcs"', self.backend_tf)
+        self.assertIn('prefix = "geowatch/terraform/state"', self.backend_tf)
+        self.assertNotIn('backend "gcs"', self.versions_tf)
 
 
 if __name__ == "__main__":
