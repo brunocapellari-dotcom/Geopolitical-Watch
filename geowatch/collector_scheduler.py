@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timezone
 
 from .analysis_runner import run_analysis
+from .sanctions_runtime import refresh_official_sanctions
 from .source_collection import collect_source_once, load_collection_spec
 from .source_registry import load_registry
 from .storage_factory import open_store
@@ -22,6 +23,8 @@ _STATE: dict[str, object] = {
     "tick_count": 0,
     "analysis_count": 0,
 }
+_SANCTIONS_IDS = {"unsc_sanctions", "uk_sanctions"}
+_NON_ANALYSIS_SOURCES = _SANCTIONS_IDS | {"ofac_sanctions", "wpi_ports"}
 
 
 def enabled() -> bool:
@@ -51,7 +54,7 @@ def analysis_config_path() -> str:
 def status() -> dict[str, object]:
     with _LOCK:
         return {
-            "schema_version": "geowatch-source-scheduler-status-v2",
+            "schema_version": "geowatch-source-scheduler-status-v3",
             **_STATE,
             "enabled": enabled(),
             "tick_seconds": tick_seconds(),
@@ -89,7 +92,14 @@ def run_tick() -> dict[str, object]:
     now = datetime.now(timezone.utc)
     due = registry.due_sources(last_success, now=now)
     results: dict[str, object] = {}
+    sanctions_bundle: dict[str, object] | None = None
     for spec in due:
+        if spec.source_id in _SANCTIONS_IDS:
+            if sanctions_bundle is None:
+                sanctions_bundle = refresh_official_sanctions()
+            bundle_results = sanctions_bundle.get("results") or {}
+            results[spec.source_id] = bundle_results.get(spec.source_id, {"status": "error", "error": "sanctions bundle missing source result"}) if isinstance(bundle_results, dict) else {"status": "error"}
+            continue
         if load_collection_spec(spec.source_id) is None:
             results[spec.source_id] = {
                 "status": "delegated",
@@ -127,10 +137,11 @@ def run_tick() -> dict[str, object]:
 
 def _should_run_analysis(now: datetime, results: dict[str, object]) -> bool:
     changed = any(
-        isinstance(result, dict)
+        source_id not in _NON_ANALYSIS_SOURCES
+        and isinstance(result, dict)
         and result.get("status") == "ok"
         and int(result.get("records") or 0) > 0
-        for result in results.values()
+        for source_id, result in results.items()
     )
     if not changed:
         return False
