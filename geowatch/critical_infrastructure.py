@@ -4,6 +4,14 @@ import json
 from collections import defaultdict, deque
 from pathlib import Path
 
+_TYPE_COVERAGE_ALIASES: dict[str, set[str]] = {
+    "port": {"port", "port_complex", "oil_terminal", "lng_terminal", "lng_terminal_cluster"},
+    "pipeline": {"pipeline", "pipeline_system", "pipeline_corridor"},
+    "submarine_cable": {"submarine_cable", "submarine_cable_corridor", "submarine_infrastructure_corridor"},
+    "strait": {"strait", "strait_system", "canal", "waterway", "route"},
+    "power_facility": {"power_facility", "power", "power_plant"},
+}
+
 
 class CriticalInfrastructureGraph:
     def __init__(self, payload: dict) -> None:
@@ -23,6 +31,7 @@ class CriticalInfrastructureGraph:
         path: str | Path = "config/geopolitics/critical_infrastructure.json",
         supplement_path: str | Path = "config/geopolitics/critical_infrastructure_v011.json",
         wpi_path: str | Path = "generated/wpi/critical_port_candidates.json",
+        osm_path: str | Path = "generated/osm/critical_infrastructure_candidates.json",
         taxonomy_path: str | Path = "config/geopolitics/infrastructure_taxonomy.json",
     ) -> "CriticalInfrastructureGraph":
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
@@ -65,6 +74,35 @@ class CriticalInfrastructureGraph:
             if row["node_id"] not in node_ids:
                 nodes.append(row)
                 node_ids.add(row["node_id"])
+
+        osm_file = Path(osm_path)
+        if osm_file.exists():
+            osm = json.loads(osm_file.read_text(encoding="utf-8"))
+            osm_rows = list(osm.get("nodes", []))
+            for raw in osm_rows:
+                if not isinstance(raw, dict) or not raw.get("node_id"):
+                    continue
+                row = {
+                    **raw,
+                    "context_not_evidence": True,
+                    "structural_context_not_live_status": True,
+                    "no_vulnerability_inference": True,
+                }
+                if row["node_id"] not in node_ids:
+                    nodes.append(row)
+                    node_ids.add(row["node_id"])
+            source_status["osm_overpass"] = {
+                "status": "persisted",
+                "node_count": len(osm_rows),
+                "structural_context_not_live_status": True,
+                "bounded_enrichment_only": True,
+            }
+        else:
+            source_status["osm_overpass"] = {
+                "status": "not_generated",
+                "node_count": 0,
+                "bounded_enrichment_only": True,
+            }
 
         taxonomy: list[dict] = []
         taxonomy_file = Path(taxonomy_path)
@@ -125,14 +163,14 @@ class CriticalInfrastructureGraph:
         by_type: dict[str, int] = defaultdict(int)
         geocoded = 0
         for row in self.nodes.values():
-            by_type[row.get("type", "unknown")] += 1
+            by_type[str(row.get("type") or "unknown")] += 1
             if row.get("latitude") is not None and row.get("longitude") is not None:
                 geocoded += 1
         required_types = [str(row.get("type")) for row in self.taxonomy if row.get("type")]
-        covered_types = sorted(type_name for type_name in required_types if by_type.get(type_name, 0) > 0)
-        missing_types = sorted(type_name for type_name in required_types if by_type.get(type_name, 0) == 0)
+        covered_types = sorted(type_name for type_name in required_types if self._type_is_covered(type_name, by_type))
+        missing_types = sorted(type_name for type_name in required_types if not self._type_is_covered(type_name, by_type))
         return {
-            "schema_version": "geowatch-critical-infrastructure-summary-v2",
+            "schema_version": "geowatch-critical-infrastructure-summary-v3",
             "node_count": len(self.nodes),
             "edge_count": len(self.edges),
             "geocoded_node_count": geocoded,
@@ -145,3 +183,8 @@ class CriticalInfrastructureGraph:
             "context_not_evidence": True,
             "structural_context_not_live_status": True,
         }
+
+    @staticmethod
+    def _type_is_covered(required_type: str, by_type: dict[str, int]) -> bool:
+        aliases = _TYPE_COVERAGE_ALIASES.get(required_type, {required_type})
+        return any(by_type.get(alias, 0) > 0 for alias in aliases)
