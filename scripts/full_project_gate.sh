@@ -111,8 +111,9 @@ terraform fmt -check -recursive infra/gcp
 terraform -chdir=infra/gcp init -backend=false -input=false >/tmp/geowatch-terraform-init.log
 terraform -chdir=infra/gcp validate
 
-printf '\n== 11/12 build production container ==\n'
+printf '\n== 11/12 build and execute production container ==\n'
 docker build --pull -t geowatch-full-gate:local .
+docker run --rm --entrypoint python geowatch-full-gate:local -c "import os, geowatch; assert os.getuid() != 0, os.getuid(); print('container runtime non-root/import: ok')"
 
 printf '\n== 12/12 private HTTP + real browser MapLibre smoke ==\n'
 export GEOWATCH_DB_URL="$GEOWATCH_TEST_POSTGRES_URL"
