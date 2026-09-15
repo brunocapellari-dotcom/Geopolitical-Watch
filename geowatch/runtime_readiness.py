@@ -21,14 +21,16 @@ def build_runtime_readiness() -> dict:
     vessels = vessel_status()
     embedded_enabled = bool(collector.get("enabled"))
     scheduler_enabled = bool(scheduler.get("enabled"))
-    exactly_one_collector = embedded_enabled ^ scheduler_enabled
+    external_scheduler = _flag("GEOWATCH_EXTERNAL_SCHEDULER")
+    configured_paths = sum(1 for value in (embedded_enabled, scheduler_enabled, external_scheduler) if value)
+    exactly_one_collector = configured_paths == 1
 
     checks = {
         "private_auth_configured": len(os.environ.get("GEOWATCH_API_TOKEN", "")) >= 32,
         "persistent_structured_database": database_backend == "postgresql-postgis",
         "persistent_raw_evidence": raw_backend in {"postgresql-compressed", "gcs"},
         "collection_path_configured": exactly_one_collector,
-        "duplicate_collectors_disabled": not (embedded_enabled and scheduler_enabled),
+        "duplicate_collectors_disabled": configured_paths <= 1,
         "runtime_wpi_enabled": _flag("GEOWATCH_WPI_RUNTIME"),
         "ais_credentials_configured": bool(vessels.get("configured")),
         "always_on_compute_declared": _flag("GEOWATCH_ALWAYS_ON"),
@@ -50,7 +52,7 @@ def build_runtime_readiness() -> dict:
         "persistent_structured_database": "persistent PostgreSQL/PostGIS is not active",
         "persistent_raw_evidence": "RAW evidence is still using ephemeral filesystem storage",
         "collection_path_configured": "exactly one batch collection mode must be enabled",
-        "duplicate_collectors_disabled": "legacy embedded collector and registry scheduler cannot run together",
+        "duplicate_collectors_disabled": "multiple collection modes are enabled simultaneously",
         "runtime_wpi_enabled": "runtime WPI enrichment is disabled",
         "ais_credentials_configured": "AISSTREAM_API_KEY is not configured",
         "always_on_compute_declared": "compute is not declared always-on; continuous AIS cannot be guaranteed",
@@ -59,9 +61,19 @@ def build_runtime_readiness() -> dict:
         if not passed:
             blockers.append({"check": key, "detail": labels[key]})
 
-    collection_mode = "registry_scheduler" if scheduler_enabled and not embedded_enabled else "legacy_embedded" if embedded_enabled and not scheduler_enabled else "invalid" if embedded_enabled and scheduler_enabled else "none"
+    if external_scheduler and configured_paths == 1:
+        collection_mode = "external_cloud_scheduler"
+    elif scheduler_enabled and configured_paths == 1:
+        collection_mode = "registry_scheduler"
+    elif embedded_enabled and configured_paths == 1:
+        collection_mode = "legacy_embedded"
+    elif configured_paths > 1:
+        collection_mode = "invalid"
+    else:
+        collection_mode = "none"
+
     return {
-        "schema_version": "geowatch-runtime-readiness-v2",
+        "schema_version": "geowatch-runtime-readiness-v3",
         "checks": checks,
         "private_web_ready": private_web_ready,
         "live_aircraft_ready": live_aircraft_ready,
@@ -71,6 +83,7 @@ def build_runtime_readiness() -> dict:
         "collection_mode": collection_mode,
         "collector": collector,
         "source_scheduler": scheduler,
+        "external_scheduler_declared": external_scheduler,
         "vessels": {
             "provider": vessels.get("provider"),
             "configured": vessels.get("configured"),
@@ -84,6 +97,6 @@ def build_runtime_readiness() -> dict:
             "private_web_ready": "private dashboard, persistent structured/raw data, and exactly one collection path are configured",
             "live_aircraft_ready": "aircraft data can be fetched on demand through the private backend",
             "continuous_ais_ready": "AIS credentials and an explicitly always-on compute runtime are both present",
-            "collection_mode": "registry_scheduler is preferred; legacy_embedded exists only as rollback compatibility",
+            "collection_mode": "external_cloud_scheduler is the final cloud mode; in-process scheduler and embedded collector are rollback/local modes",
         },
     }
