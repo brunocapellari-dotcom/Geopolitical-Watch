@@ -7,6 +7,7 @@ from .storage_factory import backend_name
 
 _TRUE = {"1", "true", "yes", "on"}
 _FALSE = {"0", "false", "no", "off"}
+_MIN_PRODUCTION_SECRET_LENGTH = 32
 
 
 def _flag(name: str) -> bool:
@@ -22,7 +23,7 @@ def production_requirements() -> dict[str, bool]:
     token = os.environ.get("GEOWATCH_API_TOKEN", "")
     cookie_value = os.environ.get("GEOWATCH_COOKIE_SECURE", "1").strip().casefold()
     return {
-        "private_auth_secret": len(token) >= 16,
+        "private_auth_secret": len(token) >= _MIN_PRODUCTION_SECRET_LENGTH,
         "persistent_database": backend_name() == "postgresql-postgis",
         "persistent_raw_evidence": raw_backend_name() in {"postgresql-compressed", "gcs"},
         "embedded_collector": _flag("GEOWATCH_EMBEDDED_COLLECTOR"),
