@@ -86,9 +86,15 @@ class RuntimeRawStoreTests(unittest.TestCase):
         store = PostgresRawStore("postgresql://user:secret@example.invalid/db")
         db = _DB()
         store._ensure_table(db)
+        first_execute_count = db.cursor_obj.execute_count
+        first_commit_count = db.commit_count
         store._ensure_table(db)
-        self.assertEqual(db.cursor_obj.execute_count, 1)
-        self.assertEqual(db.commit_count, 1)
+        # Four canonical DDL statements are executed during the single initialization.
+        # A second ensure on the same DSN must execute no additional SQL or commit.
+        self.assertEqual(first_execute_count, 4)
+        self.assertEqual(db.cursor_obj.execute_count, first_execute_count)
+        self.assertEqual(first_commit_count, 1)
+        self.assertEqual(db.commit_count, first_commit_count)
 
 
 if __name__ == "__main__":
