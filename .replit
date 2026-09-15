@@ -1,9 +1,0 @@
-run = ["python", "-m", "geowatch", "serve"]
-
-[gitHubImport]
-requiredFiles = [".replit", "pyproject.toml"]
-
-[deployment]
-build = "pip install --upgrade pip && pip install -e '.[production]'"
-run = ["env", "HOST=0.0.0.0", "GEOWATCH_RAW_BACKEND=postgres", "GEOWATCH_EMBEDDED_COLLECTOR=1", "GEOWATCH_COOKIE_SECURE=1", "GEOWATCH_WPI_RUNTIME=1", "python", "-m", "geowatch", "serve"]
-ignorePorts = false
