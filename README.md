@@ -1,124 +1,108 @@
-# Geopolitical Watch
+# Geopolitical Watch — Monitor de Conflitos
 
-Standalone public-source geopolitical conflict monitoring and strategic intelligence platform.
+Private public-source geopolitical conflict monitoring and strategic-intelligence website.
 
-## Status
+## Current release
 
-Version **0.13.0** promotes the reliable public Beta into an operational-intelligence layer: persistent run history, explicit operational health, run-to-run deltas, source-backed historical validation assets, frozen multi-horizon forecasting benchmarks, expanded strategic profiles and chokepoint scenarios. Final production readiness remains a separate evidence gate.
+Version **0.14.0** consolidates the operational-intelligence platform, private web runtime and production deployment architecture. The codebase is designed around evidence provenance, explicit uncertainty, strict separation between observed/reported/estimated/inferred information, resilient source collection, PostgreSQL/PostGIS production storage and a MapLibre global interface.
 
-The project remains independent from AgroLog MT. AgroLog MT is a downstream read-only consumer of published feeds.
+The project remains independent from AgroLog MT. Other projects may consume published high-level signals, but they do not share the Monitor's codebase or operational state.
 
 ## Permanent evidence rules
 
 - `Event` is preserved evidence; `ConflictEpisode` is the persistent analytical unit.
 - Knowledge, profiles, graph edges, historical analogies and infrastructure criticality are context, not event verification.
-- GDACS disaster context and sensor signals cannot seed a conflict episode or raise EvidenceStrength by themselves.
+- GDACS and sensor/context feeds cannot seed conflict episodes or raise EvidenceStrength by themselves.
 - Provider disagreements are preserved rather than forcibly reconciled.
-- EvidenceStrength is a heuristic index, never probability.
+- EvidenceStrength is a heuristic triage index, never a probability.
 - Forecast probability never changes EvidenceStrength.
 - Learning proposals never auto-apply.
 - Research-coded history is not human gold or current evidence.
 - Scenario packs are not forecasts.
-- Missing economic observations are not zero-filled.
-- 95% readiness requires every hard production/validation gate in `config/readiness.json`.
+- Missing economic observations are never silently zero-filled.
+- Distinct resolved infrastructure identities cannot be merged merely because they are nearby or share country, region, claim type or time window.
+- Public critical-infrastructure information is structural context only; the system does not model exploit paths or vulnerabilities.
 
-## Operational public Beta
+## Production architecture
 
-The credential-free Beta currently uses GDELT as conflict-news signal and GDACS as context-only institutional disaster information.
+`authorized public sources -> immutable RAW evidence -> PostgreSQL/PostGIS -> normalized events -> entity resolution -> convergence -> ConflictEpisodes -> verification -> operational state/deltas -> alerts/forecasts -> private MapLibre website`
 
-`public sources -> RAW -> persistent SQLite Beta -> convergence -> ConflictEpisodes -> operational snapshot -> run delta -> digest -> versioned artifacts`
+The final GCP target is:
 
-v0.13 adds:
+- Cloud Run private website/API;
+- Cloud Run Job + Cloud Scheduler for batch source collection;
+- Cloud SQL PostgreSQL with PostGIS;
+- Cloud Storage for durable RAW evidence and optional static map assets/PMTiles;
+- Secret Manager for application and provider credentials;
+- Artifact Registry for immutable container images;
+- Workload Identity Federation for GitHub deployment without service-account JSON keys;
+- a separate always-on execution path for continuous AIS when enabled.
 
-- health classes `healthy`, `degraded`, `stale`, `partial`, `failed`;
-- persistent bounded operational history;
-- comparison with the previous run;
-- source health/freshness changes;
-- new episodes, state transitions and new change flags;
-- EvidenceStrength shifts explicitly labelled non-probabilistic;
-- concise operator digest with a “what changed” section.
+The legacy Render blueprint has been removed so the repository has one production deployment target.
 
-GitHub Actions keeps Beta state in a versioned cache and retains database, RAW, state and report artifacts for audit. Live PR integration continues to exercise GDELT + GDACS.
+## Private web interface
 
-## Empirical history and forecasting
+The site uses **MapLibre GL JS 6.9.1 through the supported ESM bundle** and a governed layer catalog in `config/map_layers.json`.
 
-Validated public upstreams have processed:
+Each map layer declares:
 
-- UCDP Armed Conflict 26.1: 2,816 conflict-year rows;
-- 628 reconstructed continuous UCDP episodes across 303 conflict IDs;
-- 1,928 UCDP actors;
-- 1,000 deterministic pre-gold identity labels;
-- NGA World Port Index: 3,807 ports and 300 structural candidates;
-- World Bank: 217 countries and 4,860 recent observations across five indicators;
-- UN consolidated sanctions: 1,011 unique IDs in the validated snapshot;
-- UK Sanctions List: 6,334 Unique IDs in the validated snapshot.
+- source/provenance;
+- semantic class: `OBSERVADO`, `INFORMADO`, `ESTIMADO` or `INFERIDO`;
+- evidentiary role (`evidence` or `context`);
+- default visibility;
+- refresh interval;
+- freshness expectation;
+- an operator-facing interpretation note.
 
-v0.13 additionally generates:
+Current governed layers are conflicts, critical infrastructure, physical context, network context, public aircraft observations and AIS vessels. Aircraft route context is not represented as a confirmed flight plan. AIS destination/ETA values are self-reported when present; vessel origin requires explicit historical inference.
 
-- 150 prioritized research-coded UCDP chronologies;
-- an explicit queue of human-gold review candidates, never auto-labelled gold;
-- at least 200 frozen historical forecast questions;
-- horizons of 1, 7, 30 and 90 days;
-- rolling temporal evaluation by year, region and source mix.
+The production dashboard is authenticated by a signed private session. Machine consumers may use the Bearer contract. Secrets are not embedded in browser JavaScript.
 
-Historical forecasts are retrospective benchmarks, not a fabricated historical live track record.
+## Runtime and storage
 
-## Strategic knowledge
+Production structured storage is PostgreSQL/PostGIS. RAW evidence can be stored compressed in PostgreSQL or in GCS. Source freshness, checkpoints, provenance, source health and run history are preserved separately from analytical conclusions.
 
-The structured geopolitical knowledge layer includes competing theoretical lenses, country profiles, actor profiles, security systems, strategic infrastructure, sanctions, historical cases, geoeconomic context and escalation indicators.
+The production web process does not need to run the batch collector internally when the external Cloud Scheduler path is configured. This avoids duplicate collection and makes collection independently observable/retryable.
 
-v0.13 enriches Tier-2 countries to the >=80% coverage target and expands the reviewed structural actor library beyond 50 entries. Current activity still requires live sources.
+## Validation and release gate
 
-Five core chokepoint scenario templates are maintained for:
+A release is not accepted from a subset of tests. `.github/workflows/test.yml` executes the cumulative full-project gate against the exact commit.
 
-- Strait of Hormuz;
-- Bab el-Mandeb / Suez;
-- Strait of Malacca;
-- Panama Canal;
-- Turkish Straits.
+The gate covers:
 
-They require dated route-share inputs and uncertainty bands before quantitative use.
+1. compilation of the repository;
+2. validation of all JSON configuration;
+3. import of every `geowatch` module;
+4. the complete unit/contract suite with coverage;
+5. deterministic clustering and episode fixtures at 100% precision/recall;
+6. dependency vulnerability audit;
+7. Bandit static security analysis;
+8. real PostgreSQL/PostGIS plus persistent RAW round trip;
+9. strict production runtime invariants;
+10. Terraform formatting/init/validation;
+11. production Docker build;
+12. authenticated Chromium/Playwright MapLibre smoke test.
 
-## Infrastructure and geoeconomics
+The resulting production container is additionally scanned with Trivy for fixed HIGH/CRITICAL OS and library vulnerabilities. The GCP release workflow rebuilds the exact commit, scans that exact image before publication, pushes it, resolves the immutable registry digest and deploys by digest.
 
-WPI candidates now pass through a promotion-review framework. A port can become `review_ready` from structural signals, but **one source cannot establish reviewed geopolitical criticality** and cannot establish current operational disruption.
+GitHub Actions dependencies are pinned to immutable commit SHAs. Core workflows use current Node-24-compatible action generations.
 
-World Bank observations are attached as dated country context. The geoeconomic dependency utilities are designed for dated trade/energy/agriculture observations and preserve missing values instead of interpreting absence as zero.
+## Public-source coverage
 
-## Readiness
+Credential-free or public upstreams already represented in the architecture include GDELT, GDACS, UCDP public bulk datasets, NGA World Port Index, World Bank, UN/UK sanctions, USGS, IODA/RIPEstat, UN LOCODE and bounded UN Comtrade workflows where applicable.
 
-`GET /v2/readiness` exposes a conservative weighted project-state estimate of approximately **0.86** for v0.13. This is **not intelligence accuracy**.
+Restricted or credentialed sources remain disabled until their terms/credentials are explicitly approved. The existence of an adapter never implies authorization to collect a source.
 
-Hard gates still open:
+Public aircraft observations use ADSB.lol through the private backend. AISStream integration is server-side only and remains inert without `AISSTREAM_API_KEY`.
 
-- live GCP production smoke;
-- database restore/PITR drill evidence;
-- credentials/terms approval for all enabled restricted production sources;
-- reviewed large historical out-of-sample validation / human-gold evidence;
-- final security, cost and source-rights audit evidence.
+## Historical validation and forecasting
 
-The release-audit layer emits an explicit v1 go/no-go and cannot infer those gates from repository code or CI.
+The repository contains historical conflict reconstruction, human-review queues, no-lookahead historical benchmarks, prospective forecast ledgers, calibration metrics and multi-horizon templates. Historical or research-coded data never impersonates a historical live prediction record.
 
-## Source state
+Formal scientific readiness is a separate gate from software readiness. The repository must not claim validated intelligence accuracy merely because CI passes.
 
-Public layers validated without restricted API credentials include GDELT, GDACS, UCDP bulk datasets under their published terms, NGA World Port Index, World Bank API and official UN/UK sanctions sources.
+## Remaining external production gates
 
-Supported but not marked production-active until their gates are satisfied: tokenized UCDP API if needed, ReliefWeb, NASA FIRMS and ACLED.
+The repository can validate its software and infrastructure definitions, but it cannot self-certify external conditions. Final external evidence still includes live GCP smoke after deployment, database backup/restore/PITR drill, approved credentials/terms for each restricted source that is enabled, sufficient reviewed human-gold/out-of-sample evidence, and final operational cost/security/source-rights review.
 
-## Deployment state
-
-Cloud Run, Cloud Scheduler, GCS and PostgreSQL/PostGIS deployment assets exist. Live GCP deployment, database restore evidence and restricted-source activation remain external execution gates and are not implied by repository CI or the GitHub-hosted Beta.
-
-## Release state
-
-- v0.3 standalone baseline — complete.
-- v0.4 history/quality — complete.
-- v0.5 convergence engine — complete.
-- v0.6 operational data layer — complete in code/CI; live deployment external.
-- v0.7 product/alert layer — complete.
-- v0.8 geopolitical knowledge + validation — complete.
-- v0.9 strategic intelligence + historical learning — complete.
-- v0.10 empirical intelligence + production readiness — complete.
-- v0.11 accelerated production/empirical validation — complete.
-- v0.12 reliable public Beta + empirical history — complete.
-- v0.13 operational intelligence — release requires cumulative and live-upstream CI gates; external v1 hard gates remain separate.
+These gates are intentionally not inferred from repository code.
