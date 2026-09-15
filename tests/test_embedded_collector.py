@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from geowatch.embedded_collector import enabled, interval_seconds, reset_for_tests, run_once, status
+from geowatch.embedded_collector import config_path, enabled, interval_seconds, reset_for_tests, run_once, status
 
 
 class EmbeddedCollectorTests(unittest.TestCase):
@@ -18,6 +18,16 @@ class EmbeddedCollectorTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             self.assertFalse(enabled())
             self.assertFalse(status()["enabled"])
+            self.assertEqual(config_path(), "config/sources.public-beta.json")
+
+    def test_replit_deployment_uses_production_profile(self) -> None:
+        with patch.dict(os.environ, {"REPLIT_DEPLOYMENT": "1"}, clear=True):
+            self.assertEqual(config_path(), "config/sources.production.json")
+
+    def test_explicit_config_overrides_runtime_default(self) -> None:
+        env = {"REPLIT_DEPLOYMENT": "1", "GEOWATCH_COLLECT_CONFIG": "config/custom.json"}
+        with patch.dict(os.environ, env, clear=True):
+            self.assertEqual(config_path(), "config/custom.json")
 
     def test_interval_is_bounded(self) -> None:
         with patch.dict(os.environ, {"GEOWATCH_COLLECT_INTERVAL_SECONDS": "10"}, clear=True):
