@@ -16,6 +16,7 @@ from .live_vessels import ensure_started as ensure_vessel_started, vessel_snapsh
 from .login_guard import clear_login_failures, login_allowed, record_login_failure
 from .runtime_guard import validate_production_runtime
 from .runtime_readiness import build_runtime_readiness
+from .source_health import build_source_health
 from .source_registry import load_registry
 from .storage_factory import open_store
 from .web_auth import clear_cookie, login_html, session_cookie, verify_login_body, verify_session
@@ -108,12 +109,15 @@ class PrivateHandler(BaseHandler):
             "/v2/runtime/collector",
             "/v2/runtime/readiness",
             "/v2/runtime/source-scheduler",
+            "/v2/source-health",
             "/v2/architecture/status",
             "/v2/architecture/sources",
             "/v2/architecture/ai-roles",
             "/v2/context/physical",
             "/v2/context/network",
             "/v2/verification/episode",
+            "/v2/sanctions/summary",
+            "/v2/satellite/catalog",
             "/v2/live/vessels",
         }
         if path in private_runtime_paths:
@@ -131,8 +135,8 @@ class PrivateHandler(BaseHandler):
                 return self._send_json(200, load_registry().summary())
             if path == "/v2/architecture/ai-roles":
                 return self._send_json(200, load_ai_roles().summary())
-            if path in {"/v2/context/physical", "/v2/context/network", "/v2/verification/episode"}:
-                return self._context_or_verification(path, query)
+            if path in {"/v2/context/physical", "/v2/context/network", "/v2/verification/episode", "/v2/source-health", "/v2/sanctions/summary", "/v2/satellite/catalog"}:
+                return self._data_view(path, query)
             try:
                 return self._send_json(200, vessel_snapshot(
                     south=_query_one(query, "south"),
@@ -151,9 +155,11 @@ class PrivateHandler(BaseHandler):
                 self.headers.add_header("Authorization", f"Bearer {API_TOKEN}")
         return super().do_GET()
 
-    def _context_or_verification(self, path: str, query: dict[str, list[str]]) -> None:
+    def _data_view(self, path: str, query: dict[str, list[str]]) -> None:
         store = open_store()
         try:
+            if path == "/v2/source-health":
+                return self._send_json(200, build_source_health(store))
             if path == "/v2/context/physical":
                 return self._send_json(200, build_context_feed(
                     store,
@@ -168,6 +174,19 @@ class PrivateHandler(BaseHandler):
                     hours=_query_int(query, "hours", 24, 1, 24 * 30),
                     limit=_query_int(query, "limit", 1000, 1, 5000),
                 ))
+            if path == "/v2/sanctions/summary":
+                return self._send_json(200, self._sanctions_summary(store))
+            if path == "/v2/satellite/catalog":
+                report = store.latest_report("satellite_catalog_celestrak")
+                if report is None:
+                    return self._send_json(404, {"error": "satellite catalog not available"})
+                limit = _query_int(query, "limit", 500, 1, 5000)
+                satellites = list(report.get("satellites") or [])[:limit]
+                return self._send_json(200, {
+                    **{key: value for key, value in report.items() if key != "satellites"},
+                    "returned_count": len(satellites),
+                    "satellites": satellites,
+                })
             episode_id = (_query_one(query, "episode_id") or "").strip()
             if not episode_id or len(episode_id) > 128:
                 return self._send_json(400, {"error": "episode_id is required"})
@@ -185,6 +204,37 @@ class PrivateHandler(BaseHandler):
             })
         finally:
             store.close()
+
+    @staticmethod
+    def _sanctions_summary(store) -> dict[str, object]:
+        authorities: dict[str, object] = {}
+        for source_id in ("unsc_sanctions", "uk_sanctions"):
+            report = store.latest_report(f"sanctions_snapshot_{source_id}")
+            if report is None:
+                authorities[source_id] = {"status": "not_available"}
+                continue
+            diff = report.get("diff") or {}
+            authorities[source_id] = {
+                "status": "available",
+                "generated_at": report.get("generated_at"),
+                "designation_count": report.get("designation_count"),
+                "sha256": report.get("sha256"),
+                "changes": {
+                    "added": len(diff.get("added", [])) if isinstance(diff, dict) else 0,
+                    "removed": len(diff.get("removed", [])) if isinstance(diff, dict) else 0,
+                    "modified": len(diff.get("modified", [])) if isinstance(diff, dict) else 0,
+                    "baseline_snapshot": bool(diff.get("baseline_snapshot", False)) if isinstance(diff, dict) else False,
+                },
+            }
+        return {
+            "schema_version": "geowatch-sanctions-summary-v1",
+            "authorities": authorities,
+            "ofac": {
+                "status": "blocked_endpoint_validation",
+                "detail": "OFAC parser/registry exist; automated refresh remains disabled until a current SLS export/API endpoint is validated.",
+            },
+            "legal_effect_requires_jurisdiction_specific_review": True,
+        }
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"
