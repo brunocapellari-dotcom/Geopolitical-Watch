@@ -107,7 +107,7 @@ print('strict production guard: ok')
 PY
 
 printf '\n== 10/12 Terraform format/init/validate ==\n'
-terraform fmt -check -recursive infra/gcp
+terraform fmt -check -diff -recursive infra/gcp
 terraform -chdir=infra/gcp init -backend=false -input=false >/tmp/geowatch-terraform-init.log
 terraform -chdir=infra/gcp validate
 
