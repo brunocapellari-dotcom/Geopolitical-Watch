@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping
 
 from .history import parse_utc
 from .models import Claim, Event, EvidenceRef
-from .quality import SourceProfile
+from .quality import SourceProfile, load_profiles
 from .verdict import VerdictInput, VerdictResult, assess_claim
 
 _LEVEL_RELIABILITY = {
@@ -22,6 +22,7 @@ def verify_claim(
     events: Mapping[str, Event],
     source_profiles: Mapping[str, SourceProfile] | None = None,
 ) -> VerdictResult:
+    source_profiles = source_profiles if source_profiles is not None else load_profiles("config/source_quality.json")
     rows = [evidence[eid] for eid in claim.evidence_ids if eid in evidence]
     linked_events = [events[row.event_id] for row in rows if row.event_id in events]
 
@@ -34,7 +35,7 @@ def verify_claim(
     official_source_count = sum(
         1
         for source_id in source_ids
-        if source_profiles and source_profiles.get(source_id) and source_profiles[source_id].official_or_primary
+        if source_profiles.get(source_id) and source_profiles[source_id].official_or_primary
     )
     physical_rows = [row for row in rows if row.verification_level == "sensor_signal"]
     support_count = sum(1 for row in rows if row.relation in {"supports", "reports", "updates"})
@@ -45,7 +46,7 @@ def verify_claim(
     reliability_values = []
     for row in rows:
         value = _LEVEL_RELIABILITY.get(row.verification_level, 0.45)
-        profile = source_profiles.get(row.source_id) if source_profiles else None
+        profile = source_profiles.get(row.source_id)
         if profile and profile.official_or_primary:
             value = max(value, 0.94)
         reliability_values.append(value)
@@ -75,6 +76,7 @@ def verify_claims(
     events: Iterable[Event],
     source_profiles: Mapping[str, SourceProfile] | None = None,
 ) -> dict[str, VerdictResult]:
+    profiles = source_profiles if source_profiles is not None else load_profiles("config/source_quality.json")
     evidence_map = {row.evidence_id: row for row in evidence}
     event_map = {row.event_id: row for row in events}
     return {
@@ -82,7 +84,7 @@ def verify_claims(
             claim,
             evidence=evidence_map,
             events=event_map,
-            source_profiles=source_profiles,
+            source_profiles=profiles,
         )
         for claim in claims
     }
