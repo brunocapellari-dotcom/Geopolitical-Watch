@@ -192,9 +192,9 @@ resource "google_sql_database_instance" "main" {
     disk_autoresize   = true
 
     backup_configuration {
-      enabled                         = true
+      enabled                        = true
       point_in_time_recovery_enabled = true
-      start_time                      = "03:00"
+      start_time                     = "03:00"
     }
 
     ip_configuration {
