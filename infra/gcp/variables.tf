@@ -59,6 +59,12 @@ variable "database_high_availability" {
   default     = false
 }
 
+variable "runtime_subnet_cidr" {
+  description = "Dedicated private subnet used by Cloud Run Direct VPC egress. Must not overlap with other project networks."
+  type        = string
+  default     = "10.24.0.0/24"
+}
+
 variable "scheduler_cron" {
   description = "Cloud Scheduler cadence. The internal registry decides which sources are actually due."
   type        = string
