@@ -7,6 +7,7 @@ import os
 from ..core import stable_event_id, utc_now_iso
 from ..http import get
 from ..models import Event
+from ..security_redaction import redact_url
 
 BASE_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
 
@@ -16,11 +17,13 @@ def collect(*, map_key: str | None = None, sensor: str = "VIIRS_SNPP_NRT", area:
     if not map_key:
         raise RuntimeError("FIRMS_MAP_KEY is required")
     day_range = min(max(day_range, 1), 5)
-    url = f"{BASE_URL}/{map_key}/{sensor}/{area}/{day_range}"
+    request_url = f"{BASE_URL}/{map_key}/{sensor}/{area}/{day_range}"
     if date:
-        url += f"/{date}"
-    response = get(url, timeout=timeout)
-    return response.payload, response.url
+        request_url += f"/{date}"
+    response = get(request_url, timeout=timeout)
+    # FIRMS places MAP_KEY in the URL path. Provenance must never persist it.
+    observed_url = redact_url(response.url, secret_path_values=(map_key,))
+    return response.payload, observed_url
 
 
 def parse(payload: bytes, *, source_id: str = "nasa_firms", collected_at: str | None = None, raw_ref: str | None = None) -> list[Event]:
