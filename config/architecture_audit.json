@@ -1,0 +1,32 @@
+{
+  "schema_version": "geowatch-architecture-audit-v1",
+  "as_of": "2026-09-15",
+  "statuses": ["ACTIVE", "BLOCKED", "PARTIAL", "PLANNED", "REFERENCE"],
+  "domains": [
+    {"domain":"news","status":"PARTIAL","implemented":["GDELT","publisher-aware clustering","raw provenance"],"missing":["broader registered news feeds","publisher-level health"]},
+    {"domain":"ACLED","status":"BLOCKED","implemented":["OAuth adapter","cursor collection","normalization","backfill"],"blockers":["credentials","terms review"]},
+    {"domain":"GDELT","status":"ACTIVE","implemented":["incremental collection","checkpoints","raw evidence","clustering"]},
+    {"domain":"UCDP","status":"BLOCKED","implemented":["GED adapter","versioned backfill"],"blockers":["UCDP_API_TOKEN","terms/version gate"]},
+    {"domain":"AIS","status":"BLOCKED","implemented":["AISStream collector","strategic bounding boxes","map layer","static/voyage fields"],"blockers":["AISSTREAM_API_KEY","always-on runtime for continuous tracking"]},
+    {"domain":"ADS-B","status":"PARTIAL","implemented":["ADSB.lol backend","map layer","plausible route context"],"missing":["ADS-B Exchange adapter","OpenSky adapter after rights review"]},
+    {"domain":"satellite","status":"PARTIAL","implemented":["FIRMS adapter","satellite AI contract"],"missing":["Copernicus Data Space","Copernicus EMS","CelesTrak","Space-Track"]},
+    {"domain":"FIRMS","status":"BLOCKED","implemented":["collector","parser","thermal-anomaly semantics","secret-safe provenance"],"blockers":["FIRMS_MAP_KEY","activation/terms gate"]},
+    {"domain":"infrastructure","status":"PARTIAL","implemented":["critical infrastructure graph","WPI runtime","taxonomy"],"missing":["OSM/Overpass collector","additional official infrastructure datasets","provenance-backed expansion"]},
+    {"domain":"BGP","status":"PLANNED","registered":["RIPEstat"],"missing":["collector","baseline","normalization","map layer"]},
+    {"domain":"internet","status":"PLANNED","registered":["IODA"],"missing":["collector","baseline","normalization","map layer"]},
+    {"domain":"humanitarian","status":"PARTIAL","implemented":["GDACS","ReliefWeb adapter"],"missing":["HDX","IOM DTM","ACAPS","ReliefWeb activation"]},
+    {"domain":"sanctions","status":"ACTIVE","implemented":["UNSC","OFAC","UK","designation diff"]},
+    {"domain":"OSINT","status":"PARTIAL","implemented":["hostile-content boundary","HTML sanitization","SSRF controls","tracking removal","quarantine contract","prompt-injection marking"],"missing":["isolated Telegram collector","isolated public-web collector","sandbox service"]},
+    {"domain":"maps","status":"PARTIAL","implemented":["conflicts","critical infrastructure","aircraft","AIS"],"missing":["satellite","BGP","internet","humanitarian layers after real collectors exist"]},
+    {"domain":"alerts","status":"PARTIAL","implemented":["episode/change policies","outbox"],"missing":["verdict-aware alert gate","source-health suppression"]},
+    {"domain":"verification","status":"PARTIAL","implemented":["claims","evidence refs","reconciliation","evidence strength","canonical Verdict Engine"],"missing":["verdict persistence","API/UI integration","historical calibration"]}
+  ],
+  "release_gate": {
+    "replit_allowed": false,
+    "reasons": [
+      "GitHub Actions runner currently exits before executing steps",
+      "new architecture contracts have not yet completed full repository integration smoke",
+      "autonomous per-source scheduler must not run concurrently with legacy embedded collection"
+    ]
+  }
+}
