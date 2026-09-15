@@ -1,6 +1,6 @@
 output "web_url" {
-  description = "Cloud Run URL for the private site. The URL is network-reachable but application-authenticated."
-  value       = google_cloud_run_v2_service.web.uri
+  description = "Cloud Run URL for the private site. Null during foundation-only bootstrap."
+  value       = var.deploy_runtime ? google_cloud_run_v2_service.web[0].uri : null
 }
 
 output "cloud_sql_connection_name" {
@@ -16,7 +16,8 @@ output "artifact_repository" {
 }
 
 output "scheduler_job_name" {
-  value = google_cloud_scheduler_job.source_tick.name
+  description = "Cloud Scheduler job name after runtime activation."
+  value       = var.deploy_runtime ? google_cloud_scheduler_job.source_tick[0].name : null
 }
 
 output "github_workload_identity_provider" {
