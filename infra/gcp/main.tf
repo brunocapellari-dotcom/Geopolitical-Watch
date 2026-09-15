@@ -8,7 +8,9 @@ locals {
 
   required_apis = toset([
     "artifactregistry.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
     "cloudscheduler.googleapis.com",
+    "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
@@ -221,17 +223,50 @@ resource "google_cloud_run_v2_service" "web" {
         mount_path = "/cloudsql"
       }
 
-      env { name = "GEOWATCH_STRICT_PRODUCTION" value = "1" }
-      env { name = "GEOWATCH_EXTERNAL_SCHEDULER" value = "1" }
-      env { name = "GEOWATCH_SOURCE_SCHEDULER" value = "0" }
-      env { name = "GEOWATCH_EMBEDDED_COLLECTOR" value = "0" }
-      env { name = "GEOWATCH_COOKIE_SECURE" value = "1" }
-      env { name = "GEOWATCH_WPI_RUNTIME" value = "1" }
-      env { name = "GEOWATCH_ALWAYS_ON" value = var.enable_continuous_ais ? "1" : "0" }
-      env { name = "GEOWATCH_RAW_BUCKET" value = google_storage_bucket.raw.name }
-      env { name = "GEOWATCH_DB_USER" value = local.database_user }
-      env { name = "GEOWATCH_DB_NAME" value = local.database_name }
-      env { name = "GEOWATCH_DB_HOST" value = "/cloudsql/${google_sql_database_instance.main.connection_name}" }
+      env {
+        name  = "GEOWATCH_STRICT_PRODUCTION"
+        value = "1"
+      }
+      env {
+        name  = "GEOWATCH_EXTERNAL_SCHEDULER"
+        value = "1"
+      }
+      env {
+        name  = "GEOWATCH_SOURCE_SCHEDULER"
+        value = "0"
+      }
+      env {
+        name  = "GEOWATCH_EMBEDDED_COLLECTOR"
+        value = "0"
+      }
+      env {
+        name  = "GEOWATCH_COOKIE_SECURE"
+        value = "1"
+      }
+      env {
+        name  = "GEOWATCH_WPI_RUNTIME"
+        value = "1"
+      }
+      env {
+        name  = "GEOWATCH_ALWAYS_ON"
+        value = var.enable_continuous_ais ? "1" : "0"
+      }
+      env {
+        name  = "GEOWATCH_RAW_BUCKET"
+        value = google_storage_bucket.raw.name
+      }
+      env {
+        name  = "GEOWATCH_DB_USER"
+        value = local.database_user
+      }
+      env {
+        name  = "GEOWATCH_DB_NAME"
+        value = local.database_name
+      }
+      env {
+        name  = "GEOWATCH_DB_HOST"
+        value = "/cloudsql/${google_sql_database_instance.main.connection_name}"
+      }
 
       env {
         name = "GEOWATCH_DB_PASSWORD"
@@ -278,9 +313,6 @@ resource "google_cloud_run_v2_service" "web" {
   ]
 }
 
-# The URL is reachable so the application's signed-session login can work in a
-# normal browser. Every data endpoint remains protected by the application layer;
-# /health is intentionally public for platform health checks.
 resource "google_cloud_run_v2_service_iam_member" "web_public_invoker" {
   project  = var.project_id
   location = google_cloud_run_v2_service.web.location
@@ -324,11 +356,26 @@ resource "google_cloud_run_v2_job" "source_tick" {
           mount_path = "/cloudsql"
         }
 
-        env { name = "GEOWATCH_RAW_BUCKET" value = google_storage_bucket.raw.name }
-        env { name = "GEOWATCH_DB_USER" value = local.database_user }
-        env { name = "GEOWATCH_DB_NAME" value = local.database_name }
-        env { name = "GEOWATCH_DB_HOST" value = "/cloudsql/${google_sql_database_instance.main.connection_name}" }
-        env { name = "GEOWATCH_ANALYSIS_CONFIG" value = "config/sources.production.json" }
+        env {
+          name  = "GEOWATCH_RAW_BUCKET"
+          value = google_storage_bucket.raw.name
+        }
+        env {
+          name  = "GEOWATCH_DB_USER"
+          value = local.database_user
+        }
+        env {
+          name  = "GEOWATCH_DB_NAME"
+          value = local.database_name
+        }
+        env {
+          name  = "GEOWATCH_DB_HOST"
+          value = "/cloudsql/${google_sql_database_instance.main.connection_name}"
+        }
+        env {
+          name  = "GEOWATCH_ANALYSIS_CONFIG"
+          value = "config/sources.production.json"
+        }
 
         env {
           name = "GEOWATCH_DB_PASSWORD"
@@ -396,6 +443,7 @@ resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "geowatch-github"
   display_name              = "Geowatch GitHub"
   description               = "Keyless GitHub Actions federation for Geopolitical-Watch"
+  depends_on                = [google_project_service.required]
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
