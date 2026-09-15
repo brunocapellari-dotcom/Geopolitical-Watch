@@ -48,6 +48,17 @@ class ArchitectureV015Tests(unittest.TestCase):
         self.assertNotIn("adsb_lol_live", due)
         self.assertNotIn("acled_events", due)
 
+    def test_acled_accepts_token_or_username_password_credentials(self) -> None:
+        registry = load_registry()
+        acled = registry.get("acled_events")
+        self.assertIsNotNone(acled)
+        with patch.dict(os.environ, {"ACLED_ACCESS_TOKEN": "token-value"}, clear=True):
+            self.assertTrue(acled.credentials_ready())
+        with patch.dict(os.environ, {"ACLED_USERNAME": "person@example.com", "ACLED_PASSWORD": "secret-value"}, clear=True):
+            self.assertTrue(acled.credentials_ready())
+        with patch.dict(os.environ, {"ACLED_USERNAME": "person@example.com"}, clear=True):
+            self.assertFalse(acled.credentials_ready())
+
     def test_all_ai_roles_and_verification_separation_exist(self) -> None:
         roles = load_ai_roles()
         summary = roles.summary()
@@ -62,7 +73,7 @@ class ArchitectureV015Tests(unittest.TestCase):
         self.assertEqual(confirmed.verdict, "CONFIRMADO")
 
         probable = assess_claim(VerdictInput(
-            "c2", 0.8, 0.6, 2, 2, 0, 0, 2, 0, 0.75,
+            "c2", 0.8, 0.6, 2, 2, 1, 0, 2, 0, 0.75,
         ))
         self.assertEqual(probable.verdict, "PROVÁVEL")
 
@@ -138,7 +149,7 @@ class ArchitectureV015Tests(unittest.TestCase):
             payload, url = firms.collect(map_key="secret-key")
         self.assertTrue(payload)
         self.assertNotIn("secret-key", url)
-        self.assertIn("%5BREDACTED%5D" if "%5B" in url else "[REDACTED]", url)
+        self.assertIn("[REDACTED]", url)
 
     def test_local_raw_evidence_is_immutable_and_tracks_first_last_seen(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
