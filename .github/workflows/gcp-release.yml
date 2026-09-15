@@ -1,0 +1,104 @@
+name: gcp-production-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DEPLOY to publish this exact main commit to Google Cloud"
+        required: true
+        type: string
+
+jobs:
+  full-project-gate:
+    uses: ./.github/workflows/test.yml
+
+  deploy:
+    needs: full-project-gate
+    if: ${{ inputs.confirm == 'DEPLOY' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION || 'southamerica-east1' }}
+      SERVICE_NAME: geowatch-monitor
+      JOB_NAME: geowatch-source-tick
+
+    steps:
+      - name: Require GCP repository variables
+        run: |
+          test -n "$PROJECT_ID"
+          test -n "${{ vars.GCP_WIF_PROVIDER }}"
+          test -n "${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}"
+
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud without a service-account key
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Configure Artifact Registry Docker authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push immutable commit image
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/geowatch/geowatch:${GITHUB_SHA}"
+          docker build --pull -t "$IMAGE" .
+          docker push "$IMAGE"
+          DIGEST="$(gcloud artifacts docker images list "${REGION}-docker.pkg.dev/${PROJECT_ID}/geowatch/geowatch" --include-tags --filter="tags:${GITHUB_SHA}" --format='value(version)' --limit=1)"
+          test -n "$DIGEST"
+          PINNED="${REGION}-docker.pkg.dev/${PROJECT_ID}/geowatch/geowatch@${DIGEST}"
+          echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
+
+      - name: Update Cloud Run website to exact image digest
+        run: |
+          gcloud run services update "$SERVICE_NAME" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --image "${{ steps.image.outputs.pinned }}" \
+            --quiet
+
+      - name: Update scheduler job to exact image digest
+        run: |
+          gcloud run jobs update "$JOB_NAME" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --image "${{ steps.image.outputs.pinned }}" \
+            --quiet
+
+      - name: Execute one production source tick
+        run: |
+          gcloud run jobs execute "$JOB_NAME" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --wait
+
+      - name: Smoke deployed health endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="$(gcloud run services describe "$SERVICE_NAME" --project "$PROJECT_ID" --region "$REGION" --format='value(status.url)')"
+          test -n "$URL"
+          for _ in {1..20}; do
+            if curl --fail --silent "$URL/health" | grep -q 'geopolitical-watch'; then
+              echo "production health: ok"
+              exit 0
+            fi
+            sleep 3
+          done
+          exit 1
