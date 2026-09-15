@@ -3,11 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
-from typing import Iterable
+from typing import Iterable, Mapping
 
+from .claim_verification import verify_claims
 from .escalation import EscalationLibrary
 from .geopolitics import GeopoliticalKnowledge
 from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef
+from .quality import SourceProfile
 from .strategic_graph import StrategicGraph
 
 
@@ -23,12 +25,19 @@ def build_episode_report(
     geopolitical_knowledge: GeopoliticalKnowledge | None = None,
     strategic_graph: StrategicGraph | None = None,
     escalation_library: EscalationLibrary | None = None,
+    source_profiles: Mapping[str, SourceProfile] | None = None,
 ) -> dict:
     generated = generated_at or datetime.now(timezone.utc).isoformat()
     claim_map: dict[str, Claim] = {claim.claim_id: claim for claim in claims}
     evidence_map: dict[str, EvidenceRef] = {row.evidence_id: row for row in evidence}
     entity_map: dict[str, Entity] = {entity.entity_id: entity for entity in entities}
     event_map: dict[str, Event] = {event.event_id: event for event in events}
+    claim_verdicts = verify_claims(
+        claim_map.values(),
+        evidence=evidence_map.values(),
+        events=event_map.values(),
+        source_profiles=source_profiles,
+    )
     if geopolitical_knowledge is None:
         try:
             geopolitical_knowledge = GeopoliticalKnowledge.from_files()
@@ -74,7 +83,13 @@ def build_episode_report(
         )
         rows.append({
             **episode.to_dict(),
-            "claims": [claim.to_dict() for claim in sorted(ep_claims, key=lambda c: c.last_seen_at, reverse=True)],
+            "claims": [
+                {
+                    **claim.to_dict(),
+                    "verification": claim_verdicts[claim.claim_id].to_dict(),
+                }
+                for claim in sorted(ep_claims, key=lambda c: c.last_seen_at, reverse=True)
+            ],
             "evidence": [row.to_dict() for row in sorted(ep_evidence, key=lambda e: e.observed_at, reverse=True)],
             "entities": [entity.to_dict() for entity in ep_entities],
             "recent_events": [event.to_dict() for event in sorted(ep_events, key=lambda e: e.reference_at, reverse=True)[:20]],
@@ -84,18 +99,20 @@ def build_episode_report(
             "methodology_notes": [
                 "Episode state is a deterministic analytical state derived from preserved claims/events; it is not an official conflict classification.",
                 "Evidence strength is a decomposed heuristic index and must not be interpreted as probability that a claim is true.",
+                "Claim verification uses the canonical deterministic Verdict Engine and exposes its factors; confidence is an evidence score, not a calibrated probability until historical calibration is completed.",
                 "Contradictions, corrections and retractions remain in the episode lineage instead of being overwritten.",
                 "Geopolitical knowledge, strategic-graph relations and escalation indicators are non-evidentiary context and cannot verify an event, claim, attribution or intent.",
             ],
         })
     report_id = "epr_" + hashlib.sha256((generated + "|" + "|".join(str(row["episode_id"]) for row in rows)).encode()).hexdigest()[:20]
     return {
-        "schema_version": "geowatch-episode-report-v1",
+        "schema_version": "geowatch-episode-report-v2",
         "report_id": report_id,
         "report_type": "episode_situational",
         "generated_at": generated,
         "episode_count": len(rows),
         "episodes": rows,
+        "verification_method": "geowatch-verdict-v1",
     }
 
 
@@ -140,7 +157,10 @@ def render_episode_markdown(report: dict) -> str:
         if claims:
             lines += ["", "### Claims", ""]
             for claim in claims[:20]:
-                lines.append(f"- [{claim['status']}] {claim['statement']} — {claim['claim_type']}")
+                verification = claim.get("verification") or {}
+                verdict = verification.get("verdict", "NÃO VERIFICADO")
+                confidence = verification.get("confidence", 0)
+                lines.append(f"- [{verdict} | confiança {confidence}] {claim['statement']} — {claim['claim_type']} (claim status: {claim['status']})")
         context = episode.get("strategic_context") or {}
         concepts = context.get("matched_concepts") or []
         if concepts:
