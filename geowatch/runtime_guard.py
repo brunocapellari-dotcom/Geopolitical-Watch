@@ -22,17 +22,24 @@ def strict_production_mode() -> bool:
 def production_requirements() -> dict[str, bool]:
     token = os.environ.get("GEOWATCH_API_TOKEN", "")
     cookie_value = os.environ.get("GEOWATCH_COOKIE_SECURE", "1").strip().casefold()
+    embedded = _flag("GEOWATCH_EMBEDDED_COLLECTOR")
+    scheduler = _flag("GEOWATCH_SOURCE_SCHEDULER")
     return {
         "private_auth_secret": len(token) >= _MIN_PRODUCTION_SECRET_LENGTH,
         "persistent_database": backend_name() == "postgresql-postgis",
         "persistent_raw_evidence": raw_backend_name() in {"postgresql-compressed", "gcs"},
-        "embedded_collector": _flag("GEOWATCH_EMBEDDED_COLLECTOR"),
+        "collection_path_configured": embedded ^ scheduler,
+        "duplicate_collectors_disabled": not (embedded and scheduler),
         "secure_cookie": cookie_value not in _FALSE,
     }
 
 
 def validate_production_runtime() -> dict[str, bool]:
-    """Raise before binding a public port when a production requirement is missing."""
+    """Raise before binding a public port when a production requirement is missing.
+
+    Exactly one batch collection mode is allowed. The registry scheduler is the
+    preferred mode; the embedded legacy collector remains only as a rollback path.
+    """
     checks = production_requirements()
     if not strict_production_mode():
         return checks
