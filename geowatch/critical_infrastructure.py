@@ -11,6 +11,7 @@ class CriticalInfrastructureGraph:
         self.nodes = {row["node_id"]: row for row in payload.get("nodes", [])}
         self.edges = list(payload.get("edges", []))
         self.source_status = dict(payload.get("source_status") or {})
+        self.taxonomy = list(payload.get("taxonomy") or [])
         self.adj: dict[str, set[str]] = defaultdict(set)
         for edge in self.edges:
             self.adj[edge["from"]].add(edge["to"])
@@ -22,6 +23,7 @@ class CriticalInfrastructureGraph:
         path: str | Path = "config/geopolitics/critical_infrastructure.json",
         supplement_path: str | Path = "config/geopolitics/critical_infrastructure_v011.json",
         wpi_path: str | Path = "generated/wpi/critical_port_candidates.json",
+        taxonomy_path: str | Path = "config/geopolitics/infrastructure_taxonomy.json",
     ) -> "CriticalInfrastructureGraph":
         payload = json.loads(Path(path).read_text(encoding="utf-8"))
         nodes = list(payload.get("nodes", []))
@@ -64,7 +66,19 @@ class CriticalInfrastructureGraph:
                 nodes.append(row)
                 node_ids.add(row["node_id"])
 
-        return cls({**payload, "nodes": nodes, "edges": edges, "source_status": source_status})
+        taxonomy: list[dict] = []
+        taxonomy_file = Path(taxonomy_path)
+        if taxonomy_file.exists():
+            taxonomy_payload = json.loads(taxonomy_file.read_text(encoding="utf-8"))
+            taxonomy = list(taxonomy_payload.get("classes", []))
+
+        return cls({
+            **payload,
+            "nodes": nodes,
+            "edges": edges,
+            "source_status": source_status,
+            "taxonomy": taxonomy,
+        })
 
     @staticmethod
     def _normalize_wpi_node(row: dict) -> dict:
@@ -114,12 +128,20 @@ class CriticalInfrastructureGraph:
             by_type[row.get("type", "unknown")] += 1
             if row.get("latitude") is not None and row.get("longitude") is not None:
                 geocoded += 1
+        required_types = [str(row.get("type")) for row in self.taxonomy if row.get("type")]
+        covered_types = sorted(type_name for type_name in required_types if by_type.get(type_name, 0) > 0)
+        missing_types = sorted(type_name for type_name in required_types if by_type.get(type_name, 0) == 0)
         return {
-            "schema_version": "geowatch-critical-infrastructure-summary-v1",
+            "schema_version": "geowatch-critical-infrastructure-summary-v2",
             "node_count": len(self.nodes),
             "edge_count": len(self.edges),
             "geocoded_node_count": geocoded,
             "by_type": dict(sorted(by_type.items())),
+            "required_types": required_types,
+            "covered_types": covered_types,
+            "missing_types": missing_types,
+            "taxonomy_complete": bool(required_types) and not missing_types,
             "source_status": self.source_status,
             "context_not_evidence": True,
+            "structural_context_not_live_status": True,
         }
