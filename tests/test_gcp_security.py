@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 MAIN_TF = ROOT / "infra" / "gcp" / "main.tf"
 VERSIONS_TF = ROOT / "infra" / "gcp" / "versions.tf"
 BACKEND_TF = ROOT / "infra" / "gcp" / "backend.tf"
+VARIABLES_TF = ROOT / "infra" / "gcp" / "variables.tf"
+RELEASE_YML = ROOT / ".github" / "workflows" / "gcp-release.yml"
 
 
 class GcpSecurityArchitectureTests(unittest.TestCase):
@@ -16,6 +18,8 @@ class GcpSecurityArchitectureTests(unittest.TestCase):
         cls.main_tf = MAIN_TF.read_text(encoding="utf-8")
         cls.versions_tf = VERSIONS_TF.read_text(encoding="utf-8")
         cls.backend_tf = BACKEND_TF.read_text(encoding="utf-8")
+        cls.variables_tf = VARIABLES_TF.read_text(encoding="utf-8")
+        cls.release_yml = RELEASE_YML.read_text(encoding="utf-8")
 
     def test_cloud_sql_has_no_public_ipv4_and_requires_encryption(self) -> None:
         self.assertIn('ipv4_enabled                                  = false', self.main_tf)
@@ -52,6 +56,24 @@ class GcpSecurityArchitectureTests(unittest.TestCase):
         self.assertIn('backend "gcs"', self.backend_tf)
         self.assertIn('prefix = "geowatch/terraform/state"', self.backend_tf)
         self.assertNotIn('backend "gcs"', self.versions_tf)
+
+    def test_foundation_can_be_created_before_first_runtime_image(self) -> None:
+        self.assertIn('variable "deploy_runtime"', self.variables_tf)
+        self.assertIn('default     = false', self.variables_tf)
+        self.assertGreaterEqual(self.main_tf.count('count               = var.deploy_runtime ? 1 : 0'), 2)
+        self.assertIn('container_image must be an immutable scanned image when deploy_runtime=true.', self.main_tf)
+
+    def test_single_release_workflow_supports_bootstrap_publish_and_runtime_deploy(self) -> None:
+        self.assertIn("inputs.confirm == 'PUBLISH'", self.release_yml)
+        self.assertIn("inputs.confirm == 'DEPLOY'", self.release_yml)
+        self.assertIn('No Cloud Run runtime was changed by this workflow.', self.release_yml)
+        self.assertNotIn('gcloud run deploy', self.release_yml)
+
+    def test_release_only_changes_runtime_image_after_terraform_provisions_runtime(self) -> None:
+        self.assertIn('ignore_changes = [template[0].containers[0].image]', self.main_tf)
+        self.assertIn('ignore_changes = [template[0].template[0].containers[0].image]', self.main_tf)
+        self.assertIn('gcloud run services update', self.release_yml)
+        self.assertIn('gcloud run jobs update', self.release_yml)
 
 
 if __name__ == "__main__":
