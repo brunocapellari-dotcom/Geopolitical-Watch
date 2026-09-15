@@ -114,9 +114,12 @@ class LiveVesselTests(unittest.TestCase):
 
     def test_dashboard_keeps_ais_opt_in(self) -> None:
         html = dashboard_html()
-        self.assertIn("vessels=L.layerGroup();", html)
-        self.assertNotIn("vessels=L.layerGroup().addTo(map)", html)
-        self.assertIn("setInterval(loadVessels,60000)", html)
+        self.assertIn('data-layer="vessels">AIS', html)
+        self.assertNotIn('data-layer="vessels" checked', html)
+        self.assertIn("if(!visible('vessels'))return", html)
+        self.assertIn("if(visible('vessels'))loadVessels()", html)
+        self.assertIn("60000", html)
+        self.assertIn("maplibre", html.casefold())
 
 
 if __name__ == "__main__":
