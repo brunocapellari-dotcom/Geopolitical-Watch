@@ -80,6 +80,39 @@
       "preferred_use": "improve alias/entity matching around official sanctions records while preserving the official source as the legal authority",
       "must_not_do": "Do not replace official UN, OFAC, UK or other issuing-authority records with an aggregator, and do not ingest datasets before commercial/license terms are cleared.",
       "status": "license_terms_dataset_and_api_review_required"
+    },
+    {
+      "source_id": "imf_portwatch",
+      "name": "IMF PortWatch",
+      "domain": "maritime_trade_and_chokepoints",
+      "priority": "high",
+      "access": "public_platform_and_api_catalog",
+      "intended_role": "structural_and_high_frequency_maritime_disruption_context",
+      "preferred_use": "measure changes in port calls, estimated shipment volumes and critical-passage transit activity as context for conflict and chokepoint disruption analysis",
+      "must_not_do": "Do not represent AIS-derived PortWatch shipment estimates as official customs trade statistics, verified cargo manifests or confirmed voyage intent. Preserve revision and methodology limitations.",
+      "status": "dataset_endpoint_terms_cadence_and_revision_review_required"
+    },
+    {
+      "source_id": "hdx_hapi_humanitarian",
+      "name": "HDX HAPI - The Humanitarian API",
+      "domain": "humanitarian_impact",
+      "priority": "high",
+      "access": "api_with_app_identifier",
+      "intended_role": "standardized_humanitarian_context",
+      "preferred_use": "track displacement, affected populations and humanitarian needs as impact/context signals with provider-level provenance and reference periods",
+      "must_not_do": "Do not use humanitarian population indicators as direct evidence that a combat event occurred or as automatic attribution of responsibility. Preserve underlying provider and update-period metadata.",
+      "status": "identifier_terms_endpoint_schema_and_coverage_review_required"
+    },
+    {
+      "source_id": "cloudflare_radar_outages",
+      "name": "Cloudflare Radar Outages",
+      "domain": "internet_outages",
+      "priority": "hold",
+      "access": "authenticated_api",
+      "intended_role": "independent_network_outage_context",
+      "preferred_use": "potential corroboration of country, regional or ASN-level connectivity outages if commercial data rights are obtained",
+      "must_not_do": "Do not activate the public Radar API dataset in a commercial-capable product while its published data license is CC BY-NC 4.0 unless separate compatible permission is obtained.",
+      "status": "blocked_by_noncommercial_data_license"
     }
   ]
 }
