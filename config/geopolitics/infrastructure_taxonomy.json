@@ -1,0 +1,25 @@
+{
+  "schema_version": "geowatch-critical-infrastructure-taxonomy-v1",
+  "as_of": "2026-09-15",
+  "governance": {
+    "public_strategic_context_only": true,
+    "no_vulnerability_scoring_for_attack": true,
+    "no_exploit_paths": true,
+    "no_operational_status_from_structural_data": true,
+    "coordinates_require_source_provenance": true,
+    "status_requires_dated_evidence": true
+  },
+  "classes": [
+    {"type":"military_base","label":"Bases","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"presence/location only unless dated evidence exists"},
+    {"type":"port","label":"Portos","preferred_sources":["wpi_ports","official_sources","osm_overpass"],"status_semantics":"structural context; operations require current port evidence"},
+    {"type":"airport","label":"Aeroportos","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"structural context; closure/status requires current evidence"},
+    {"type":"nuclear_facility","label":"Nuclear","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"public identity/location and officially reported status only"},
+    {"type":"power_facility","label":"Energia","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"structural context; outage requires current evidence"},
+    {"type":"refinery","label":"Refinarias","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"public identity/location; throughput/status requires dated source"},
+    {"type":"pipeline","label":"Pipelines","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"public corridor context; flow/status requires dated source"},
+    {"type":"submarine_cable","label":"Cabos","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"public route/landing context only; no vulnerability analysis"},
+    {"type":"telecom","label":"Telecom","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"public facilities/context; outages use IODA/official evidence"},
+    {"type":"bridge","label":"Pontes","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"public transport context; closure/damage requires current evidence"},
+    {"type":"strait","label":"Estreitos","preferred_sources":["official_sources","osm_overpass"],"status_semantics":"public chokepoint context; restrictions require current evidence"}
+  ]
+}
