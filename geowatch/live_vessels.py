@@ -64,25 +64,89 @@ def ensure_started() -> bool:
         return True
 
 
-def vessel_snapshot() -> dict:
+def _coord(value: object, *, minimum: float, maximum: float, name: str) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"invalid {name}") from exc
+    if number < minimum or number > maximum:
+        raise ValueError(f"{name} out of range")
+    return number
+
+
+def _limit(value: object) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid limit") from exc
+    if number < 1 or number > 5000:
+        raise ValueError("limit out of range")
+    return number
+
+
+def vessel_snapshot(
+    *,
+    south: object | None = None,
+    west: object | None = None,
+    north: object | None = None,
+    east: object | None = None,
+    limit: object = 1500,
+) -> dict:
     ensure_started()
     cfg = _config()
     stale_after = int(cfg.get("stale_after_seconds", 900))
+    result_limit = _limit(limit)
+    bbox_requested = any(value is not None for value in (south, west, north, east))
+    bbox: tuple[float, float, float, float] | None = None
+    if bbox_requested:
+        if any(value is None for value in (south, west, north, east)):
+            raise ValueError("south, west, north and east are required together")
+        s = _coord(south, minimum=-90, maximum=90, name="south")
+        w = _coord(west, minimum=-180, maximum=180, name="west")
+        n = _coord(north, minimum=-90, maximum=90, name="north")
+        e = _coord(east, minimum=-180, maximum=180, name="east")
+        if s > n:
+            raise ValueError("south must be <= north")
+        bbox = (s, w, n, e)
+
     now = time.time()
     with _LOCK:
         stale = [mmsi for mmsi, row in _VESSELS.items() if now - float(row.get("received_epoch", 0)) > stale_after]
         for mmsi in stale:
             _VESSELS.pop(mmsi, None)
+        active_total = len(_VESSELS)
         vessels = [dict(row) for row in _VESSELS.values()]
         state = dict(_STATE)
+
+    if bbox is not None:
+        s, w, n, e = bbox
+        filtered: list[dict] = []
+        for row in vessels:
+            try:
+                lat = float(row.get("lat"))
+                lon = float(row.get("lon"))
+            except (TypeError, ValueError):
+                continue
+            if not (s <= lat <= n):
+                continue
+            longitude_matches = w <= lon <= e if w <= e else lon >= w or lon <= e
+            if longitude_matches:
+                filtered.append(row)
+        vessels = filtered
+
     vessels.sort(key=lambda row: str(row.get("ship_name") or row.get("mmsi") or ""))
+    truncated = len(vessels) > result_limit
+    vessels = vessels[:result_limit]
     return {
         "schema_version": "geowatch-live-vessels-v1",
         "provider": "AISStream",
         "configured": bool(_api_key()),
         "coverage_semantics": cfg.get("coverage_semantics"),
         "observed_at": _utc_now(),
+        "active_total": active_total,
         "count": len(vessels),
+        "truncated": truncated,
+        "bbox": {"south": bbox[0], "west": bbox[1], "north": bbox[2], "east": bbox[3]} if bbox else None,
         "vessels": vessels,
         "collector": state,
     }
