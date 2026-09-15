@@ -5,6 +5,7 @@ import os
 import unittest
 from unittest.mock import patch
 
+from geowatch.dashboard import dashboard_html
 from geowatch.live_vessels import _consume, provider_status, reset_for_tests, vessel_snapshot
 
 
@@ -83,6 +84,39 @@ class LiveVesselTests(unittest.TestCase):
         self.assertEqual(vessel["maximum_static_draught_m"], 11.2)
         self.assertIn("09-20 14:30 UTC", vessel["reported_eta"])
         self.assertIn("vessel-declared", vessel["ais_semantics"])
+
+    def test_snapshot_can_be_bounded_to_map_view(self) -> None:
+        for mmsi, lat, lon, name in (
+            (111111111, -24.0, -46.0, "SANTOS SHIP"),
+            (222222222, 25.0, 56.0, "HORMUZ SHIP"),
+        ):
+            event = {
+                "MessageType": "PositionReport",
+                "MetaData": {"MMSI": mmsi, "ShipName": name, "Latitude": lat, "Longitude": lon},
+                "Message": {"PositionReport": {"Sog": 10.0, "Cog": 45.0, "TrueHeading": 45}},
+            }
+            _consume(json.dumps(event), max_vessels=100)
+        with patch.dict(os.environ, {}, clear=True):
+            snapshot = vessel_snapshot(south=-28, west=-51, north=-22, east=-43, limit=50)
+        self.assertEqual(snapshot["active_total"], 2)
+        self.assertEqual(snapshot["count"], 1)
+        self.assertEqual(snapshot["vessels"][0]["ship_name"], "SANTOS SHIP")
+        self.assertFalse(snapshot["truncated"])
+
+    def test_snapshot_rejects_incomplete_or_unbounded_bbox(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(ValueError):
+                vessel_snapshot(south=-10)
+            with self.assertRaises(ValueError):
+                vessel_snapshot(south=-91, west=0, north=10, east=10)
+            with self.assertRaises(ValueError):
+                vessel_snapshot(limit=5001)
+
+    def test_dashboard_keeps_ais_opt_in(self) -> None:
+        html = dashboard_html()
+        self.assertIn("vessels=L.layerGroup();", html)
+        self.assertNotIn("vessels=L.layerGroup().addTo(map)", html)
+        self.assertIn("setInterval(loadVessels,60000)", html)
 
 
 if __name__ == "__main__":
