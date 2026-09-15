@@ -32,7 +32,8 @@ class ReplitRuntimeTests(unittest.TestCase):
             self.assertFalse(checks["private_auth_secret"])
             self.assertFalse(checks["persistent_database"])
             self.assertFalse(checks["persistent_raw_evidence"])
-            self.assertFalse(checks["embedded_collector"])
+            self.assertFalse(checks["collection_path_configured"])
+            self.assertTrue(checks["duplicate_collectors_disabled"])
             self.assertFalse(checks["secure_cookie"])
             with self.assertRaises(RuntimeError):
                 validate_production_runtime()
@@ -41,7 +42,7 @@ class ReplitRuntimeTests(unittest.TestCase):
         env = {
             "REPLIT_DEPLOYMENT": "1",
             "DATABASE_URL": "postgresql://user:secret@example.invalid/replit",
-            "GEOWATCH_API_TOKEN": "a-secure-private-secret-value",
+            "GEOWATCH_API_TOKEN": "a" * 40,
             "GEOWATCH_RAW_BACKEND": "postgres",
             "GEOWATCH_EMBEDDED_COLLECTOR": "1",
             "GEOWATCH_COOKIE_SECURE": "1",
