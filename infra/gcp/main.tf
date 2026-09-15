@@ -10,10 +10,12 @@ locals {
     "artifactregistry.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "cloudscheduler.googleapis.com",
+    "compute.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "run.googleapis.com",
     "secretmanager.googleapis.com",
+    "servicenetworking.googleapis.com",
     "sqladmin.googleapis.com",
     "sts.googleapis.com",
     "storage.googleapis.com",
@@ -68,6 +70,36 @@ resource "google_storage_bucket" "raw" {
       storage_class = "COLDLINE"
     }
   }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_compute_network" "runtime" {
+  name                    = "geowatch-runtime"
+  auto_create_subnetworks = false
+  depends_on              = [google_project_service.required]
+}
+
+resource "google_compute_subnetwork" "runtime" {
+  name          = "geowatch-runtime-${var.region}"
+  region        = var.region
+  network       = google_compute_network.runtime.id
+  ip_cidr_range = var.runtime_subnet_cidr
+  private_ip_google_access = true
+}
+
+resource "google_compute_global_address" "private_services" {
+  name          = "geowatch-private-services"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = google_compute_network.runtime.id
+}
+
+resource "google_service_networking_connection" "private_services" {
+  network                 = google_compute_network.runtime.id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_services.name]
 
   depends_on = [google_project_service.required]
 }
@@ -163,11 +195,17 @@ resource "google_sql_database_instance" "main" {
     }
 
     ip_configuration {
-      ipv4_enabled = true
+      ipv4_enabled                                  = false
+      private_network                               = google_compute_network.runtime.id
+      enable_private_path_for_google_cloud_services = true
+      ssl_mode                                      = "ENCRYPTED_ONLY"
     }
   }
 
-  depends_on = [google_project_service.required]
+  depends_on = [
+    google_project_service.required,
+    google_service_networking_connection.private_services,
+  ]
 }
 
 resource "google_sql_database" "geowatch" {
@@ -194,6 +232,14 @@ resource "google_cloud_run_v2_service" "web" {
     scaling {
       min_instance_count = var.enable_continuous_ais ? 1 : 0
       max_instance_count = 1
+    }
+
+    vpc_access {
+      network_interfaces {
+        network    = google_compute_network.runtime.name
+        subnetwork = google_compute_subnetwork.runtime.name
+      }
+      egress = "PRIVATE_RANGES_ONLY"
     }
 
     volumes {
@@ -331,6 +377,14 @@ resource "google_cloud_run_v2_job" "source_tick" {
       service_account = google_service_account.runtime.email
       timeout         = "900s"
       max_retries     = 1
+
+      vpc_access {
+        network_interfaces {
+          network    = google_compute_network.runtime.name
+          subnetwork = google_compute_subnetwork.runtime.name
+        }
+        egress = "PRIVATE_RANGES_ONLY"
+      }
 
       volumes {
         name = "cloudsql"
