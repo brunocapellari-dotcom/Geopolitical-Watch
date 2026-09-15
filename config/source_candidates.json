@@ -1,0 +1,118 @@
+{
+  "schema_version": "geowatch-source-candidates-v1",
+  "as_of": "2026-09-15",
+  "purpose": "Candidate upstreams discovered during source research. Presence here does not authorize collection or imply evidentiary equivalence.",
+  "activation_rule": "Promote into config/source_registry.json only after endpoint, terms/license, cadence, parser, provenance and evidence-role review.",
+  "candidates": [
+    {
+      "source_id": "polecat_events",
+      "name": "POLECAT / PLOVER Event Data",
+      "domain": "conflict",
+      "priority": "high",
+      "access": "public_dataset",
+      "intended_role": "machine_coded_political_event_context",
+      "preferred_use": "historical validation, anomaly comparison and secondary event context",
+      "must_not_do": "Do not treat machine-coded events as independently verified human-gold evidence.",
+      "status": "endpoint_and_terms_review_required"
+    },
+    {
+      "source_id": "sipri_structural",
+      "name": "SIPRI Databases",
+      "domain": "security_systems",
+      "priority": "high",
+      "access": "public_web_or_download",
+      "intended_role": "structural_security_context",
+      "preferred_use": "arms transfers, military expenditure, embargo and peace-operation context",
+      "must_not_do": "Do not use structural SIPRI series as real-time conflict-event confirmation.",
+      "status": "dataset_specific_rights_and_endpoint_review_required"
+    },
+    {
+      "source_id": "airwars_civilian_harm",
+      "name": "Airwars",
+      "domain": "conflict_humanitarian",
+      "priority": "high",
+      "access": "public_web",
+      "intended_role": "curated_civilian_harm_claim_context",
+      "preferred_use": "cross-checking strike and civilian-harm claims with preserved source methodology",
+      "must_not_do": "Do not collapse Airwars assessments into confirmed attribution without claim-level provenance and methodology labels.",
+      "status": "terms_endpoint_and_methodology_review_required"
+    },
+    {
+      "source_id": "crisiswatch_early_warning",
+      "name": "International Crisis Group CrisisWatch",
+      "domain": "early_warning",
+      "priority": "high",
+      "access": "public_web",
+      "intended_role": "analytical_early_warning_context",
+      "preferred_use": "monthly escalation/de-escalation context and hypothesis generation",
+      "must_not_do": "Do not use analytical prose as sensor observation or automatic event verification.",
+      "status": "terms_feed_and_attribution_review_required"
+    },
+    {
+      "source_id": "cow_mid_historical",
+      "name": "Correlates of War Militarized Interstate Disputes",
+      "domain": "historical_validation",
+      "priority": "medium",
+      "access": "public_dataset",
+      "intended_role": "historical_structural_benchmark",
+      "preferred_use": "long-run interstate-dispute base rates and validation baselines",
+      "must_not_do": "Do not represent historical MID records as current operational reporting.",
+      "status": "dataset_version_and_license_review_required"
+    },
+    {
+      "source_id": "ooni_measurements",
+      "name": "OONI Measurements",
+      "domain": "internet_censorship",
+      "priority": "high",
+      "access": "public_data_or_api",
+      "intended_role": "observed_network_interference_context",
+      "preferred_use": "corroborate censorship, blocking and connectivity-interference hypotheses alongside IODA and RIPEstat",
+      "must_not_do": "Do not equate an anomalous OONI measurement with deliberate state attribution without independent evidence and methodology-aware interpretation.",
+      "status": "api_terms_schema_and_aggregation_review_required"
+    },
+    {
+      "source_id": "opensanctions_entities",
+      "name": "OpenSanctions / Yente",
+      "domain": "sanctions_entity_resolution",
+      "priority": "medium",
+      "access": "aggregated_dataset_or_api",
+      "intended_role": "entity_alias_resolution_and_secondary_crosscheck",
+      "preferred_use": "improve alias/entity matching around official sanctions records while preserving the official source as the legal authority",
+      "must_not_do": "Do not replace official UN, OFAC, UK or other issuing-authority records with an aggregator, and do not ingest datasets before commercial/license terms are cleared.",
+      "status": "license_terms_dataset_and_api_review_required"
+    },
+    {
+      "source_id": "imf_portwatch",
+      "name": "IMF PortWatch",
+      "domain": "maritime_trade_and_chokepoints",
+      "priority": "high",
+      "access": "public_platform_and_api_catalog",
+      "intended_role": "structural_and_high_frequency_maritime_disruption_context",
+      "preferred_use": "measure changes in port calls, estimated shipment volumes and critical-passage transit activity as context for conflict and chokepoint disruption analysis",
+      "must_not_do": "Do not represent AIS-derived PortWatch shipment estimates as official customs trade statistics, verified cargo manifests or confirmed voyage intent. Preserve revision and methodology limitations.",
+      "status": "dataset_endpoint_terms_cadence_and_revision_review_required"
+    },
+    {
+      "source_id": "hdx_hapi_humanitarian",
+      "name": "HDX HAPI - The Humanitarian API",
+      "domain": "humanitarian_impact",
+      "priority": "high",
+      "access": "api_with_app_identifier",
+      "intended_role": "standardized_humanitarian_context",
+      "preferred_use": "track displacement, affected populations and humanitarian needs as impact/context signals with provider-level provenance and reference periods",
+      "must_not_do": "Do not use humanitarian population indicators as direct evidence that a combat event occurred or as automatic attribution of responsibility. Preserve underlying provider and update-period metadata.",
+      "status": "identifier_terms_endpoint_schema_and_coverage_review_required"
+    },
+    {
+      "source_id": "cloudflare_radar_outages",
+      "name": "Cloudflare Radar Outages",
+      "domain": "internet_outages",
+      "priority": "hold",
+      "access": "authenticated_api",
+      "intended_role": "independent_network_outage_context",
+      "preferred_use": "potential corroboration of country, regional or ASN-level connectivity outages if commercial data rights are obtained",
+      "must_not_do": "Do not activate the public Radar API dataset in a commercial-capable product while its published data license is CC BY-NC 4.0 unless separate compatible permission is obtained.",
+      "status": "blocked_by_noncommercial_data_license"
+    }
+  ]
+}

@@ -9,9 +9,16 @@ variable "region" {
   default     = "southamerica-east1"
 }
 
+variable "deploy_runtime" {
+  description = "Create Cloud Run service/job/scheduler only after the first scanned image exists in Artifact Registry. Foundation bootstrap leaves this false."
+  type        = bool
+  default     = false
+}
+
 variable "container_image" {
-  description = "Immutable container image URI, preferably pinned by digest."
+  description = "Immutable scanned container image URI pinned by digest. Required only when deploy_runtime=true."
   type        = string
+  default     = ""
 }
 
 variable "api_token" {
@@ -57,6 +64,12 @@ variable "database_high_availability" {
   description = "Use regional Cloud SQL HA. Increases cost materially."
   type        = bool
   default     = false
+}
+
+variable "runtime_subnet_cidr" {
+  description = "Dedicated private subnet used by Cloud Run Direct VPC egress. Must not overlap with other project networks."
+  type        = string
+  default     = "10.24.0.0/24"
 }
 
 variable "scheduler_cron" {

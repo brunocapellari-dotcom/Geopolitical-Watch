@@ -1,9 +1,11 @@
 {
-  "schema_version": "geowatch-aisstream-regions-v1",
+  "schema_version": "geowatch-aisstream-regions-v2",
   "provider": "AISStream",
   "endpoint": "wss://stream.aisstream.io/v0/stream",
   "coverage_semantics": "Strategic-area AIS coverage only; not global vessel completeness.",
   "stale_after_seconds": 900,
+  "track_retention_seconds": 21600,
+  "track_max_points": 240,
   "max_vessels": 10000,
   "regions": [
     {"id":"hormuz","name":"Strait of Hormuz / Persian Gulf","box":[[22.0,54.0],[28.5,60.5]]},
@@ -15,11 +17,13 @@
     {"id":"panama","name":"Panama Canal approaches","box":[[7.0,-83.5],[11.5,-77.0]]},
     {"id":"brazil_south","name":"Santos / Paranagua approaches","box":[[-27.5,-50.5],[-22.0,-43.5]]}
   ],
-  "message_types": ["PositionReport", "StandardClassBPositionReport", "ExtendedClassBPositionReport", "ShipStaticData"],
+  "message_types": ["PositionReport", "StandardClassBPositionReport", "ExtendedClassBPositionReport", "ShipStaticData", "StaticDataReport"],
   "governance": {
     "api_key_server_side_only": true,
     "direct_browser_connection_forbidden": true,
     "ais_is_observation_not_verified_voyage_intent": true,
-    "reported_destination_requires_explicit_label": true
+    "reported_destination_requires_explicit_label": true,
+    "static_messages_must_not_refresh_position_freshness": true,
+    "track_is_recent_observed_context_not_complete_voyage": true
   }
 }

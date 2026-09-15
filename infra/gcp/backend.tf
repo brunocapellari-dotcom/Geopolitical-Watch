@@ -1,5 +1,8 @@
 terraform {
-  # Supply bucket and prefix at `terraform init` time. The state contains sensitive
-  # values and must never live in the repository or an unprotected local file.
-  backend "gcs" {}
+  # The state bucket is supplied at `terraform init` time so the same code can be
+  # validated without touching GCP. Production state must live in a dedicated,
+  # versioned, private GCS bucket and never become canonical in Replit/Claude/local.
+  backend "gcs" {
+    prefix = "geowatch/terraform/state"
+  }
 }

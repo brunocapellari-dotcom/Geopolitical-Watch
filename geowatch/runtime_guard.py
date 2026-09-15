@@ -15,8 +15,8 @@ def _flag(name: str) -> bool:
 
 
 def strict_production_mode() -> bool:
-    """Enable strict startup for any explicitly published production runtime."""
-    return _flag("GEOWATCH_STRICT_PRODUCTION") or os.environ.get("REPLIT_DEPLOYMENT") == "1"
+    """Enable strict startup for an explicitly published production runtime."""
+    return _flag("GEOWATCH_STRICT_PRODUCTION")
 
 
 def production_requirements() -> dict[str, bool]:

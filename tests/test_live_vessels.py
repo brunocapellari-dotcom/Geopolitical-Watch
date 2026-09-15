@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import unittest
 from unittest.mock import patch
 
 from geowatch.dashboard import dashboard_html
-from geowatch.live_vessels import _consume, provider_status, reset_for_tests, vessel_snapshot
+from geowatch.live_vessels import _consume, provider_status, reset_for_tests, vessel_snapshot, vessel_track
 from geowatch.map_layers import layer_index
 
 
@@ -53,6 +54,8 @@ class LiveVesselTests(unittest.TestCase):
         self.assertEqual(vessel["ship_name"], "EXAMPLE VESSEL")
         self.assertEqual(vessel["speed_over_ground_kt"], 12.4)
         self.assertIn("not verified voyage intent", vessel["ais_semantics"])
+        self.assertIn("position_received_at", vessel)
+        self.assertGreaterEqual(vessel["position_age_seconds"], 0)
 
     def test_static_update_preserves_position_and_adds_voyage_context(self) -> None:
         position = {
@@ -73,9 +76,12 @@ class LiveVesselTests(unittest.TestCase):
                 "MaximumStaticDraught": 11.2,
             }},
         }
-        _consume(json.dumps(position), max_vessels=100)
-        _consume(json.dumps(static), max_vessels=100)
-        with patch.dict(os.environ, {}, clear=True):
+        base = time.time()
+        with patch("geowatch.live_vessels.time.time", return_value=base):
+            _consume(json.dumps(position), max_vessels=100)
+        with patch("geowatch.live_vessels.time.time", return_value=base + 100):
+            _consume(json.dumps(static), max_vessels=100)
+        with patch.dict(os.environ, {}, clear=True), patch("geowatch.live_vessels.time.time", return_value=base + 150):
             vessel = vessel_snapshot()["vessels"][0]
         self.assertEqual(vessel["lat"], 1.2)
         self.assertEqual(vessel["lon"], 3.4)
@@ -85,6 +91,34 @@ class LiveVesselTests(unittest.TestCase):
         self.assertEqual(vessel["maximum_static_draught_m"], 11.2)
         self.assertIn("09-20 14:30 UTC", vessel["reported_eta"])
         self.assertIn("vessel-declared", vessel["ais_semantics"])
+        self.assertEqual(vessel["position_received_epoch"], base)
+        self.assertEqual(vessel["received_epoch"], base + 100)
+        self.assertEqual(vessel["position_age_seconds"], 150.0)
+
+    def test_track_contains_only_observed_position_updates(self) -> None:
+        base = time.time()
+        for offset, lat, lon in ((0, -23.9, -46.2), (10, -23.8, -46.1)):
+            event = {
+                "MessageType": "PositionReport",
+                "MetaData": {"MMSI": 123456789, "ShipName": "TRACKED", "Latitude": lat, "Longitude": lon},
+                "Message": {"PositionReport": {"Sog": 10.0, "Cog": 45.0, "TrueHeading": 45}},
+            }
+            with patch("geowatch.live_vessels.time.time", return_value=base + offset):
+                _consume(json.dumps(event), max_vessels=100)
+        static = {
+            "MessageType": "ShipStaticData",
+            "MetaData": {"MMSI": 123456789, "ShipName": "TRACKED"},
+            "Message": {"ShipStaticData": {"Name": "TRACKED", "Destination": "SANTOS"}},
+        }
+        with patch("geowatch.live_vessels.time.time", return_value=base + 20):
+            _consume(json.dumps(static), max_vessels=100)
+        track = vessel_track("123456789")
+        self.assertEqual(track["count"], 2)
+        self.assertEqual(track["points"][0]["lat"], -23.9)
+        self.assertEqual(track["points"][1]["lon"], -46.1)
+        self.assertIn("not a complete voyage", track["track_semantics"])
+        with self.assertRaises(ValueError):
+            vessel_track("../bad")
 
     def test_snapshot_can_be_bounded_to_map_view(self) -> None:
         for mmsi, lat, lon, name in (
@@ -113,7 +147,7 @@ class LiveVesselTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 vessel_snapshot(limit=5001)
 
-    def test_dashboard_keeps_ais_opt_in(self) -> None:
+    def test_dashboard_keeps_ais_opt_in_and_tracks_selected_vessel(self) -> None:
         html = dashboard_html()
         vessels = layer_index()["vessels"]
         self.assertEqual(vessels["label"], "Navios AIS")
@@ -123,6 +157,8 @@ class LiveVesselTests(unittest.TestCase):
         self.assertIn('data-layer="vessels">Navios AIS', html)
         self.assertNotIn('data-layer="vessels" checked', html)
         self.assertIn("/v2/live/vessels", html)
+        self.assertIn("/v2/live/vessels/track", html)
+        self.assertIn("selected-observed-track", html)
         self.assertIn("if(!visible('vessels'))return", html)
         self.assertIn("if(visible('vessels'))loadVessels()", html)
         self.assertIn("60000", html)

@@ -72,10 +72,10 @@ class RuntimeRawStoreTests(unittest.TestCase):
             self.assertIsInstance(store, PostgresRawStore)
             self.assertEqual(raw_backend_name(), "postgresql-compressed")
 
-    def test_replit_database_url_is_supported(self) -> None:
+    def test_legacy_database_url_fallback_is_supported(self) -> None:
         env = {
             "GEOWATCH_RAW_BACKEND": "postgres",
-            "DATABASE_URL": "postgresql://user:secret@example.invalid/replit",
+            "DATABASE_URL": "postgresql://user:secret@example.invalid/legacy",
         }
         with patch.dict(os.environ, env, clear=True):
             store = open_raw_store()

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: "Type DEPLOY to publish this exact main commit to Google Cloud"
+        description: "Type PUBLISH for the first scanned image only, or DEPLOY to update an already provisioned runtime"
         required: true
         type: string
 
@@ -14,7 +14,7 @@ jobs:
 
   deploy:
     needs: full-project-gate
-    if: ${{ inputs.confirm == 'DEPLOY' && github.ref == 'refs/heads/main' }}
+    if: ${{ (inputs.confirm == 'PUBLISH' || inputs.confirm == 'DEPLOY') && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
@@ -82,8 +82,19 @@ jobs:
           test -n "$DIGEST"
           PINNED="${REGION}-docker.pkg.dev/${PROJECT_ID}/geowatch/geowatch@${DIGEST}"
           echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Geopolitical-Watch immutable image"
+            echo ""
+            echo "Commit: \`${GITHUB_SHA}\`"
+            echo "Digest URI: \`${PINNED}\`"
+            if [[ "${{ inputs.confirm }}" == "PUBLISH" ]]; then
+              echo ""
+              echo "Foundation bootstrap mode: use this digest as TF_VAR_container_image and set TF_VAR_deploy_runtime=true for the reviewed Terraform activation plan. No Cloud Run runtime was changed by this workflow."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Update Cloud Run website to exact image digest
+        if: ${{ inputs.confirm == 'DEPLOY' }}
         run: |
           gcloud run services update "$SERVICE_NAME" \
             --project "$PROJECT_ID" \
@@ -92,6 +103,7 @@ jobs:
             --quiet
 
       - name: Update scheduler job to exact image digest
+        if: ${{ inputs.confirm == 'DEPLOY' }}
         run: |
           gcloud run jobs update "$JOB_NAME" \
             --project "$PROJECT_ID" \
@@ -100,6 +112,7 @@ jobs:
             --quiet
 
       - name: Execute one production source tick
+        if: ${{ inputs.confirm == 'DEPLOY' }}
         run: |
           gcloud run jobs execute "$JOB_NAME" \
             --project "$PROJECT_ID" \
@@ -107,6 +120,7 @@ jobs:
             --wait
 
       - name: Smoke deployed health endpoint
+        if: ${{ inputs.confirm == 'DEPLOY' }}
         shell: bash
         run: |
           set -euo pipefail

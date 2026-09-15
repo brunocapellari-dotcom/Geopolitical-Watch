@@ -8,15 +8,15 @@ from geowatch.runtime_guard import production_requirements, strict_production_mo
 from geowatch.storage_factory import backend_name, configured_database_url
 
 
-class ReplitRuntimeTests(unittest.TestCase):
-    def test_replit_database_url_selects_postgres(self) -> None:
-        env = {"DATABASE_URL": "postgresql://user:secret@example.invalid/replit"}
+class ProductionRuntimeTests(unittest.TestCase):
+    def test_legacy_database_url_remains_postgres_compatibility_fallback(self) -> None:
+        env = {"DATABASE_URL": "postgresql://user:secret@example.invalid/geowatch"}
         with patch.dict(os.environ, env, clear=True):
             self.assertEqual(configured_database_url(), env["DATABASE_URL"])
             self.assertEqual(backend_name(), "postgresql-postgis")
 
-    def test_published_replit_is_strict_automatically(self) -> None:
-        with patch.dict(os.environ, {"REPLIT_DEPLOYMENT": "1"}, clear=True):
+    def test_explicit_production_mode_is_strict(self) -> None:
+        with patch.dict(os.environ, {"GEOWATCH_STRICT_PRODUCTION": "1"}, clear=True):
             self.assertTrue(strict_production_mode())
             with self.assertRaises(RuntimeError):
                 validate_production_runtime()
@@ -38,13 +38,13 @@ class ReplitRuntimeTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 validate_production_runtime()
 
-    def test_strict_mode_accepts_complete_replit_configuration(self) -> None:
+    def test_strict_mode_accepts_complete_generic_configuration(self) -> None:
         env = {
-            "REPLIT_DEPLOYMENT": "1",
-            "DATABASE_URL": "postgresql://user:secret@example.invalid/replit",
+            "GEOWATCH_STRICT_PRODUCTION": "1",
+            "GEOWATCH_DB_URL": "postgresql://user:secret@example.invalid/geowatch",
             "GEOWATCH_API_TOKEN": "a" * 40,
             "GEOWATCH_RAW_BACKEND": "postgres",
-            "GEOWATCH_EMBEDDED_COLLECTOR": "1",
+            "GEOWATCH_EXTERNAL_SCHEDULER": "1",
             "GEOWATCH_COOKIE_SECURE": "1",
         }
         with patch.dict(os.environ, env, clear=True):

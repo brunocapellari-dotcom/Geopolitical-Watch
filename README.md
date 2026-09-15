@@ -4,7 +4,7 @@ Private public-source geopolitical conflict monitoring and strategic-intelligenc
 
 ## Current release
 
-Version **0.14.0** consolidates the operational-intelligence platform, private web runtime and production deployment architecture. The codebase is designed around evidence provenance, explicit uncertainty, strict separation between observed/reported/estimated/inferred information, resilient source collection, PostgreSQL/PostGIS production storage and a MapLibre global interface.
+Version **0.15.0** consolidates the operational-intelligence platform, private web runtime, production deployment architecture, bounded observed aircraft/vessel trails, corrected AIS position freshness and explicit tooling/source governance. The codebase is designed around evidence provenance, explicit uncertainty, strict separation between observed/reported/estimated/inferred information, resilient source collection, PostgreSQL/PostGIS production storage and a MapLibre global interface.
 
 The project remains independent from AgroLog MT. Other projects may consume published high-level signals, but they do not share the Monitor's codebase or operational state.
 
@@ -22,12 +22,13 @@ The project remains independent from AgroLog MT. Other projects may consume publ
 - Missing economic observations are never silently zero-filled.
 - Distinct resolved infrastructure identities cannot be merged merely because they are nearby or share country, region, claim type or time window.
 - Public critical-infrastructure information is structural context only; the system does not model exploit paths or vulnerabilities.
+- A selected aircraft/vessel trail contains only positions actually observed by the running backend; it is not a complete route or proof of origin/destination.
 
 ## Production architecture
 
 `authorized public sources -> immutable RAW evidence -> PostgreSQL/PostGIS -> normalized events -> entity resolution -> convergence -> ConflictEpisodes -> verification -> operational state/deltas -> alerts/forecasts -> private MapLibre website`
 
-The final GCP target is:
+The sole production target is Google Cloud:
 
 - Cloud Run private website/API;
 - Cloud Run Job + Cloud Scheduler for batch source collection;
@@ -38,7 +39,7 @@ The final GCP target is:
 - Workload Identity Federation for GitHub deployment without service-account JSON keys;
 - a separate always-on execution path for continuous AIS when enabled.
 
-The legacy Render blueprint has been removed so the repository has one production deployment target.
+Legacy alternative deployment descriptors are removed rather than maintained in parallel.
 
 ## Private web interface
 
@@ -56,6 +57,8 @@ Each map layer declares:
 
 Current governed layers are conflicts, critical infrastructure, physical context, network context, public aircraft observations and AIS vessels. Aircraft route context is not represented as a confirmed flight plan. AIS destination/ETA values are self-reported when present; vessel origin requires explicit historical inference.
 
+Selecting an aircraft or vessel can draw a recent observed trail held by the running backend. Aircraft route context remains visually and semantically distinct from the observed trail. AIS static messages can enrich name/destination/ETA but cannot refresh a stale position timestamp.
+
 The production dashboard is authenticated by a signed private session. Machine consumers may use the Bearer contract. Secrets are not embedded in browser JavaScript.
 
 ## Runtime and storage
@@ -63,6 +66,14 @@ The production dashboard is authenticated by a signed private session. Machine c
 Production structured storage is PostgreSQL/PostGIS. RAW evidence can be stored compressed in PostgreSQL or in GCS. Source freshness, checkpoints, provenance, source health and run history are preserved separately from analytical conclusions.
 
 The production web process does not need to run the batch collector internally when the external Cloud Scheduler path is configured. This avoids duplicate collection and makes collection independently observable/retryable.
+
+## Tool and dependency governance
+
+`config/tooling_registry.json` is the decision registry for core tooling. The rule is one primary tool per capability unless two tools demonstrably cover different layers. Unused dependencies are forbidden and reference projects do not become code dependencies automatically.
+
+Current primary choices remain MapLibre GL JS, PostgreSQL/PostGIS, Playwright, Trivy, pip-audit and AISStream. `pyais` is approved as a conditional raw-NMEA decoder only when a raw AIS source exists. AIS-catcher is an edge-receiver reference for future owned sensors and remains isolated from the server architecture. PMTiles is the accepted target for a self-hosted static basemap. AGPL reference projects such as WorldMonitor are studied for architecture and product ideas without copying their code into this proprietary repository.
+
+`config/source_candidates.json` records high-value data candidates discovered during research. A candidate is promoted into the operational source registry only after endpoint, terms/license, cadence, parser, provenance and evidence-role review.
 
 ## Validation and release gate
 
@@ -83,7 +94,7 @@ The gate covers:
 11. production Docker build;
 12. authenticated Chromium/Playwright MapLibre smoke test.
 
-The resulting production container is additionally scanned with Trivy for fixed HIGH/CRITICAL OS and library vulnerabilities. The GCP release workflow rebuilds the exact commit, scans that exact image before publication, pushes it, resolves the immutable registry digest and deploys by digest.
+The workflow additionally scans the repository with Trivy for secrets and high-impact misconfiguration, then scans the resulting production container for fixed HIGH/CRITICAL OS and library vulnerabilities. The GCP release workflow rebuilds the exact commit, scans that exact image before publication, pushes it, resolves the immutable registry digest and deploys by digest.
 
 GitHub Actions dependencies are pinned to immutable commit SHAs. Core workflows use current Node-24-compatible action generations.
 
@@ -95,6 +106,8 @@ Restricted or credentialed sources remain disabled until their terms/credentials
 
 Public aircraft observations use ADSB.lol through the private backend. AISStream integration is server-side only and remains inert without `AISSTREAM_API_KEY`.
 
+The current candidate review also tracks POLECAT/PLOVER, SIPRI datasets, Airwars, CrisisWatch and COW/MID. They are not silently activated merely because they are valuable sources.
+
 ## Historical validation and forecasting
 
 The repository contains historical conflict reconstruction, human-review queues, no-lookahead historical benchmarks, prospective forecast ledgers, calibration metrics and multi-horizon templates. Historical or research-coded data never impersonates a historical live prediction record.
@@ -104,5 +117,7 @@ Formal scientific readiness is a separate gate from software readiness. The repo
 ## Remaining external production gates
 
 The repository can validate its software and infrastructure definitions, but it cannot self-certify external conditions. Final external evidence still includes live GCP smoke after deployment, database backup/restore/PITR drill, approved credentials/terms for each restricted source that is enabled, sufficient reviewed human-gold/out-of-sample evidence, and final operational cost/security/source-rights review.
+
+Repository visibility and `main` branch protection are also account-level controls and must be enforced in GitHub before production deployment.
 
 These gates are intentionally not inferred from repository code.

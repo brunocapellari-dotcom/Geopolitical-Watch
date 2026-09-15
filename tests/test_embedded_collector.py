@@ -22,12 +22,12 @@ class EmbeddedCollectorTests(unittest.TestCase):
             self.assertFalse(status()["enabled"])
             self.assertEqual(config_path(), "config/sources.public-beta.json")
 
-    def test_replit_deployment_uses_production_profile(self) -> None:
-        with patch.dict(os.environ, {"REPLIT_DEPLOYMENT": "1"}, clear=True):
+    def test_strict_production_uses_production_profile(self) -> None:
+        with patch.dict(os.environ, {"GEOWATCH_STRICT_PRODUCTION": "1"}, clear=True):
             self.assertEqual(config_path(), "config/sources.production.json")
 
     def test_explicit_config_overrides_runtime_default(self) -> None:
-        env = {"REPLIT_DEPLOYMENT": "1", "GEOWATCH_COLLECT_CONFIG": "config/custom.json"}
+        env = {"GEOWATCH_STRICT_PRODUCTION": "1", "GEOWATCH_COLLECT_CONFIG": "config/custom.json"}
         with patch.dict(os.environ, env, clear=True):
             self.assertEqual(config_path(), "config/custom.json")
 

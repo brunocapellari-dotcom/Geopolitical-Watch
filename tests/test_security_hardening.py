@@ -29,7 +29,7 @@ class SecurityHardeningTests(unittest.TestCase):
         self.assertEqual(validate_web_url("https://example.com/path"), "https://example.com/path")
 
     def test_production_webhook_requires_https(self) -> None:
-        env = {"REPLIT_DEPLOYMENT": "1"}
+        env = {"GEOWATCH_STRICT_PRODUCTION": "1"}
         with patch.dict(os.environ, env, clear=True):
             with self.assertRaises(ValueError):
                 dispatch_pending(_EmptyStore(), webhook_url="http://example.com/hook")
