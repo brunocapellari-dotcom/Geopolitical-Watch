@@ -11,3 +11,9 @@ reports/
 *.sqlite
 *.db
 .secrets/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
