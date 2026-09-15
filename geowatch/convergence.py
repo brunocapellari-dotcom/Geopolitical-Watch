@@ -240,9 +240,17 @@ def _best_episode(event: Event, entities: Iterable[Entity], episodes: Iterable[C
     best_id = None
     best_score = 0.0
     actor_ids, infrastructure_ids, other_ids = split_entities(entities)
+    event_infrastructure_ids = set(infrastructure_ids)
     event_country = event.country
     for episode in episodes:
         if event_country and episode.countries and event_country not in episode.countries:
+            continue
+        episode_infrastructure_ids = set(episode.infrastructure_entity_ids)
+        # Resolved, mutually exclusive infrastructure identities are a hard
+        # incompatibility. Regional proximity or a generic shared claim such as
+        # "attack" must never collapse two different ports/bridges/pipelines into
+        # one incident episode.
+        if event_infrastructure_ids and episode_infrastructure_ids and event_infrastructure_ids.isdisjoint(episode_infrastructure_ids):
             continue
         delta_days = abs((parse_utc(event.reference_at) - parse_utc(episode.last_updated_at)).total_seconds()) / 86400
         if delta_days > 45:
@@ -250,7 +258,7 @@ def _best_episode(event: Event, entities: Iterable[Entity], episodes: Iterable[C
         title_score = max((title_similarity(event.title, title) for title in episode_titles.get(episode.episode_id, [episode.title])), default=0.0)
         country_score = 1.0 if event_country and event_country in episode.countries else 0.4 if not event_country or not episode.countries else 0.0
         actor_overlap = _jaccard(set(actor_ids), set(episode.actor_entity_ids))
-        infra_overlap = _jaccard(set(infrastructure_ids), set(episode.infrastructure_entity_ids))
+        infra_overlap = _jaccard(event_infrastructure_ids, episode_infrastructure_ids)
         other_overlap = _jaccard(set(other_ids), set(episode.other_entity_ids))
         event_claim_type = infer_claim_type(event.title, event.event_type)
         claim_overlap = 1.0 if event_claim_type in episode_claim_types.get(episode.episode_id, set()) else 0.0
