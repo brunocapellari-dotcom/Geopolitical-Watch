@@ -1,0 +1,112 @@
+{
+  "schema_version": "geowatch-tooling-registry-v1",
+  "as_of": "2026-09-15",
+  "governance": {
+    "one_primary_per_capability": true,
+    "unused_dependencies_forbidden": true,
+    "reference_projects_are_not_code_dependencies": true,
+    "license_review_required_before_code_incorporation": true,
+    "replace_primary_only_with_measured_improvement": true
+  },
+  "tools": [
+    {
+      "capability": "web_geospatial_rendering",
+      "name": "MapLibre GL JS",
+      "status": "primary",
+      "integration_mode": "runtime_library",
+      "license": "BSD-3-Clause",
+      "decision": "keep",
+      "rationale": "Current WebGL map engine already passes real-browser smoke tests and supports the required GeoJSON/vector/raster model without a frontend rewrite."
+    },
+    {
+      "capability": "spatial_database",
+      "name": "PostgreSQL/PostGIS",
+      "status": "primary",
+      "integration_mode": "managed_database",
+      "license": "PostgreSQL/PostGIS upstream licenses",
+      "decision": "keep",
+      "rationale": "Canonical production store for spatial queries, persistence and analytical joins; replacing it would add a second spatial data plane."
+    },
+    {
+      "capability": "browser_e2e",
+      "name": "Playwright",
+      "status": "primary",
+      "integration_mode": "test_dependency",
+      "license": "Apache-2.0",
+      "decision": "keep",
+      "rationale": "Exercises the authenticated page in a real Chromium runtime and catches map/browser integration failures that unit tests cannot."
+    },
+    {
+      "capability": "container_and_repository_security_scan",
+      "name": "Trivy",
+      "status": "primary",
+      "integration_mode": "ci_action",
+      "license": "Apache-2.0",
+      "decision": "expand",
+      "rationale": "Already gates the production image; reuse it for repository secret/misconfiguration scanning instead of adding a duplicate scanner."
+    },
+    {
+      "capability": "python_dependency_advisory_scan",
+      "name": "pip-audit",
+      "status": "primary",
+      "integration_mode": "test_dependency",
+      "license": "Apache-2.0",
+      "decision": "keep",
+      "rationale": "Python-specific dependency advisory gate complements rather than duplicates the container scan."
+    },
+    {
+      "capability": "cloud_ais_ingest",
+      "name": "AISStream",
+      "status": "primary",
+      "integration_mode": "server_side_websocket",
+      "license": "provider-terms",
+      "decision": "keep",
+      "rationale": "Current decoded real-time feed is integrated server-side with bounded strategic coverage and no browser credential exposure."
+    },
+    {
+      "capability": "raw_ais_nmea_decode",
+      "name": "pyais",
+      "status": "conditional_reference",
+      "integration_mode": "not_installed",
+      "license": "MIT",
+      "decision": "adopt_when_raw_nmea_source_exists",
+      "rationale": "Mature AIVDM/AIVDO decoder with TCP/UDP/file support; installing it before a raw NMEA source exists would create an unused dependency."
+    },
+    {
+      "capability": "edge_ais_receiver",
+      "name": "AIS-catcher",
+      "status": "conditional_reference",
+      "integration_mode": "separate_edge_component",
+      "license": "GPL-3.0",
+      "decision": "evaluate_for_owned_receivers_only",
+      "rationale": "Strong SDR receiver option for future owned coastal sensors; keep isolated from proprietary server code and review GPL obligations before deployment."
+    },
+    {
+      "capability": "static_vector_map_archive",
+      "name": "PMTiles",
+      "status": "accepted_target",
+      "integration_mode": "object_storage_asset",
+      "license": "review-before-code-incorporation",
+      "decision": "adopt_for_self_hosted_basemap",
+      "rationale": "Single-file range-request map archives fit GCS and reduce dependency on public raster tiles without introducing another server."
+    },
+    {
+      "capability": "global_intelligence_reference",
+      "name": "koala73/worldmonitor",
+      "status": "reference_only",
+      "integration_mode": "architecture_reference",
+      "license": "AGPL-3.0-only",
+      "decision": "concepts_only_no_code_import",
+      "rationale": "Useful reference for multi-stream intelligence, map performance and source freshness; AGPL code is not copied into this proprietary repository."
+    },
+    {
+      "capability": "osint_source_discovery",
+      "name": "cognis-digital/conflictwatch",
+      "status": "reference_only",
+      "integration_mode": "source_catalog_reference",
+      "license": "NOASSERTION",
+      "decision": "catalog_only_independent_source_registration",
+      "rationale": "Broad source catalog is valuable for discovery, but every upstream source must pass independent endpoint, rights, cadence and evidence-role review."
+    }
+  ]
+}
