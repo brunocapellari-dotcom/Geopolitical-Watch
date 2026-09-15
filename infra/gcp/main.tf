@@ -81,10 +81,10 @@ resource "google_compute_network" "runtime" {
 }
 
 resource "google_compute_subnetwork" "runtime" {
-  name          = "geowatch-runtime-${var.region}"
-  region        = var.region
-  network       = google_compute_network.runtime.id
-  ip_cidr_range = var.runtime_subnet_cidr
+  name                     = "geowatch-runtime-${var.region}"
+  region                   = var.region
+  network                  = google_compute_network.runtime.id
+  ip_cidr_range            = var.runtime_subnet_cidr
   private_ip_google_access = true
 }
 
@@ -146,8 +146,9 @@ resource "google_secret_manager_secret" "api_token" {
 }
 
 resource "google_secret_manager_secret_version" "api_token" {
-  secret      = google_secret_manager_secret.api_token.id
-  secret_data = var.api_token
+  secret                 = google_secret_manager_secret.api_token.id
+  secret_data_wo         = var.api_token
+  secret_data_wo_version = "1"
 }
 
 resource "google_secret_manager_secret" "db_password" {
@@ -159,8 +160,9 @@ resource "google_secret_manager_secret" "db_password" {
 }
 
 resource "google_secret_manager_secret_version" "db_password" {
-  secret      = google_secret_manager_secret.db_password.id
-  secret_data = var.db_password
+  secret                 = google_secret_manager_secret.db_password.id
+  secret_data_wo         = var.db_password
+  secret_data_wo_version = "1"
 }
 
 resource "google_secret_manager_secret" "aisstream" {
@@ -172,9 +174,10 @@ resource "google_secret_manager_secret" "aisstream" {
 }
 
 resource "google_secret_manager_secret_version" "aisstream" {
-  count       = length(trimspace(var.aisstream_api_key)) > 0 ? 1 : 0
-  secret      = google_secret_manager_secret.aisstream.id
-  secret_data = var.aisstream_api_key
+  count                  = length(trimspace(var.aisstream_api_key)) > 0 ? 1 : 0
+  secret                 = google_secret_manager_secret.aisstream.id
+  secret_data_wo         = var.aisstream_api_key
+  secret_data_wo_version = "1"
 }
 
 resource "google_sql_database_instance" "main" {
@@ -214,9 +217,10 @@ resource "google_sql_database" "geowatch" {
 }
 
 resource "google_sql_user" "geowatch" {
-  name     = local.database_user
-  instance = google_sql_database_instance.main.name
-  password = var.db_password
+  name                = local.database_user
+  instance            = google_sql_database_instance.main.name
+  password_wo         = var.db_password
+  password_wo_version = 1
 }
 
 resource "google_cloud_run_v2_service" "web" {
