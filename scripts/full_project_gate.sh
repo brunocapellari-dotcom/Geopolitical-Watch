@@ -77,8 +77,9 @@ assert backend_name() == 'postgresql-postgis'
 store = open_store()
 try:
     with store.db.cursor() as cur:
-        cur.execute('SELECT PostGIS_Version()')
-        assert cur.fetchone()[0]
+        cur.execute('SELECT PostGIS_Version() AS postgis_version')
+        row = cur.fetchone()
+        assert row and row.get('postgis_version'), row
 finally:
     store.close()
 raw = open_raw_store()
