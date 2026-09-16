@@ -9,158 +9,23 @@
     "replace_primary_only_with_measured_improvement": true
   },
   "tools": [
-    {
-      "capability": "web_geospatial_rendering",
-      "name": "MapLibre GL JS",
-      "status": "primary",
-      "integration_mode": "runtime_library",
-      "license": "BSD-3-Clause",
-      "decision": "keep",
-      "rationale": "Current WebGL map engine already passes real-browser smoke tests and supports the required GeoJSON/vector/raster model without a frontend rewrite."
-    },
-    {
-      "capability": "spatial_database",
-      "name": "PostgreSQL/PostGIS",
-      "status": "primary",
-      "integration_mode": "managed_database",
-      "license": "PostgreSQL/PostGIS upstream licenses",
-      "decision": "keep",
-      "rationale": "Canonical production store for spatial queries, persistence and analytical joins; replacing it would add a second spatial data plane."
-    },
-    {
-      "capability": "infrastructure_as_code",
-      "name": "HashiCorp Terraform",
-      "status": "primary",
-      "integration_mode": "gcp_infrastructure_definition",
-      "license": "BUSL-1.1 for current Terraform distributions; provider licenses reviewed separately",
-      "decision": "keep_single_authority",
-      "rationale": "One declarative provisioning authority prevents drift from imperative gcloud/Replit scripts. The Google provider is pinned and write-only secret attributes keep supported secret payloads out of state."
-    },
-    {
-      "capability": "cloud_deployment_identity",
-      "name": "GitHub OIDC + Google Workload Identity Federation",
-      "status": "primary",
-      "integration_mode": "keyless_ci_to_gcp",
-      "license": "managed platform capability",
-      "decision": "keep",
-      "rationale": "Deploys an already-green immutable commit without storing long-lived Google service-account JSON keys in GitHub or development environments."
-    },
-    {
-      "capability": "browser_e2e",
-      "name": "Playwright",
-      "status": "primary",
-      "integration_mode": "test_dependency",
-      "license": "Apache-2.0",
-      "decision": "keep",
-      "rationale": "Exercises the authenticated page in a real Chromium runtime and catches map/browser integration failures that unit tests cannot."
-    },
-    {
-      "capability": "container_and_repository_security_scan",
-      "name": "Trivy",
-      "status": "primary",
-      "integration_mode": "ci_action",
-      "license": "Apache-2.0",
-      "decision": "expand",
-      "rationale": "Gates the production image and repository secret/misconfiguration posture, avoiding a duplicate scanner stack."
-    },
-    {
-      "capability": "python_dependency_advisory_scan",
-      "name": "pip-audit",
-      "status": "primary",
-      "integration_mode": "test_dependency",
-      "license": "Apache-2.0",
-      "decision": "keep",
-      "rationale": "Python-specific dependency advisory gate complements rather than duplicates the container scan."
-    },
-    {
-      "capability": "cloud_ais_ingest",
-      "name": "AISStream",
-      "status": "primary",
-      "integration_mode": "server_side_websocket",
-      "license": "provider-terms",
-      "decision": "keep",
-      "rationale": "Current decoded real-time feed is integrated server-side with bounded strategic coverage and no browser credential exposure."
-    },
-    {
-      "capability": "raw_ais_nmea_decode",
-      "name": "pyais",
-      "status": "conditional_reference",
-      "integration_mode": "not_installed",
-      "license": "MIT",
-      "decision": "adopt_when_raw_nmea_source_exists",
-      "rationale": "Mature AIVDM/AIVDO decoder with TCP/UDP/file support; installing it before a raw NMEA source exists would create an unused dependency."
-    },
-    {
-      "capability": "edge_ais_receiver",
-      "name": "AIS-catcher",
-      "status": "conditional_reference",
-      "integration_mode": "separate_edge_component",
-      "license": "GPL-3.0",
-      "decision": "evaluate_for_owned_receivers_only",
-      "rationale": "Strong SDR receiver option for future owned coastal sensors; keep isolated from proprietary server code and review GPL obligations before deployment."
-    },
-    {
-      "capability": "static_vector_map_archive",
-      "name": "protomaps/PMTiles",
-      "status": "accepted_target",
-      "integration_mode": "object_storage_asset",
-      "license": "BSD-3-Clause reference implementations; PMTiles specification public domain/CC0 where applicable",
-      "decision": "adopt_for_self_hosted_basemap",
-      "rationale": "Official PMTiles is designed for single-file range-request tile archives on commodity object storage and supports MapLibre directly. It fits GCS and can remove runtime dependence on public raster tile servers without adding a tile backend. Basemap source-data licensing and attribution remain a separate mandatory review."
-    },
-    {
-      "capability": "sanctions_entity_matching",
-      "name": "OpenSanctions Yente",
-      "status": "conditional_reference",
-      "integration_mode": "not_installed",
-      "license": "software_and_dataset_terms_review_required",
-      "decision": "evaluate_after_data_rights_review",
-      "rationale": "Could improve alias/entity matching, but official issuing-authority sanctions data remains canonical and an aggregator must not create a second legal truth source."
-    },
-    {
-      "capability": "global_intelligence_reference",
-      "name": "koala73/worldmonitor",
-      "status": "reference_only",
-      "integration_mode": "architecture_reference",
-      "license": "AGPL-3.0-only",
-      "decision": "concepts_only_no_code_import",
-      "rationale": "Useful reference for multi-stream intelligence, map performance and source freshness; AGPL code is not copied into this proprietary repository."
-    },
-    {
-      "capability": "osint_source_discovery",
-      "name": "cognis-digital/conflictwatch",
-      "status": "reference_only",
-      "integration_mode": "source_catalog_reference",
-      "license": "NOASSERTION",
-      "decision": "catalog_only_independent_source_registration",
-      "rationale": "Broad source catalog is valuable for discovery, but every upstream source must pass independent endpoint, rights, cadence and evidence-role review."
-    },
-    {
-      "capability": "maritime_map_ux_benchmark",
-      "name": "time2map/marine-eye",
-      "status": "benchmark",
-      "integration_mode": "concept_reference_only",
-      "license": "MIT",
-      "decision": "benchmark_no_stack_rewrite",
-      "rationale": "Recent MapLibre/AIS reference for vessel-category filtering, selected-vessel trails and operator-friendly vessel details. Keep AIS credentials server-side in Geopolitical Watch rather than adopting its browser-key pattern."
-    },
-    {
-      "capability": "realtime_tracking_architecture_benchmark",
-      "name": "mdev-co/portview",
-      "status": "benchmark",
-      "integration_mode": "concept_reference_only",
-      "license": "source-available; use/derivatives require permission",
-      "decision": "concepts_only_no_code_import",
-      "rationale": "Useful reference for render-frame budgeting, stale-source freeze semantics, multi-source ingest failover, PostGIS geofencing and ADR discipline. Its restrictive license forbids code reuse without permission and its React/NestJS stack does not justify a rewrite."
-    },
-    {
-      "capability": "geopolitical_dashboard_benchmark",
-      "name": "nabylb/aegis-intelligence",
-      "status": "benchmark",
-      "integration_mode": "concept_reference_only",
-      "license": "MIT",
-      "decision": "benchmark_selected_patterns",
-      "rationale": "Useful recent reference for tiered refresh, delta delivery, heatmap/theater UX and bounded rendering. Do not inherit unreviewed scraping sources or replace Geopolitical Watch evidence/verdict semantics with a generic source-rating scheme."
-    }
+    {"capability":"web_geospatial_rendering","name":"MapLibre GL JS","status":"primary","integration_mode":"runtime_library","license":"BSD-3-Clause","decision":"keep","rationale":"Current WebGL map engine already passes real-browser smoke tests and supports the required GeoJSON/vector/raster model without a frontend rewrite."},
+    {"capability":"spatial_database","name":"PostgreSQL/PostGIS","status":"primary","integration_mode":"managed_database","license":"PostgreSQL/PostGIS upstream licenses","decision":"keep","rationale":"Canonical production store for spatial queries, persistence and analytical joins; replacing it would add a second spatial data plane."},
+    {"capability":"infrastructure_as_code","name":"HashiCorp Terraform","status":"primary","integration_mode":"gcp_infrastructure_definition","license":"BUSL-1.1 for current Terraform distributions; provider licenses reviewed separately","decision":"keep_single_authority","rationale":"One declarative provisioning authority prevents drift from imperative gcloud/Replit scripts. The Google provider is pinned and write-only secret attributes keep supported secret payloads out of state."},
+    {"capability":"cloud_deployment_identity","name":"GitHub OIDC + Google Workload Identity Federation","status":"primary","integration_mode":"keyless_ci_to_gcp","license":"managed platform capability","decision":"keep","rationale":"Deploys an already-green immutable commit without storing long-lived Google service-account JSON keys in GitHub or development environments."},
+    {"capability":"browser_e2e","name":"Playwright","status":"primary","integration_mode":"test_dependency","license":"Apache-2.0","decision":"keep","rationale":"Exercises the authenticated page in a real Chromium runtime and catches map/browser integration failures that unit tests cannot."},
+    {"capability":"container_and_repository_security_scan","name":"Trivy","status":"primary","integration_mode":"ci_action","license":"Apache-2.0","decision":"expand","rationale":"Gates the production image and repository secret/misconfiguration posture, avoiding a duplicate scanner stack."},
+    {"capability":"python_dependency_advisory_scan","name":"pip-audit","status":"primary","integration_mode":"test_dependency","license":"Apache-2.0","decision":"keep","rationale":"Python-specific dependency advisory gate complements rather than duplicates the container scan."},
+    {"capability":"cloud_ais_ingest","name":"AISStream","status":"primary","integration_mode":"server_side_websocket","license":"provider-terms","decision":"keep","rationale":"Current decoded real-time feed is integrated server-side with bounded strategic coverage and no browser credential exposure."},
+    {"capability":"raw_ais_nmea_decode","name":"pyais","status":"conditional_reference","integration_mode":"not_installed","license":"MIT","decision":"adopt_when_raw_nmea_source_exists","rationale":"Mature AIVDM/AIVDO decoder with TCP/UDP/file support; installing it before a raw NMEA source exists would create an unused dependency."},
+    {"capability":"edge_ais_receiver","name":"AIS-catcher","status":"conditional_reference","integration_mode":"separate_edge_component","license":"GPL-3.0","decision":"evaluate_for_owned_receivers_only","rationale":"Strong SDR receiver option for future owned coastal sensors; keep isolated from proprietary server code and review GPL obligations before deployment."},
+    {"capability":"static_vector_map_archive","name":"protomaps/PMTiles","status":"accepted_target","integration_mode":"object_storage_asset","license":"BSD-3-Clause reference implementations; PMTiles specification public domain/CC0 where applicable","decision":"adopt_for_self_hosted_basemap","rationale":"Official PMTiles is designed for single-file range-request tile archives on commodity object storage and supports MapLibre directly. It fits GCS and can remove runtime dependence on public raster tile servers without adding a tile backend. Basemap source-data licensing and attribution remain a separate mandatory review."},
+    {"capability":"vector_tile_build_pipeline","name":"felt/tippecanoe","status":"reserve","integration_mode":"not_installed","license":"BSD-2-Clause","decision":"adopt_only_when_large_geojson_requires_prebuilt_vector_tiles","rationale":"Active upstream designed to build vector tilesets from large GeoJSON collections. It complements PMTiles generation when static infrastructure/context layers outgrow direct GeoJSON, but installing it before that threshold would create an unused build dependency."},
+    {"capability":"sanctions_entity_matching","name":"OpenSanctions Yente","status":"conditional_reference","integration_mode":"not_installed","license":"software_and_dataset_terms_review_required","decision":"evaluate_after_data_rights_review","rationale":"Could improve alias/entity matching, but official issuing-authority sanctions data remains canonical and an aggregator must not create a second legal truth source."},
+    {"capability":"global_intelligence_reference","name":"koala73/worldmonitor","status":"reference_only","integration_mode":"architecture_reference","license":"AGPL-3.0-only","decision":"concepts_only_no_code_import","rationale":"Useful reference for multi-stream intelligence, map performance and source freshness; AGPL code is not copied into this proprietary repository."},
+    {"capability":"osint_source_discovery","name":"cognis-digital/conflictwatch","status":"reference_only","integration_mode":"source_catalog_reference","license":"NOASSERTION","decision":"catalog_only_independent_source_registration","rationale":"Broad source catalog is valuable for discovery, but every upstream source must pass independent endpoint, rights, cadence and evidence-role review."},
+    {"capability":"maritime_map_ux_benchmark","name":"time2map/marine-eye","status":"benchmark","integration_mode":"concept_reference_only","license":"MIT","decision":"benchmark_no_stack_rewrite","rationale":"Recent MapLibre/AIS reference for vessel-category filtering, selected-vessel trails and operator-friendly vessel details. Keep AIS credentials server-side in Geopolitical Watch rather than adopting its browser-key pattern."},
+    {"capability":"realtime_tracking_architecture_benchmark","name":"mdev-co/portview","status":"benchmark","integration_mode":"concept_reference_only","license":"source-available; use/derivatives require permission","decision":"concepts_only_no_code_import","rationale":"Useful reference for render-frame budgeting, stale-source freeze semantics, multi-source ingest failover, PostGIS geofencing and ADR discipline. Its restrictive license forbids code reuse without permission and its React/NestJS stack does not justify a rewrite."},
+    {"capability":"geopolitical_dashboard_benchmark","name":"nabylb/aegis-intelligence","status":"benchmark","integration_mode":"concept_reference_only","license":"MIT","decision":"benchmark_selected_patterns","rationale":"Useful recent reference for tiered refresh, delta delivery, heatmap/theater UX and bounded rendering. Do not inherit unreviewed scraping sources or replace Geopolitical Watch evidence/verdict semantics with a generic source-rating scheme."}
   ]
 }
