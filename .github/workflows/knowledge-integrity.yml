@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: geowatch-knowledge-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-obsidian:
     runs-on: ubuntu-latest
@@ -28,10 +32,13 @@ jobs:
           python scripts/build_obsidian_bundle.py | tee obsidian-bundle-run.json
           test -s generated/obsidian/monitor_conflitos/manifest.json
       - name: Upload knowledge evidence
+        if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: geowatch-obsidian-knowledge-${{ github.run_id }}
           path: |
             obsidian-bundle-run.json
             generated/obsidian/monitor_conflitos/
-          retention-days: 30
+          if-no-files-found: warn
+          retention-days: 1
