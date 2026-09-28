@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from typing import Literal
 
 VerificationLevel = Literal["research_coded", "curated_report", "osint_signal", "sensor_signal"]
@@ -159,6 +160,15 @@ class Relationship:
     derived_from: tuple[str, ...] = ()
     provenance: dict[str, object] | None = None
 
+    def __post_init__(self) -> None:
+        if _parse_relationship_time(self.last_seen_at) < _parse_relationship_time(self.first_seen_at):
+            raise ValueError("last_seen_at must not precede first_seen_at")
+        if self.valid_from and self.valid_to and _parse_relationship_time(self.valid_to) < _parse_relationship_time(self.valid_from):
+            raise ValueError("valid_to must not precede valid_from")
+        for name, value in (("confidence", self.confidence), ("source_quality", self.source_quality)):
+            if value is not None and not 0.0 <= value <= 1.0:
+                raise ValueError(f"{name} must be between 0 and 1")
+
     def to_dict(self) -> dict[str, object]:
         row = asdict(self)
         for field in ("evidence_ids", "source_ids", "contradicts", "supersedes", "derived_from"):
@@ -236,3 +246,10 @@ class ConflictEpisode:
         if isinstance(strength, dict):
             data["evidence_strength"] = EvidenceStrength.from_dict(strength)
         return cls(**data)  # type: ignore[arg-type]
+
+
+def _parse_relationship_time(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
