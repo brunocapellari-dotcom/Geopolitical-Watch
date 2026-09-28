@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 
-from .http import HttpResponse, get, validate_web_url
+from .http import HttpResponse, get, safe_response_headers, validate_web_url
 from .raw_store import open_raw_store
 
 
@@ -84,7 +84,7 @@ def snapshot_response(
         sha256=digest,
         raw_ref=raw_ref,
         collector_id=collector_id,
-        response_headers=response.headers,
+        response_headers=safe_response_headers(response.headers),
     )
 
 
