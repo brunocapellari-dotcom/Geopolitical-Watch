@@ -88,7 +88,7 @@ def get(
                     response.read(),
                     final_url,
                     response.headers.get("Content-Type"),
-                    _safe_response_headers(response.headers),
+                    safe_response_headers(response.headers),
                 )
         except HTTPError as exc:
             if exc.code not in _RETRYABLE_HTTP_CODES or attempt >= attempts - 1:
@@ -119,7 +119,7 @@ def post_form(url: str, data: dict[str, str], *, headers: dict[str, str] | None 
             response.read(),
             final_url,
             response.headers.get("Content-Type"),
-            _safe_response_headers(response.headers),
+            safe_response_headers(response.headers),
         )
 
 
@@ -152,9 +152,10 @@ _SAFE_RESPONSE_HEADER_NAMES = {
 }
 
 
-def _safe_response_headers(headers) -> tuple[tuple[str, str], ...]:  # type: ignore[no-untyped-def]
+def safe_response_headers(headers) -> tuple[tuple[str, str], ...]:  # type: ignore[no-untyped-def]
     values: list[tuple[str, str]] = []
-    for key, value in headers.items():
+    items = headers.items() if hasattr(headers, "items") else headers
+    for key, value in items:
         name = str(key).strip().casefold()
         if name in _SAFE_RESPONSE_HEADER_NAMES:
             values.append((name, str(value).strip()[:2000]))
