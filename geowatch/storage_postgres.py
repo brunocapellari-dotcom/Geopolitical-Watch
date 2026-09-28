@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .core import EventCluster, deterministic_cluster_id, score_cluster
-from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef
+from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef, Relationship
 
 
 class PostgresStore:
@@ -148,6 +148,45 @@ class PostgresStore:
             cur.execute("SELECT entity_json FROM entities")
             rows = cur.fetchall()
         return [Entity.from_dict(_dict(row["entity_json"])) for row in rows]
+
+    def upsert_relationships(self, relationships: Iterable[Relationship]) -> int:
+        rows = list(relationships)
+        with self.db.cursor() as cur:
+            for relationship in rows:
+                cur.execute("""
+                INSERT INTO relationships(
+                  relationship_id, source_entity_id, target_entity_id, relationship_type, semantic_class,
+                  first_seen_at, last_seen_at, valid_from, valid_to, confidence, relationship_json
+                ) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb)
+                ON CONFLICT(relationship_id) DO UPDATE SET source_entity_id=EXCLUDED.source_entity_id,
+                  target_entity_id=EXCLUDED.target_entity_id, relationship_type=EXCLUDED.relationship_type,
+                  semantic_class=EXCLUDED.semantic_class,
+                  first_seen_at=EXCLUDED.first_seen_at,
+                  last_seen_at=EXCLUDED.last_seen_at,
+                  valid_from=EXCLUDED.valid_from, valid_to=EXCLUDED.valid_to,
+                  confidence=EXCLUDED.confidence, relationship_json=EXCLUDED.relationship_json, updated_at=now()
+                """, (
+                    relationship.relationship_id, relationship.source_entity_id, relationship.target_entity_id,
+                    relationship.relationship_type, relationship.semantic_class, relationship.first_seen_at,
+                    relationship.last_seen_at, relationship.valid_from, relationship.valid_to, relationship.confidence,
+                    self._json(relationship.to_dict()),
+                ))
+        self.db.commit()
+        return len(rows)
+
+    def load_relationships(self, *, entity_id: str | None = None, relationship_type: str | None = None) -> list[Relationship]:
+        clauses = ["TRUE"]
+        params: list[object] = []
+        if entity_id:
+            clauses.append("(source_entity_id=%s OR target_entity_id=%s)")
+            params.extend([entity_id, entity_id])
+        if relationship_type:
+            clauses.append("relationship_type=%s")
+            params.append(relationship_type)
+        with self.db.cursor() as cur:
+            cur.execute(f"SELECT relationship_json FROM relationships WHERE {' AND '.join(clauses)} ORDER BY last_seen_at DESC", params)
+            rows = cur.fetchall()
+        return [Relationship.from_dict(_dict(row["relationship_json"])) for row in rows]
 
     def upsert_evidence(self, evidence: Iterable[EvidenceRef]) -> int:
         rows = list(evidence)

@@ -179,6 +179,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._episode_detail(store, path.split("/", 3)[3])
             if path == "/v2/events":
                 return self._send_json(200, {"schema_version": "geowatch-events-v2", "events": store.list_events(since=_one(query, "since"), country=_one(query, "country"), limit=_int(query, "limit", 200) or 200)})
+            if path == "/v2/relationships":
+                rows = store.load_relationships(
+                    entity_id=_one(query, "entity_id"),
+                    relationship_type=_one(query, "relationship_type"),
+                )
+                limit = _int(query, "limit", 500) or 500
+                return self._send_json(200, {
+                    "schema_version": "geowatch-relationships-v1",
+                    "relationships": [row.to_dict() for row in rows[:max(1, min(limit, 5000))]],
+                })
             if path == "/v2/changes":
                 since = _one(query, "since") or "1970-01-01T00:00:00+00:00"
                 return self._send_json(200, {"schema_version": "geowatch-changes-v1", "changes": store.changes_since(since, limit=_int(query, "limit", 500) or 500)})
@@ -195,6 +205,11 @@ class Handler(BaseHTTPRequestHandler):
         evidence_rows = store.load_evidence(episode_id=episode_id)
         entity_ids = set(episode.actor_entity_ids) | set(episode.infrastructure_entity_ids) | set(episode.other_entity_ids)
         entities = [row for row in store.load_entities() if row.entity_id in entity_ids]
+        relationship_by_id = {}
+        for entity_id in sorted(entity_ids):
+            for relationship in store.load_relationships(entity_id=entity_id):
+                relationship_by_id[relationship.relationship_id] = relationship
+        relationships = list(relationship_by_id.values())
         changes = [row for row in store.changes_since(episode.started_at, limit=5000) if row.get("episode_id") == episode_id]
         try:
             context = GeopoliticalKnowledge.from_files().context_for_episode(episode, claims=claim_rows, entities=entities, events=event_rows)
@@ -212,6 +227,7 @@ class Handler(BaseHTTPRequestHandler):
             "schema_version": "geowatch-episode-detail-v2", "episode": episode.to_dict(),
             "claims": [row.to_dict() for row in claim_rows], "evidence": [row.to_dict() for row in evidence_rows],
             "entities": [row.to_dict() for row in entities], "events": [row.to_dict() for row in event_rows],
+            "relationships": [row.to_dict() for row in relationships],
             "changes": changes, "strategic_context": context, "strategic_graph_context": graph_context,
             "escalation_readout": escalation, "review_decisions": list_review_decisions(store, episode_id=episode_id, limit=200),
             "forecasts": [row for row in list_forecasts(store, limit=5000) if row.get("subject_type") == "episode" and row.get("subject_id") == episode_id],

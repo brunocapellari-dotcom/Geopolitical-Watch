@@ -1,0 +1,75 @@
+steps:
+  - id: build-ci-toolchain
+    name: gcr.io/cloud-builders/docker
+    args: ["build", "--pull", "-f", "Dockerfile.cloudbuild", "-t", "geowatch-ci:${BUILD_ID}", "."]
+
+  - id: start-postgis
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        docker run -d --name geowatch-postgres --network cloudbuild \
+          -e POSTGRES_DB=geowatch \
+          -e POSTGRES_USER=geowatch \
+          -e POSTGRES_PASSWORD=geowatch \
+          postgis/postgis:16-3.5
+
+  - id: secret-scan
+    name: ghcr.io/gitleaks/gitleaks:v8.30.1
+    args: ["dir", "/workspace", "--redact", "--no-banner"]
+
+  - id: full-project-gate
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        docker run --rm \
+          --network cloudbuild \
+          -v /workspace:/workspace \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -w /workspace \
+          -e PYTHONPATH=. \
+          -e GEOWATCH_TEST_POSTGRES_URL=postgresql://geowatch:geowatch@geowatch-postgres:5432/geowatch \
+          geowatch-ci:${BUILD_ID} \
+          bash scripts/full_project_gate.sh
+        printf 'FULL_PROJECT_GATE_OK\n' > /workspace/cloudbuild-gate-summary.txt
+
+  - id: repository-security
+    name: aquasec/trivy:0.74.0
+    args:
+      - fs
+      - --scanners
+      - secret,misconfig
+      - --severity
+      - HIGH,CRITICAL
+      - --exit-code
+      - "1"
+      - /workspace
+
+  - id: image-security
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+          aquasec/trivy:0.74.0 image \
+          --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 geowatch-full-gate:local
+
+  - id: persist-evidence
+    name: gcr.io/google.com/cloudsdktool/google-cloud-cli:stable
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        printf '%s\n' "${COMMIT_SHA}" > /workspace/source-commit.txt
+        gcloud storage cp /workspace/cloudbuild-gate-summary.txt /workspace/source-commit.txt \
+          "gs://${PROJECT_ID}-ai-execution-evidence/Geopolitical-Watch/${BUILD_ID}/"
+
+timeout: 5400s
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/ai-build-executor@${PROJECT_ID}.iam.gserviceaccount.com"
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
