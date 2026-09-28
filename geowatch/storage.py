@@ -306,8 +306,8 @@ class SQLiteStore:
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(relationship_id) DO UPDATE SET source_entity_id=excluded.source_entity_id,
               target_entity_id=excluded.target_entity_id, relationship_type=excluded.relationship_type,
-              semantic_class=excluded.semantic_class, first_seen_at=MIN(relationships.first_seen_at, excluded.first_seen_at),
-              last_seen_at=MAX(relationships.last_seen_at, excluded.last_seen_at), valid_from=excluded.valid_from,
+              semantic_class=excluded.semantic_class, first_seen_at=excluded.first_seen_at,
+              last_seen_at=excluded.last_seen_at, valid_from=excluded.valid_from,
               valid_to=excluded.valid_to, confidence=excluded.confidence, relationship_json=excluded.relationship_json,
               updated_at=CURRENT_TIMESTAMP
             """, (
