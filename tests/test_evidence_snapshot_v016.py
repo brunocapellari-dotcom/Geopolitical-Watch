@@ -29,7 +29,7 @@ class EvidenceSnapshotTests(unittest.TestCase):
 
             self.assertEqual("https://example.org/start", snapshot.original_url)
             self.assertEqual("https://example.org/final", snapshot.final_url)
-            self.assertEqual(34, len(snapshot.sha256))
+            self.assertEqual(64, len(snapshot.sha256))
             self.assertTrue(Path(snapshot.raw_ref).exists())
             self.assertEqual(b"<html><body>evidence</body></html>", Path(snapshot.raw_ref).read_bytes())
 
