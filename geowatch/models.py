@@ -16,6 +16,7 @@ EntityType = Literal[
 ]
 ClaimStatus = Literal["unverified", "supported", "disputed", "retracted", "superseded"]
 EvidenceRelation = Literal["supports", "refutes", "updates", "reports"]
+RelationshipSemanticClass = Literal["observed", "reported", "inferred", "estimated", "derived"]
 EpisodeState = Literal["emerging", "active", "escalating", "stable", "deescalating", "ceasefire", "closed"]
 
 
@@ -133,6 +134,42 @@ class Claim:
         data["subject_entity_ids"] = tuple(data.get("subject_entity_ids") or ())
         data["object_entity_ids"] = tuple(data.get("object_entity_ids") or ())
         data["evidence_ids"] = tuple(data.get("evidence_ids") or ())
+        return cls(**data)  # type: ignore[arg-type]
+
+
+@dataclass(frozen=True)
+class Relationship:
+    relationship_id: str
+    source_entity_id: str
+    target_entity_id: str
+    relationship_type: str
+    semantic_class: RelationshipSemanticClass
+    first_seen_at: str
+    last_seen_at: str
+    valid_from: str | None = None
+    valid_to: str | None = None
+    confidence: float | None = None
+    source_quality: float | None = None
+    derivation_method: str | None = None
+    derivation_version: str | None = None
+    evidence_ids: tuple[str, ...] = ()
+    source_ids: tuple[str, ...] = ()
+    contradicts: tuple[str, ...] = ()
+    supersedes: tuple[str, ...] = ()
+    derived_from: tuple[str, ...] = ()
+    provenance: dict[str, object] | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        row = asdict(self)
+        for field in ("evidence_ids", "source_ids", "contradicts", "supersedes", "derived_from"):
+            row[field] = list(getattr(self, field))
+        return row
+
+    @classmethod
+    def from_dict(cls, row: dict[str, object]) -> "Relationship":
+        data = dict(row)
+        for field in ("evidence_ids", "source_ids", "contradicts", "supersedes", "derived_from"):
+            data[field] = tuple(data.get(field) or ())
         return cls(**data)  # type: ignore[arg-type]
 
 
