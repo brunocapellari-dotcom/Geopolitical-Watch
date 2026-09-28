@@ -161,8 +161,8 @@ class PostgresStore:
                 ON CONFLICT(relationship_id) DO UPDATE SET source_entity_id=EXCLUDED.source_entity_id,
                   target_entity_id=EXCLUDED.target_entity_id, relationship_type=EXCLUDED.relationship_type,
                   semantic_class=EXCLUDED.semantic_class,
-                  first_seen_at=LEAST(relationships.first_seen_at, EXCLUDED.first_seen_at),
-                  last_seen_at=GREATEST(relationships.last_seen_at, EXCLUDED.last_seen_at),
+                  first_seen_at=EXCLUDED.first_seen_at,
+                  last_seen_at=EXCLUDED.last_seen_at,
                   valid_from=EXCLUDED.valid_from, valid_to=EXCLUDED.valid_to,
                   confidence=EXCLUDED.confidence, relationship_json=EXCLUDED.relationship_json, updated_at=now()
                 """, (
