@@ -24,7 +24,7 @@ PY
 
 printf '\n== portable 2/8 complete tests with coverage ==\n'
 coverage erase
-env -u DATABASE_URL -u GEOWATCH_DB_URL coverage run --source=geowatch -m unittest discover -s tests -v
+env -u DATABASE_URL -u GEOWATCH_DB_URL -u GEOWATCH_RAW_BACKEND -u GEOWATCH_RAW_BUCKET -u GEOWATCH_STRICT_PRODUCTION -u GEOWATCH_API_TOKEN -u GEOWATCH_SOURCE_SCHEDULER -u GEOWATCH_EXTERNAL_SCHEDULER -u GEOWATCH_EMBEDDED_COLLECTOR coverage run --source=geowatch -m unittest discover -s tests -v
 coverage report -m
 
 printf '\n== portable 3/8 deterministic fixtures ==\n'
