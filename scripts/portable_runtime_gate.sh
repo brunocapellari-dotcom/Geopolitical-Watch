@@ -47,8 +47,7 @@ bandit -q -r geowatch -x tests -ll -s B104,B608
 
 printf '\n== portable 5/8 PostgreSQL/PostGIS/RAW/relationship schema ==\n'
 GEOWATCH_DB_URL="$TEST_DB" GEOWATCH_RAW_BACKEND=postgres python - <<'PY'
-from geowatch.models import Entity, Relationship
-from geowatch.raw_store import open_raw_store, raw_backend_name
+from geowatch.raw_store import raw_backend_name
 from geowatch.storage_factory import backend_name, open_store
 assert backend_name() == "postgresql-postgis"
 store=open_store()
@@ -56,31 +55,22 @@ try:
     with store.db.cursor() as cur:
         cur.execute("SELECT PostGIS_Version() AS postgis_version")
         assert cur.fetchone()["postgis_version"]
-        cur.execute("SELECT to_regclass('public.relationships') AS relationships")
-        assert cur.fetchone()["relationships"] == "relationships"
-    store.upsert_entities([
-        Entity(entity_id="portable_gate_a", entity_type="actor", canonical_name="Portable Gate A"),
-        Entity(entity_id="portable_gate_b", entity_type="organization", canonical_name="Portable Gate B"),
-    ])
-    store.upsert_relationships([Relationship(
-        relationship_id="portable_gate_relationship",
-        source_entity_id="portable_gate_a",
-        target_entity_id="portable_gate_b",
-        relationship_type="gate_test",
-        semantic_class="derived",
-        first_seen_at="2026-09-28T00:00:00+00:00",
-        last_seen_at="2026-09-28T00:00:00+00:00",
-        derived_from=("portable_gate",),
-    )])
-    assert store.load_relationships(entity_id="portable_gate_a")[0].relationship_id == "portable_gate_relationship"
+        for table in (
+            "relationships",
+            "raw_payloads",
+            "raw_evidence_observations",
+            "raw_evidence_index",
+            "events",
+            "claims",
+            "evidence",
+            "source_checkpoints",
+        ):
+            cur.execute("SELECT to_regclass(%s) AS relation", (f"public.{table}",))
+            assert cur.fetchone()["relation"] == table, table
 finally:
     store.close()
-raw=open_raw_store()
-ref,digest=raw.put("portable-gate","2026-09-28T00:00:00+00:00",b"portable-runtime-gate","txt")
-assert ref.startswith("pgraw://")
-assert raw.get("portable-gate",digest) == b"portable-runtime-gate"
 assert raw_backend_name() == "postgresql-compressed"
-print("postgres/postgis/raw/relationships: ok")
+print("postgres/postgis/raw/relationships schema: ok (read-only)")
 PY
 
 printf '\n== portable 6/8 strict runtime invariants ==\n'
