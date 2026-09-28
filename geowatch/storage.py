@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .core import EventCluster, deterministic_cluster_id, score_cluster
-from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef
+from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef, Relationship
 
 
 class SQLiteStore:
@@ -104,6 +104,25 @@ class SQLiteStore:
         CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(canonical_name);
         CREATE INDEX IF NOT EXISTS idx_entities_country ON entities(country);
 
+        CREATE TABLE IF NOT EXISTS relationships (
+          relationship_id TEXT PRIMARY KEY,
+          source_entity_id TEXT NOT NULL,
+          target_entity_id TEXT NOT NULL,
+          relationship_type TEXT NOT NULL,
+          semantic_class TEXT NOT NULL,
+          first_seen_at TEXT NOT NULL,
+          last_seen_at TEXT NOT NULL,
+          valid_from TEXT,
+          valid_to TEXT,
+          confidence REAL,
+          relationship_json TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_entity_id);
+        CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_entity_id);
+        CREATE INDEX IF NOT EXISTS idx_relationships_type ON relationships(relationship_type);
+        CREATE INDEX IF NOT EXISTS idx_relationships_validity ON relationships(valid_from, valid_to);
+
         CREATE TABLE IF NOT EXISTS episodes (
           episode_id TEXT PRIMARY KEY,
           state TEXT NOT NULL,
@@ -184,6 +203,7 @@ class SQLiteStore:
         """)
         self.db.execute("INSERT OR IGNORE INTO schema_migrations(version, name) VALUES(1, 'v0.4 baseline')")
         self.db.execute("INSERT OR IGNORE INTO schema_migrations(version, name) VALUES(2, 'v0.5 episode convergence')")
+        self.db.execute("INSERT OR IGNORE INTO schema_migrations(version, name) VALUES(4, 'v0.16 temporal relationships')")
         self.db.commit()
 
     # --- legacy/raw event layer -------------------------------------------------
@@ -275,6 +295,41 @@ class SQLiteStore:
 
     def load_entities(self) -> list[Entity]:
         return [Entity.from_dict(json.loads(row["entity_json"])) for row in self.db.execute("SELECT entity_json FROM entities").fetchall()]
+
+    def upsert_relationships(self, relationships: Iterable[Relationship]) -> int:
+        rows = list(relationships)
+        for relationship in rows:
+            self.db.execute("""
+            INSERT INTO relationships(
+              relationship_id, source_entity_id, target_entity_id, relationship_type, semantic_class,
+              first_seen_at, last_seen_at, valid_from, valid_to, confidence, relationship_json
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(relationship_id) DO UPDATE SET source_entity_id=excluded.source_entity_id,
+              target_entity_id=excluded.target_entity_id, relationship_type=excluded.relationship_type,
+              semantic_class=excluded.semantic_class, first_seen_at=MIN(relationships.first_seen_at, excluded.first_seen_at),
+              last_seen_at=MAX(relationships.last_seen_at, excluded.last_seen_at), valid_from=excluded.valid_from,
+              valid_to=excluded.valid_to, confidence=excluded.confidence, relationship_json=excluded.relationship_json,
+              updated_at=CURRENT_TIMESTAMP
+            """, (
+                relationship.relationship_id, relationship.source_entity_id, relationship.target_entity_id,
+                relationship.relationship_type, relationship.semantic_class, relationship.first_seen_at,
+                relationship.last_seen_at, relationship.valid_from, relationship.valid_to, relationship.confidence,
+                json.dumps(relationship.to_dict(), ensure_ascii=False),
+            ))
+        self.db.commit()
+        return len(rows)
+
+    def load_relationships(self, *, entity_id: str | None = None, relationship_type: str | None = None) -> list[Relationship]:
+        sql = "SELECT relationship_json FROM relationships WHERE 1=1"
+        params: list[object] = []
+        if entity_id:
+            sql += " AND (source_entity_id=? OR target_entity_id=?)"
+            params.extend([entity_id, entity_id])
+        if relationship_type:
+            sql += " AND relationship_type=?"
+            params.append(relationship_type)
+        sql += " ORDER BY last_seen_at DESC"
+        return [Relationship.from_dict(json.loads(row["relationship_json"])) for row in self.db.execute(sql, params).fetchall()]
 
     def upsert_evidence(self, evidence: Iterable[EvidenceRef]) -> int:
         rows = list(evidence)
