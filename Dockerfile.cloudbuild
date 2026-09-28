@@ -1,0 +1,21 @@
+FROM hashicorp/terraform:1.11.4 AS terraform
+
+FROM python:3.12-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+COPY --from=terraform /bin/terraform /usr/local/bin/terraform
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl docker.io git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+COPY . .
+RUN python -m pip install --upgrade pip \
+    && pip install -e '.[production,test]' \
+    && python -m playwright install --with-deps chromium
+
+CMD ["bash", "scripts/full_project_gate.sh"]
