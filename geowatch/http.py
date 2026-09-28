@@ -15,6 +15,7 @@ class HttpResponse:
     payload: bytes
     url: str
     content_type: str | None
+    headers: tuple[tuple[str, str], ...] = ()
 
 
 _RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
@@ -83,7 +84,12 @@ def get(
             # http/https with a hostname and no URL credentials are permitted.
             with urlopen(request, timeout=timeout) as response:  # nosec B310
                 final_url = validate_web_url(response.geturl())
-                return HttpResponse(response.read(), final_url, response.headers.get("Content-Type"))
+                return HttpResponse(
+                    response.read(),
+                    final_url,
+                    response.headers.get("Content-Type"),
+                    _safe_response_headers(response.headers),
+                )
         except HTTPError as exc:
             if exc.code not in _RETRYABLE_HTTP_CODES or attempt >= attempts - 1:
                 raise
@@ -109,7 +115,12 @@ def post_form(url: str, data: dict[str, str], *, headers: dict[str, str] | None 
     # B310 is mitigated by validate_web_url above and final redirect validation.
     with urlopen(request, timeout=timeout) as response:  # nosec B310
         final_url = validate_web_url(response.geturl())
-        return HttpResponse(response.read(), final_url, response.headers.get("Content-Type"))
+        return HttpResponse(
+            response.read(),
+            final_url,
+            response.headers.get("Content-Type"),
+            _safe_response_headers(response.headers),
+        )
 
 
 def json_body(response: HttpResponse) -> dict:
@@ -127,3 +138,24 @@ def _retry_delay(attempt: int, retry_after: str | None, backoff_seconds: float, 
     jitter_fraction = int.from_bytes(digest[:2], "big") / 65535.0
     jitter = base * 0.35 * jitter_fraction
     return min(max_backoff_seconds, base + jitter)
+
+
+_SAFE_RESPONSE_HEADER_NAMES = {
+    "cache-control",
+    "content-language",
+    "content-length",
+    "content-type",
+    "date",
+    "etag",
+    "expires",
+    "last-modified",
+}
+
+
+def _safe_response_headers(headers) -> tuple[tuple[str, str], ...]:  # type: ignore[no-untyped-def]
+    values: list[tuple[str, str]] = []
+    for key, value in headers.items():
+        name = str(key).strip().casefold()
+        if name in _SAFE_RESPONSE_HEADER_NAMES:
+            values.append((name, str(value).strip()[:2000]))
+    return tuple(sorted(values))
