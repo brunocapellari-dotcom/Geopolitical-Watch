@@ -47,9 +47,11 @@ bandit -q -r geowatch -x tests -ll -s B104,B608
 
 printf '\n== portable 5/8 PostgreSQL/PostGIS/RAW/relationship schema ==\n'
 GEOWATCH_DB_URL="$TEST_DB" GEOWATCH_RAW_BACKEND=postgres python - <<'PY'
-from geowatch.raw_store import raw_backend_name
+from geowatch.raw_store import open_raw_store, raw_backend_name
 from geowatch.storage_factory import backend_name, open_store
 assert backend_name() == "postgresql-postgis"
+raw = open_raw_store()
+assert raw.get("portable-gate-schema-probe", "0" * 64) is None
 store=open_store()
 try:
     with store.db.cursor() as cur:
