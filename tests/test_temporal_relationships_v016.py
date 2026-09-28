@@ -38,6 +38,30 @@ class TemporalRelationshipTests(unittest.TestCase):
         self.assertNotEqual(restored.first_seen_at, restored.valid_from)
         self.assertEqual("derived", restored.semantic_class)
 
+
+    def test_relationship_rejects_invalid_time_and_confidence(self) -> None:
+        with self.assertRaises(ValueError):
+            Relationship(
+                relationship_id="rel_bad_time",
+                source_entity_id="a",
+                target_entity_id="b",
+                relationship_type="test",
+                semantic_class="derived",
+                first_seen_at="2026-09-28T12:00:00Z",
+                last_seen_at="2026-09-28T11:00:00Z",
+            )
+        with self.assertRaises(ValueError):
+            Relationship(
+                relationship_id="rel_bad_confidence",
+                source_entity_id="a",
+                target_entity_id="b",
+                relationship_type="test",
+                semantic_class="derived",
+                first_seen_at="2026-09-28T11:00:00Z",
+                last_seen_at="2026-09-28T12:00:00Z",
+                confidence=1.1,
+            )
+
     def test_sqlite_relationship_storage_and_filters(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             store = SQLiteStore(Path(tmp) / "geowatch.db")
