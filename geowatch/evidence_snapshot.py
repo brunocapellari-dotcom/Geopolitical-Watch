@@ -19,6 +19,7 @@ class EvidenceSnapshot:
     sha256: str
     raw_ref: str
     collector_id: str | None = None
+    response_headers: tuple[tuple[str, str], ...] = ()
     capture_method: str = "http"
     method_version: str = "geowatch-evidence-snapshot-v1"
 
@@ -83,6 +84,7 @@ def snapshot_response(
         sha256=digest,
         raw_ref=raw_ref,
         collector_id=collector_id,
+        response_headers=response.headers,
     )
 
 
