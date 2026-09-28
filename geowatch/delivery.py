@@ -4,9 +4,9 @@ import json
 import os
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
-from .http import validate_web_url
+from .http import open_url_request, validate_web_url
 from .runtime_guard import strict_production_mode
 
 
@@ -29,8 +29,7 @@ def dispatch_pending(store, *, webhook_url: str | None = None, bearer_token: str
             headers["Authorization"] = f"Bearer {token}"
         try:
             request = Request(url, data=data, headers=headers, method="POST")
-            # B310 is mitigated by validate_web_url above; production is HTTPS-only.
-            with urlopen(request, timeout=timeout) as response:  # nosec B310
+            with open_url_request(request, timeout=timeout, require_https=strict_production_mode()) as response:
                 validate_web_url(response.geturl(), require_https=strict_production_mode())
                 status = int(getattr(response, "status", 200))
                 if status < 200 or status >= 300:
