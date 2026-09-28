@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 @dataclass(frozen=True)
@@ -57,6 +57,21 @@ def validate_web_url(url: str, *, require_https: bool = False) -> str:
     return value
 
 
+class _SafeRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, *, require_https: bool = False) -> None:
+        super().__init__()
+        self.require_https = require_https
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        safe_url = validate_web_url(newurl, require_https=self.require_https)
+        return super().redirect_request(req, fp, code, msg, headers, safe_url)
+
+
+def open_url_request(request: Request, *, timeout: int, require_https: bool = False):
+    opener = build_opener(_SafeRedirectHandler(require_https=require_https))
+    return opener.open(request, timeout=timeout)  # nosec B310
+
+
 def get(
     url: str,
     *,
@@ -80,9 +95,7 @@ def get(
     attempts = max(0, int(retries)) + 1
     for attempt in range(attempts):
         try:
-            # B310 is mitigated by validate_web_url immediately above; only
-            # http/https with a hostname and no URL credentials are permitted.
-            with urlopen(request, timeout=timeout) as response:  # nosec B310
+            with open_url_request(request, timeout=timeout) as response:
                 final_url = validate_web_url(response.geturl())
                 return HttpResponse(
                     response.read(),
@@ -112,8 +125,7 @@ def post_form(url: str, data: dict[str, str], *, headers: dict[str, str] | None 
     }
     req_headers.update(headers or {})
     request = Request(url, data=payload, headers=req_headers, method="POST")
-    # B310 is mitigated by validate_web_url above and final redirect validation.
-    with urlopen(request, timeout=timeout) as response:  # nosec B310
+    with open_url_request(request, timeout=timeout) as response:
         final_url = validate_web_url(response.geturl())
         return HttpResponse(
             response.read(),
