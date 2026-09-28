@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import time
 from dataclasses import dataclass
@@ -36,6 +37,22 @@ def validate_web_url(url: str, *, require_https: bool = False) -> str:
         raise ValueError("URL hostname is required")
     if parts.username is not None or parts.password is not None:
         raise ValueError("credentials in URL are not allowed")
+    hostname = parts.hostname.casefold().rstrip(".")
+    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".localhost"):
+        raise ValueError("local addresses are not allowed")
+    try:
+        ip = ipaddress.ip_address(hostname.strip("[]"))
+    except ValueError:
+        ip = None
+    if ip is not None and (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        raise ValueError("non-public IP addresses are not allowed")
     return value
 
 
