@@ -17,6 +17,7 @@ class EvidenceSnapshotTests(unittest.TestCase):
                 payload=b"<html><body>evidence</body></html>",
                 url="https://example.org/final",
                 content_type="text/html; charset=utf-8",
+                headers=(("etag", "\"abc\""), ("set-cookie", "session=secret")),
             )
             snapshot = snapshot_response(
                 "source_a",
@@ -32,6 +33,8 @@ class EvidenceSnapshotTests(unittest.TestCase):
             self.assertEqual(64, len(snapshot.sha256))
             self.assertTrue(Path(snapshot.raw_ref).exists())
             self.assertEqual(b"<html><body>evidence</body></html>", Path(snapshot.raw_ref).read_bytes())
+            self.assertEqual((("etag", "\"abc\""),), snapshot.response_headers)
+            self.assertNotIn("set-cookie", dict(snapshot.response_headers))
 
     def test_snapshot_keeps_original_and_final_url_separate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
