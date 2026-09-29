@@ -72,7 +72,7 @@ def export_bundle(
         if not source_ref or not target_ref:
             continue
         created = _timestamp(relationship.first_seen_at)
-        objects.append({
+        row: dict[str, object] = {
             "type": "relationship",
             "spec_version": "2.1",
             "id": _stix_id("relationship", relationship.relationship_id),
@@ -81,25 +81,29 @@ def export_bundle(
             "relationship_type": "related-to",
             "source_ref": source_ref,
             "target_ref": target_ref,
-            "start_time": _timestamp(relationship.valid_from) if relationship.valid_from else None,
-            "stop_time": _timestamp(relationship.valid_to) if relationship.valid_to else None,
             "x_geowatch_relationship_id": relationship.relationship_id,
             "x_geowatch_relationship_type": relationship.relationship_type,
             "x_geowatch_semantic_class": relationship.semantic_class,
-            "x_geowatch_confidence": relationship.confidence,
             "x_geowatch_evidence_ids": list(relationship.evidence_ids),
-        })
+        }
+        if relationship.valid_from:
+            row["start_time"] = _timestamp(relationship.valid_from)
+        if relationship.valid_to:
+            row["stop_time"] = _timestamp(relationship.valid_to)
+        if relationship.confidence is not None:
+            row["confidence"] = max(0, min(round(relationship.confidence * 100), 100))
+            row["x_geowatch_confidence"] = relationship.confidence
+        objects.append(row)
 
     for claim in claims:
         created = _timestamp(claim.first_seen_at)
         objects.append({
-            "type": "note",
+            "type": "x-geowatch-claim",
             "spec_version": "2.1",
-            "id": _stix_id("note", claim.claim_id),
+            "id": _stix_id("x-geowatch-claim", claim.claim_id),
             "created": created,
             "modified": _timestamp(claim.last_seen_at),
-            "content": claim.statement,
-            "object_refs": [],
+            "statement": claim.statement,
             "x_geowatch_claim_id": claim.claim_id,
             "x_geowatch_episode_id": claim.episode_id,
             "x_geowatch_claim_type": claim.claim_type,
