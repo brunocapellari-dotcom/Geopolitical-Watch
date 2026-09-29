@@ -7,6 +7,7 @@ import os
 from .map_layers import load_map_layers
 
 _MAPLIBRE_VERSION = "6.9.1"
+_DECK_VERSION = "9.4.0"
 
 
 def map_points(store, *, limit: int = 500) -> list[dict[str, object]]:
@@ -108,11 +109,16 @@ input,button,select{padding:7px 9px;background:#24282c;color:#fff;border:1px sol
 <strong>Monitor de Conflitos</strong>
 <input id="token" type="password" placeholder="API bearer token">
 <select id="state"><option value="">todos os estados</option><option>emerging</option><option>active</option><option>escalating</option><option>stable</option><option>deescalating</option><option>ceasefire</option><option>closed</option></select>
+<input id="regionFilter" placeholder="região">
+<input id="actorFilter" placeholder="ator">
+<input id="typeFilter" placeholder="tipo de evento">
+<select id="confidenceFilter"><option value="">confiança: todas</option><option value="0.45">≥ 0,45</option><option value="0.65">≥ 0,65</option><option value="0.75">≥ 0,75</option></select>
+<select id="hoursFilter"><option value="24">24h</option><option value="72">72h</option><option value="168">7d</option><option value="720">30d</option></select>
 <button id="refresh">Atualizar</button>
 <div class="layers">__LAYER_CONTROLS__</div>
 <span id="status" class="meta"></span>
 </header>
-<div class="grid"><div id="map"></div><div class="panel"><div id="episodes"></div></div></div>
+<div class="grid"><div id="map"></div><div class="panel"><div class="high">Eventos recentes</div><div id="events"></div><div class="high">Episódios</div><div id="episodes"></div></div></div>
 <script type="module">
 import * as maplibregl from 'https://unpkg.com/maplibre-gl@__MAPLIBRE_VERSION__/dist/maplibre-gl.mjs';
 const MAP_STYLE=__MAP_STYLE__;
@@ -122,9 +128,12 @@ window.__geowatchMapReady=false;
 const map=new maplibregl.Map({container:'map',style:MAP_STYLE,center:[10,20],zoom:2,worldCopyJump:true,attributionControl:true});
 map.addControl(new maplibregl.NavigationControl({showCompass:true}),'top-right');
 const emptyFC=()=>({type:'FeatureCollection',features:[]});
-let stateData={episodes:[],conflicts:emptyFC(),infrastructure:emptyFC(),physical:emptyFC(),network:emptyFC(),aircraft:emptyFC(),vessels:emptyFC(),route:emptyFC(),routeEndpoints:emptyFC(),selectedTrack:emptyFC()};
-let lastCounts={episodes:0,conflicts:0,infra:0,infraTotal:0,physical:0,network:0,aircraft:0,vessels:0,aisConfigured:false,aisFresh:false};
+let stateData={episodes:[],events:[],conflicts:emptyFC(),infrastructure:emptyFC(),physical:emptyFC(),network:emptyFC(),aircraft:emptyFC(),vessels:emptyFC(),route:emptyFC(),routeEndpoints:emptyFC(),selectedTrack:emptyFC()};
+let lastCounts={episodes:0,events:0,conflicts:0,infra:0,infraTotal:0,physical:0,network:0,aircraft:0,vessels:0,aisConfigured:false,aisFresh:false};
 let aircraftRequest=0;
+let deckOverlay=null;
+let DeckHeatmapLayer=null;
+window.__geowatchDeckReady=false;
 
 async function api(path){
  const token=document.getElementById('token')?.value||'';
@@ -141,7 +150,7 @@ function setSource(name,data){stateData[name]=data;const src=map.getSource(name)
 function visible(name){const box=document.querySelector('input[data-layer="'+name+'"]');return box?box.checked:Boolean(layerMeta[name]?.default_visible)}
 const idsByLayer={conflicts:['conflicts-clusters','conflicts-count','conflicts-points'],infrastructure:['infrastructure-points'],physical:['physical-points'],network:['network-points'],aircraft:['aircraft-points'],vessels:['vessels-points']};
 function applyVisibility(name){for(const id of idsByLayer[name]||[]){if(map.getLayer(id))map.setLayoutProperty(id,'visibility',visible(name)?'visible':'none')}}
-function updateStatus(){const ais=!lastCounts.aisConfigured?' (AIS aguardando chave/ativação)':(!lastCounts.aisFresh?' (AIS sem mensagens recentes)':'');document.getElementById('status').textContent=lastCounts.episodes+' episódios | '+lastCounts.conflicts+' conflitos | '+lastCounts.infra+'/'+lastCounts.infraTotal+' infra | '+lastCounts.physical+' físico | '+lastCounts.network+' rede | '+lastCounts.aircraft+' aeronaves | '+lastCounts.vessels+' navios'+ais}
+function updateStatus(){const ais=!lastCounts.aisConfigured?' (AIS aguardando chave/ativação)':(!lastCounts.aisFresh?' (AIS sem mensagens recentes)':'');document.getElementById('status').textContent=lastCounts.events+' eventos | '+lastCounts.episodes+' episódios | '+lastCounts.conflicts+' conflitos | '+lastCounts.infra+'/'+lastCounts.infraTotal+' infra | '+lastCounts.physical+' físico | '+lastCounts.network+' rede | '+lastCounts.aircraft+' aeronaves | '+lastCounts.vessels+' navios'+ais}
 function popupAt(coords,body){new maplibregl.Popup({closeButton:true,maxWidth:'390px'}).setLngLat(coords).setHTML(body).addTo(map)}
 function semanticLine(id){const m=layerMeta[id];return m?'<br><span class="meta">'+esc(m.semantic_class)+' · '+esc(m.source)+' · '+esc(m.note)+'</span>':''}
 function popupEpisode(p){return '<b>'+esc(p.title)+'</b><br>'+esc(p.state)+' | força '+esc(p.evidence_strength_index)+'<br>'+esc(p.location_name)+semanticLine('conflicts')}
@@ -185,19 +194,30 @@ async function loadAll(){
  const status=document.getElementById('status');status.textContent='carregando';
  try{
   const selected=document.getElementById('state').value;
-  const [mp,ep,infra,phys,net]=await Promise.all([api('/v2/map?limit=1000'),api('/v2/episodes?limit=250'+(selected?'&state='+encodeURIComponent(selected):'')),api('/v2/geopolitics/infrastructure'),api('/v2/context/physical?hours=24&limit=1000'),api('/v2/context/network?hours=24&limit=1000')]);
+  const region=document.getElementById('regionFilter').value.trim();
+  const actor=document.getElementById('actorFilter').value.trim();
+  const eventType=document.getElementById('typeFilter').value.trim();
+  const minConfidence=document.getElementById('confidenceFilter').value;
+  const hours=Math.max(1,Number(document.getElementById('hoursFilter').value)||24);
+  const since=new Date(Date.now()-hours*3600000).toISOString();
+  const eventParams=new URLSearchParams({limit:'500',since});
+  if(region)eventParams.set('region',region);if(actor)eventParams.set('actor',actor);if(eventType)eventParams.set('event_type',eventType);if(minConfidence)eventParams.set('min_confidence',minConfidence);
+  const [mp,ep,ev,infra,phys,net]=await Promise.all([api('/v2/map?limit=1000'),api('/v2/episodes?limit=250'+(selected?'&state='+encodeURIComponent(selected):'')),api('/v2/events?'+eventParams.toString()),api('/v2/geopolitics/infrastructure'),api('/v2/context/physical?hours=24&limit=1000'),api('/v2/context/network?hours=24&limit=1000')]);
   const conflicts=emptyFC(),infrastructure=emptyFC(),physical=emptyFC(),network=emptyFC();
   for(const p of mp.points||[])if(validCoord(p.latitude,-90,90)&&validCoord(p.longitude,-180,180))conflicts.features.push(feature(p.longitude,p.latitude,{...p}));
   for(const n of infra.nodes||[])if(validCoord(n.latitude,-90,90)&&validCoord(n.longitude,-180,180))infrastructure.features.push(feature(n.longitude,n.latitude,{name:n.name,type:n.type,raw:JSON.stringify(n)}));
   for(const e of phys.events||[])if(validCoord(e.latitude,-90,90)&&validCoord(e.longitude,-180,180))physical.features.push(feature(e.longitude,e.latitude,{source_id:e.source_id,title:e.title,raw:JSON.stringify(e)}));
   for(const e of net.events||[])if(validCoord(e.latitude,-90,90)&&validCoord(e.longitude,-180,180))network.features.push(feature(e.longitude,e.latitude,{source_id:e.source_id,title:e.title,raw:JSON.stringify(e)}));
   setSource('conflicts',conflicts);setSource('infrastructure',infrastructure);setSource('physical',physical);setSource('network',network);
-  stateData.episodes=ep.episodes||[];renderEpisodes();
+  stateData.episodes=ep.episodes||[];stateData.events=ev.events||[];renderEvents();renderEpisodes();updateDeckDensity();
   const totalInfra=infra.summary?.node_count??(infra.nodes||[]).length;
-  lastCounts={...lastCounts,episodes:stateData.episodes.length,conflicts:conflicts.features.length,infra:infrastructure.features.length,infraTotal:totalInfra,physical:(phys.events||[]).length,network:(net.events||[]).length};updateStatus();
+  lastCounts={...lastCounts,events:stateData.events.length,episodes:stateData.episodes.length,conflicts:conflicts.features.length,infra:infrastructure.features.length,infraTotal:totalInfra,physical:(phys.events||[]).length,network:(net.events||[]).length};updateStatus();
   Promise.allSettled([loadAircraft(),loadVessels()]);
  }catch(e){status.innerHTML='<span class="error">'+esc(e.message)+'</span>'}
 }
+function renderEvents(){const box=document.getElementById('events');box.innerHTML='';for(const e of stateData.events){const d=document.createElement('div');d.className='card';const conf=e.evidence_confidence_proxy===undefined?'n/a':Number(e.evidence_confidence_proxy).toFixed(2);d.innerHTML='<div class="high">'+esc(e.title)+'</div><div class="meta">'+esc(e.reference_at)+' | '+esc(e.event_type)+' | '+esc(e.epistemic_state)+' | confiança '+esc(conf)+' | '+esc(e.region||e.country||'')+'</div>';if(validCoord(e.latitude,-90,90)&&validCoord(e.longitude,-180,180)){const b=document.createElement('button');b.textContent='Mapa';b.addEventListener('click',()=>map.flyTo({center:[Number(e.longitude),Number(e.latitude)],zoom:7}));d.appendChild(b)}box.appendChild(d)}}
+async function initDeckDensity(){try{const maplibreDeck=await import('https://unpkg.com/@deck.gl/maplibre@__DECK_VERSION__/dist/index.js?module');const aggregation=await import('https://unpkg.com/@deck.gl/aggregation-layers@__DECK_VERSION__/dist/index.js?module');deckOverlay=new maplibreDeck.MapLibreOverlay({interleaved:false,layers:[]});DeckHeatmapLayer=aggregation.HeatmapLayer;map.addControl(deckOverlay);window.__geowatchDeckReady=true;updateDeckDensity()}catch(e){window.__geowatchDeckReady=false;console.warn('deck.gl indisponível:',e?.message||e)}}
+function updateDeckDensity(){if(!deckOverlay||!DeckHeatmapLayer)return;const points=stateData.events.filter(e=>validCoord(e.latitude,-90,90)&&validCoord(e.longitude,-180,180));if(points.length<200){deckOverlay.setProps({layers:[]});return}deckOverlay.setProps({layers:[new DeckHeatmapLayer({id:'geowatch-event-density',data:points,getPosition:d=>[Number(d.longitude),Number(d.latitude)],getWeight:d=>Number(d.evidence_confidence_proxy||0.5),radiusPixels:45,intensity:1,threshold:0.05})]})}
 function renderEpisodes(){const box=document.getElementById('episodes');box.innerHTML='';for(const e of stateData.episodes){const s=e.evidence_strength?.overall_index??'n/a';const d=document.createElement('div');d.className='card';d.innerHTML='<div class="high">'+esc(e.title)+'</div><div class="meta">'+esc(e.state)+' | força '+esc(s)+' | '+esc((e.countries||[]).join(', '))+' | '+esc(e.last_updated_at)+'</div><button data-episode="'+esc(e.episode_id)+'">Detalhes</button><div id="d-'+esc(e.episode_id)+'"></div>';d.querySelector('button').addEventListener('click',()=>showEpisode(e.episode_id));box.appendChild(d)}}
 async function showEpisode(id){const target=document.getElementById('d-'+id);if(!target)return;target.innerHTML='<div class="meta">carregando…</div>';try{const [d,v]=await Promise.all([api('/v2/episodes/'+encodeURIComponent(id)),api('/v2/verification/episode?episode_id='+encodeURIComponent(id))]);const verdicts=(v.verdicts||[]).map(x=>'<span class="badge">'+esc(x.verdict)+' '+esc(x.confidence)+'%</span>').join('');target.innerHTML='<div>'+verdicts+'</div><div class="meta">Claims: '+d.claims.length+' | Evidências: '+d.evidence.length+' | Eventos: '+d.events.length+'</div>'+d.events.slice(0,16).map(e=>'<div class="meta">'+esc(e.reference_at)+' — '+esc(e.title)+'</div>').join('')}catch(e){target.innerHTML='<span class="error">'+esc(e.message)+'</span>'}}
 async function loadAircraft(){if(!visible('aircraft'))return;const request=++aircraftRequest;try{const c=map.getCenter(),ne=map.getBounds().getNorthEast();const dist=Math.max(25,Math.min(250,Math.ceil(haversineNm({lat:c.lat,lng:c.lng},{lat:ne.lat,lng:ne.lng}))));const payload=await api('/v2/live/aircraft?lat='+c.lat.toFixed(4)+'&lon='+c.lng.toFixed(4)+'&dist_nm='+dist);if(request!==aircraftRequest)return;const fc=emptyFC();for(const a of payload.ac||[])if(validCoord(a.lat,-90,90)&&validCoord(a.lon,-180,180))fc.features.push(feature(a.lon,a.lat,{label:aircraftLabel(a),raw:JSON.stringify(a)}));setSource('aircraft',fc);lastCounts.aircraft=fc.features.length;updateStatus()}catch(_e){setSource('aircraft',emptyFC());lastCounts.aircraft=0;updateStatus()}}
@@ -206,9 +226,9 @@ async function loadAircraftTrack(a){const id=String(a.hex||'').trim();if(!id){se
 async function loadVesselTrack(v){const mmsi=String(v.mmsi||'').trim();if(!mmsi){setSource('selectedTrack',emptyFC());return}try{drawObservedTrack(await api('/v2/live/vessels/track?mmsi='+encodeURIComponent(mmsi)+'&limit=240'))}catch(_e){setSource('selectedTrack',emptyFC())}}
 async function loadAircraftRoute(a,currentCoords){const callsign=String(a.flight||'').trim();if(!callsign){popupAt(currentCoords,popupAircraft(a,'Rota indisponível: aeronave sem callsign.'));return}try{const route=await api('/v2/live/aircraft/route?callsign='+encodeURIComponent(callsign)+'&lat='+Number(a.lat).toFixed(4)+'&lon='+Number(a.lon).toFixed(4));const aps=(route._airports||[]).filter(p=>validCoord(p.lat,-90,90)&&validCoord(p.lon,-180,180));const codes=route.airport_codes&&route.airport_codes!=='unknown'?route.airport_codes:'rota não identificada';const plausibility=route.plausible===false?'não validada pela posição atual':'plausível pela posição atual';popupAt(currentCoords,popupAircraft(a,'Rota: '+codes+' — '+plausibility+'. Contexto de rota não equivale a plano de voo confirmado.'));if(aps.length>=2&&route.plausible!==false){const origin=[Number(aps[0].lon),Number(aps[0].lat)],destination=[Number(aps[aps.length-1].lon),Number(aps[aps.length-1].lat)];setSource('route',{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'LineString',coordinates:[origin,currentCoords,destination]},properties:{}}]});setSource('routeEndpoints',{type:'FeatureCollection',features:[feature(origin[0],origin[1],{role:'origem'}),feature(destination[0],destination[1],{role:'destino'})]})}else{setSource('route',emptyFC());setSource('routeEndpoints',emptyFC())}}catch(_e){popupAt(currentCoords,popupAircraft(a,'Não foi possível consultar a rota agora.'))}}
 
-map.on('load',()=>{addGeoJsonLayers();attachMapEvents();window.__geowatchMapReady=true;loadAll()});
+map.on('load',()=>{addGeoJsonLayers();attachMapEvents();window.__geowatchMapReady=true;initDeckDensity();loadAll()});
 map.on('error',e=>{if(e?.error?.message)console.warn('MapLibre:',e.error.message)});
-document.getElementById('refresh').addEventListener('click',loadAll);document.getElementById('state').addEventListener('change',loadAll);
+document.getElementById('refresh').addEventListener('click',loadAll);document.getElementById('state').addEventListener('change',loadAll);document.getElementById('confidenceFilter').addEventListener('change',loadAll);document.getElementById('hoursFilter').addEventListener('change',loadAll);
 for(const box of document.querySelectorAll('input[data-layer]'))box.addEventListener('change',()=>{applyVisibility(box.dataset.layer);if(box.checked&&box.dataset.layer==='aircraft')loadAircraft();if(box.checked&&box.dataset.layer==='vessels')loadVessels()});
 let moveTimer=null;map.on('moveend',()=>{clearTimeout(moveTimer);moveTimer=setTimeout(()=>{if(visible('aircraft'))loadAircraft();if(visible('vessels'))loadVessels()},700)});
 setInterval(()=>{if(visible('aircraft'))loadAircraft();if(visible('vessels'))loadVessels()},60000);
@@ -216,6 +236,7 @@ setInterval(()=>{if(visible('aircraft'))loadAircraft();if(visible('vessels'))loa
 </body></html>'''
     return (
         template.replace("__MAPLIBRE_VERSION__", _MAPLIBRE_VERSION)
+        .replaceAll("__DECK_VERSION__", _DECK_VERSION)
         .replace("__LAYER_CONTROLS__", controls)
         .replace("__MAP_STYLE__", _map_style_js())
         .replace("__MAP_LAYERS__", catalog_js)
