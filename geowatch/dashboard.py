@@ -236,7 +236,7 @@ setInterval(()=>{if(visible('aircraft'))loadAircraft();if(visible('vessels'))loa
 </body></html>'''
     return (
         template.replace("__MAPLIBRE_VERSION__", _MAPLIBRE_VERSION)
-        .replaceAll("__DECK_VERSION__", _DECK_VERSION)
+        .replace("__DECK_VERSION__", _DECK_VERSION)
         .replace("__LAYER_CONTROLS__", controls)
         .replace("__MAP_STYLE__", _map_style_js())
         .replace("__MAP_LAYERS__", catalog_js)
