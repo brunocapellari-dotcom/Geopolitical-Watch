@@ -1,0 +1,22 @@
+{
+  "schema_version": "geowatch-project-registry-v1",
+  "project_id": "geopolitical-watch",
+  "display_name": "Monitor de Conflitos / Geopolitical Watch",
+  "canonical_repository": "brunocapellari-dotcom/Geopolitical-Watch",
+  "canonical_production_target": "Google Cloud",
+  "runtime_bridge": "Replit private VM",
+  "services": [
+    {"service_id": "private-web-api", "required": true},
+    {"service_id": "batch-collector", "required": true},
+    {"service_id": "postgres-postgis", "required": true},
+    {"service_id": "raw-evidence-store", "required": true},
+    {"service_id": "source-scheduler", "required": true},
+    {"service_id": "ais-stream", "required": false}
+  ],
+  "required_gates": [
+    "full-project-gate",
+    "live-public-bootstrap",
+    "strict-runtime-readiness",
+    "production-smoke"
+  ]
+}
