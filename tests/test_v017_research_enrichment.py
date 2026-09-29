@@ -49,7 +49,8 @@ class V017ResearchEnrichmentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             from_source_coordinates(name="bad", latitude=100.0, longitude=20.0)
 
-    def test_browsertrix_command_is_argument_vector_and_page_scoped(self) -> None:
+    @patch("geowatch.research_adapters.validate_web_url", side_effect=lambda url: url)
+    def test_browsertrix_command_is_argument_vector_and_page_scoped(self, _validate) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             command = browsertrix_command(
                 "https://example.com/report",
@@ -61,7 +62,8 @@ class V017ResearchEnrichmentTests(unittest.TestCase):
         self.assertIn("--scopeType", command)
         self.assertNotIn("--profile", command)
 
-    def test_browser_agent_is_explicit_isolated_handoff(self) -> None:
+    @patch("geowatch.research_adapters.validate_web_url", side_effect=lambda url: url)
+    def test_browser_agent_is_explicit_isolated_handoff(self, _validate) -> None:
         with self.assertRaises(BrowserAgentRequired):
             request_browser_agent("https://example.com", reason="interactive workflow")
 
