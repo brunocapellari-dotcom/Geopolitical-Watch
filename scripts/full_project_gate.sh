@@ -20,6 +20,18 @@ for path in files:
         json.load(handle)
 print(f'validated {len(files)} JSON files')
 PY
+python scripts/export_json_schemas.py --output-dir /tmp/geowatch-schemas
+python - <<'PY'
+from geowatch.migrations import validate_migration_contract
+from geowatch.project_registry import load_project_registry
+from geowatch.settings import GeoWatchSettings
+names = validate_migration_contract()
+assert '005_operational_hardening.sql' in names, names
+registry = load_project_registry()
+assert registry.project_id == 'geopolitical-watch'
+GeoWatchSettings()
+print(f'contracts/migrations/project registry: ok ({len(names)} migrations)')
+PY
 
 printf '\n== 3/12 import every geowatch Python module ==\n'
 python - <<'PY'
@@ -80,6 +92,11 @@ try:
         cur.execute('SELECT PostGIS_Version() AS postgis_version')
         row = cur.fetchone()
         assert row and row.get('postgis_version'), row
+        cur.execute("SELECT version FROM schema_migrations WHERE version=5")
+        assert cur.fetchone(), "migration v5 missing"
+        for table in ('source_runtime_state','collector_dead_letter','evidence_ledger','claim_revisions'):
+            cur.execute("SELECT to_regclass(%s) AS table_name", (table,))
+            assert cur.fetchone().get('table_name') == table, table
 finally:
     store.close()
 raw = open_raw_store()
@@ -87,7 +104,7 @@ ref, digest = raw.put('full-gate', '2026-09-15T00:00:00+00:00', b'geowatch-full-
 assert ref.startswith('pgraw://')
 assert raw.get('full-gate', digest) == b'geowatch-full-project-gate'
 assert raw_backend_name() == 'postgresql-compressed'
-print('postgres/postgis/raw: ok')
+print('postgres/postgis/raw/migrations: ok')
 PY
 
 printf '\n== 9/12 strict production invariants ==\n'
