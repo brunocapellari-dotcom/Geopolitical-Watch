@@ -115,7 +115,7 @@ def browsertrix_command(
     *,
     output_dir: str | Path,
     collection: str,
-    image: str = "webrecorder/browsertrix-crawler:latest",
+    image: str = "webrecorder/browsertrix-crawler:1.14.1",
 ) -> list[str]:
     """Build a high-fidelity page-scoped WACZ capture command.
 
@@ -146,7 +146,7 @@ def capture_with_browsertrix(
     output_dir: str | Path,
     collection: str,
     timeout_seconds: int = 600,
-    image: str = "webrecorder/browsertrix-crawler:latest",
+    image: str = "webrecorder/browsertrix-crawler:1.14.1",
 ) -> subprocess.CompletedProcess[str]:
     command = browsertrix_command(url, output_dir=output_dir, collection=collection, image=image)
     return subprocess.run(  # nosec B603 - fixed executable and validated argument vector
