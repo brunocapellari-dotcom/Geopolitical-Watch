@@ -64,6 +64,19 @@ class WorkflowSupplyChainTests(unittest.TestCase):
         self.assertIn('  pull_request:', trigger_section)
         self.assertNotIn('    paths:', trigger_section)
 
+    def test_expensive_pr_gates_cancel_superseded_runs(self) -> None:
+        for name in ('test.yml', 'public-data-integration.yml', 'knowledge-integrity.yml'):
+            text = (WORKFLOWS / name).read_text(encoding='utf-8')
+            self.assertIn('concurrency:', text, name)
+            self.assertIn('cancel-in-progress: true', text, name)
+
+    def test_knowledge_evidence_does_not_exhaust_actions_storage(self) -> None:
+        text = (WORKFLOWS / 'knowledge-integrity.yml').read_text(encoding='utf-8')
+        self.assertIn('retention-days: 1', text)
+        self.assertIn('continue-on-error: true', text)
+        self.assertIn('if-no-files-found: warn', text)
+        self.assertNotIn('retention-days: 30', text)
+
 
 if __name__ == '__main__':
     unittest.main()
