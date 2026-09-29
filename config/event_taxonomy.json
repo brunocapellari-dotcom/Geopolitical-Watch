@@ -1,0 +1,29 @@
+{
+  "schema_version": "geowatch-event-taxonomy-v1",
+  "event_types": [
+    {"id": "armed_clash", "family": "kinetic"},
+    {"id": "airstrike", "family": "kinetic"},
+    {"id": "missile_strike", "family": "kinetic"},
+    {"id": "drone_strike", "family": "kinetic"},
+    {"id": "artillery_strike", "family": "kinetic"},
+    {"id": "sabotage", "family": "disruption"},
+    {"id": "cyber_disruption", "family": "disruption"},
+    {"id": "blockade", "family": "access"},
+    {"id": "border_closure", "family": "access"},
+    {"id": "airspace_restriction", "family": "access"},
+    {"id": "maritime_restriction", "family": "access"},
+    {"id": "infrastructure_incident", "family": "infrastructure"},
+    {"id": "protest", "family": "civil"},
+    {"id": "sanction", "family": "economic"},
+    {"id": "mobilization", "family": "military_posture"},
+    {"id": "force_reinforcement", "family": "military_posture"},
+    {"id": "evacuation", "family": "humanitarian"},
+    {"id": "displacement", "family": "humanitarian"},
+    {"id": "ceasefire", "family": "diplomatic"},
+    {"id": "ceasefire_violation", "family": "diplomatic"},
+    {"id": "territory_change", "family": "territorial"},
+    {"id": "media_report", "family": "information"},
+    {"id": "sensor_signal", "family": "sensor"},
+    {"id": "other", "family": "other"}
+  ]
+}
