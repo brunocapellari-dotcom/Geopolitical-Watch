@@ -11,7 +11,9 @@ from .backfill_planner import BackfillPlanner
 from .consumers import build_consumer_feed, consumer_profile_path, load_profile
 from .critical_infrastructure import CriticalInfrastructureGraph
 from .dashboard import dashboard_html, map_points
+from .dossiers import build_entity_dossier
 from .episode_reports import build_episode_feed
+from .event_query import filter_event_records
 from .escalation import EscalationLibrary
 from .forecasting import forecast_summary
 from .geopolitics import GeopoliticalKnowledge
@@ -20,6 +22,7 @@ from .historical_corpus import HistoricalCorpus
 from .live_aircraft import LiveAircraftError, aircraft_route, aircraft_snapshot
 from .live_vessels import provider_status as vessel_provider_status, vessel_snapshot
 from .metrics import operational_snapshot, prometheus_text
+from .models import Event
 from .profile_enrichment import ProfileEnrichmentQueue
 from .readiness import current_code_readiness_estimate
 from .reports import build_feed
@@ -177,8 +180,49 @@ class Handler(BaseHTTPRequestHandler):
                 )})
             if path.startswith("/v2/episodes/"):
                 return self._episode_detail(store, path.split("/", 3)[3])
+            if path.startswith("/v2/dossiers/entities/"):
+                entity_id = path.split("/", 4)[4]
+                if not entity_id or len(entity_id) > 128:
+                    return self._send_json(400, {"error": "valid entity_id is required"})
+                try:
+                    dossier = build_entity_dossier(store, entity_id)
+                except KeyError:
+                    return self._send_json(404, {"error": "entity not found", "entity_id": entity_id})
+                return self._send_json(200, dossier)
             if path == "/v2/events":
-                return self._send_json(200, {"schema_version": "geowatch-events-v2", "events": store.list_events(since=_one(query, "since"), country=_one(query, "country"), limit=_int(query, "limit", 200) or 200)})
+                requested_limit = _int(query, "limit", 200) or 200
+                scan_limit = max(requested_limit, min(5000, requested_limit * 5))
+                events = [
+                    Event.from_dict(row)
+                    for row in store.list_events(
+                        since=_one(query, "since"),
+                        country=_one(query, "country"),
+                        limit=scan_limit,
+                    )
+                ]
+                rows = filter_event_records(
+                    events,
+                    region=_one(query, "region"),
+                    actor=_one(query, "actor"),
+                    event_type=_one(query, "event_type"),
+                    source_id=_one(query, "source_id"),
+                    epistemic_state=_one(query, "epistemic_state"),
+                    min_confidence=_float(query, "min_confidence"),
+                )
+                return self._send_json(200, {
+                    "schema_version": "geowatch-events-v3",
+                    "events": rows[:max(1, min(requested_limit, 1000))],
+                    "filters": {
+                        "country": _one(query, "country"),
+                        "region": _one(query, "region"),
+                        "actor": _one(query, "actor"),
+                        "event_type": _one(query, "event_type"),
+                        "source_id": _one(query, "source_id"),
+                        "epistemic_state": _one(query, "epistemic_state"),
+                        "min_confidence": _float(query, "min_confidence"),
+                        "since": _one(query, "since"),
+                    },
+                })
             if path == "/v2/relationships":
                 rows = store.load_relationships(
                     entity_id=_one(query, "entity_id"),
@@ -257,6 +301,16 @@ def _int(query: dict[str, list[str]], key: str, default: int | None = None) -> i
     if value is None: return default
     try: return int(value)
     except ValueError: return default
+
+
+def _float(query: dict[str, list[str]], key: str, default: float | None = None) -> float | None:
+    value = _one(query, key)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
 
 
 def main() -> int:
