@@ -68,7 +68,7 @@ class PrivateHandler(BaseHandler):
             "script-src 'self' 'unsafe-inline' https://unpkg.com; "
             "style-src 'self' 'unsafe-inline' https://unpkg.com; "
             "img-src 'self' data: https://unpkg.com https://*.tile.openstreetmap.org; "
-            "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+            "connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
         )
         if _secure_cookie():
             self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
