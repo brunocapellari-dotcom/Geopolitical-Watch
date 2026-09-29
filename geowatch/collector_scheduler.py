@@ -6,6 +6,9 @@ import time
 from datetime import datetime, timezone
 
 from .analysis_runner import run_analysis
+from .circuit_breaker import for_source, reset_all as reset_circuit_breakers
+from .dead_letter import best_effort_enqueue
+from .observability import trace
 from .sanctions_runtime import refresh_official_sanctions
 from .satellite_runtime import refresh_celestrak
 from .source_collection import collect_source_once, load_collection_spec
@@ -55,7 +58,7 @@ def analysis_config_path() -> str:
 def status() -> dict[str, object]:
     with _LOCK:
         return {
-            "schema_version": "geowatch-source-scheduler-status-v4",
+            "schema_version": "geowatch-source-scheduler-status-v5",
             **_STATE,
             "enabled": enabled(),
             "tick_seconds": tick_seconds(),
@@ -79,6 +82,49 @@ def ensure_started() -> bool:
         return True
 
 
+def _execute_source(spec, sanctions_bundle: dict[str, object] | None) -> tuple[dict[str, object], dict[str, object] | None]:  # type: ignore[no-untyped-def]
+    if spec.source_id in _SANCTIONS_IDS:
+        if sanctions_bundle is None:
+            sanctions_bundle = refresh_official_sanctions()
+        bundle_results = sanctions_bundle.get("results") or {}
+        result = (
+            bundle_results.get(spec.source_id, {"status": "error", "error": "sanctions bundle missing source result"})
+            if isinstance(bundle_results, dict)
+            else {"status": "error", "error": "invalid sanctions result"}
+        )
+        return dict(result), sanctions_bundle
+    if spec.source_id == "celestrak":
+        return dict(refresh_celestrak(group="military")), sanctions_bundle
+    if load_collection_spec(spec.source_id) is None:
+        return {
+            "status": "delegated",
+            "runtime_mode": spec.runtime_mode,
+            "implementation": spec.implementation,
+        }, sanctions_bundle
+    return dict(collect_source_once(spec.source_id)), sanctions_bundle
+
+
+def _record_source_outcome(source_id: str, result: dict[str, object], *, at: datetime) -> dict[str, object]:
+    breaker = for_source(source_id)
+    status_value = str(result.get("status") or "").casefold()
+    if status_value == "ok":
+        breaker.record_success(now=at)
+    elif status_value not in {"delegated", "skipped", "not_due"}:
+        breaker.record_failure(now=at)
+        message = str(result.get("error") or result.get("error_type") or "collector returned non-ok status")
+        best_effort_enqueue(
+            source_id=source_id,
+            failure_class="collector",
+            error=RuntimeError(message),
+            request={"result_status": status_value},
+            attempts=int(breaker.snapshot(now=at)["consecutive_failures"]),
+            failed_at=at.isoformat(),
+        )
+    enriched = dict(result)
+    enriched["circuit_breaker"] = breaker.snapshot(now=at)
+    return enriched
+
+
 def run_tick() -> dict[str, object]:
     registry = load_registry()
     store = open_store()
@@ -94,30 +140,44 @@ def run_tick() -> dict[str, object]:
     due = registry.due_sources(last_success, now=now)
     results: dict[str, object] = {}
     sanctions_bundle: dict[str, object] | None = None
+
     for spec in due:
-        if spec.source_id in _SANCTIONS_IDS:
-            if sanctions_bundle is None:
-                sanctions_bundle = refresh_official_sanctions()
-            bundle_results = sanctions_bundle.get("results") or {}
-            results[spec.source_id] = bundle_results.get(spec.source_id, {"status": "error", "error": "sanctions bundle missing source result"}) if isinstance(bundle_results, dict) else {"status": "error"}
-            continue
-        if spec.source_id == "celestrak":
-            results[spec.source_id] = refresh_celestrak(group="military")
-            continue
-        if load_collection_spec(spec.source_id) is None:
+        breaker = for_source(spec.source_id)
+        if not breaker.allow_request(now=now):
             results[spec.source_id] = {
-                "status": "delegated",
-                "runtime_mode": spec.runtime_mode,
-                "implementation": spec.implementation,
+                "status": "circuit_open",
+                "circuit_breaker": breaker.snapshot(now=now),
             }
             continue
-        results[spec.source_id] = collect_source_once(spec.source_id)
+        with trace("collector.run", attributes={"source_id": spec.source_id, "domain": spec.domain}):
+            try:
+                result, sanctions_bundle = _execute_source(spec, sanctions_bundle)
+            except Exception as exc:
+                breaker.record_failure(now=now)
+                best_effort_enqueue(
+                    source_id=spec.source_id,
+                    failure_class="collector_exception",
+                    error=exc,
+                    request={"runtime_mode": spec.runtime_mode, "implementation": spec.implementation},
+                    attempts=int(breaker.snapshot(now=now)["consecutive_failures"]),
+                    failed_at=now.isoformat(),
+                )
+                result = {
+                    "status": "error",
+                    "error_type": type(exc).__name__,
+                    "error": str(exc)[:500],
+                    "circuit_breaker": breaker.snapshot(now=now),
+                }
+            else:
+                result = _record_source_outcome(spec.source_id, result, at=now)
+            results[spec.source_id] = result
 
     should_analyze = _should_run_analysis(now, results)
     analysis_result: dict[str, object] | None = None
     if should_analyze:
         try:
-            analysis_result = {"status": "ok", **run_analysis(config_path=analysis_config_path())}
+            with trace("analysis.run", attributes={"config": analysis_config_path()}):
+                analysis_result = {"status": "ok", **run_analysis(config_path=analysis_config_path())}
         except Exception as exc:
             analysis_result = {"status": "error", "error_type": type(exc).__name__, "error": str(exc)[:500]}
         with _LOCK:
@@ -188,6 +248,7 @@ def _loop() -> None:
 
 def reset_for_tests() -> None:
     global _THREAD
+    reset_circuit_breakers()
     with _LOCK:
         _STATE.update({
             "enabled": False,
