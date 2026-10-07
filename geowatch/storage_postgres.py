@@ -6,6 +6,7 @@ from typing import Iterable
 
 from .core import EventCluster, deterministic_cluster_id, score_cluster
 from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef, Relationship
+from .temporal import canonical_payload
 
 
 class PostgresStore:
@@ -36,10 +37,90 @@ class PostgresStore:
     def _json(value: object) -> str:
         return json.dumps(value, ensure_ascii=False)
 
+    def _record_version(self, cur, object_type: str, object_id: str, payload: dict, *, recorded_at: str | None = None) -> bool:
+        raw, digest = canonical_payload(payload)
+        cur.execute(
+            """INSERT INTO object_versions(object_type, object_id, recorded_at, payload_sha256, payload_json)
+               VALUES(%s,%s,COALESCE(%s::timestamptz,now()),%s,%s::jsonb)
+               ON CONFLICT(object_type, object_id, payload_sha256) DO NOTHING
+               RETURNING version_id""",
+            (object_type, object_id, recorded_at, digest, raw),
+        )
+        return cur.fetchone() is not None
+
+    def record_versions(
+        self,
+        object_type: str,
+        rows: Iterable[tuple[str, dict]],
+        *,
+        recorded_at: str | None = None,
+    ) -> int:
+        inserted = 0
+        with self.db.cursor() as cur:
+            for object_id, payload in rows:
+                inserted += int(self._record_version(cur, object_type, object_id, payload, recorded_at=recorded_at))
+        self.db.commit()
+        return inserted
+
+    def list_versions(self, object_type: str, object_id: str) -> list[dict]:
+        with self.db.cursor() as cur:
+            cur.execute(
+                """SELECT object_type, object_id, recorded_at, payload_sha256, payload_json
+                   FROM object_versions
+                   WHERE object_type=%s AND object_id=%s
+                   ORDER BY recorded_at, version_id""",
+                (object_type, object_id),
+            )
+            rows = cur.fetchall()
+        return [
+            {
+                "object_type": row["object_type"],
+                "object_id": row["object_id"],
+                "recorded_at": _iso(row["recorded_at"]),
+                "payload_sha256": row["payload_sha256"],
+                "payload": _dict(row["payload_json"]),
+            }
+            for row in rows
+        ]
+
+    def snapshot_as_of(self, as_of: str, *, object_type: str | None = None, limit: int = 5000) -> list[dict]:
+        clauses = ["recorded_at <= %s::timestamptz"]
+        params: list[object] = [as_of]
+        if object_type:
+            clauses.append("object_type=%s")
+            params.append(object_type)
+        params.append(max(1, min(limit, 10000)))
+        with self.db.cursor() as cur:
+            cur.execute(
+                f"""SELECT object_type, object_id, recorded_at, payload_sha256, payload_json
+                    FROM (
+                      SELECT DISTINCT ON (object_type, object_id)
+                        object_type, object_id, recorded_at, payload_sha256, payload_json, version_id
+                      FROM object_versions
+                      WHERE {' AND '.join(clauses)}
+                      ORDER BY object_type, object_id, recorded_at DESC, version_id DESC
+                    ) latest
+                    ORDER BY object_type, object_id
+                    LIMIT %s""",
+                params,
+            )
+            rows = cur.fetchall()
+        return [
+            {
+                "object_type": row["object_type"],
+                "object_id": row["object_id"],
+                "recorded_at": _iso(row["recorded_at"]),
+                "payload_sha256": row["payload_sha256"],
+                "payload": _dict(row["payload_json"]),
+            }
+            for row in rows
+        ]
+
     # --- events --------------------------------------------------------------
     def upsert_events(self, events: list[Event]) -> int:
         with self.db.cursor() as cur:
             for event in events:
+                self._record_version(cur, "event", event.event_id, event.to_dict(), recorded_at=event.collected_at)
                 cur.execute("""
                 INSERT INTO events(event_id, reference_at, source_id, verification_level, country, latitude, longitude, geom, event_json)
                 VALUES(%s,%s,%s,%s,%s,%s,%s,
@@ -126,6 +207,7 @@ class PostgresStore:
         rows = list(entities)
         with self.db.cursor() as cur:
             for entity in rows:
+                self._record_version(cur, "entity", entity.entity_id, entity.to_dict())
                 cur.execute("""
                 INSERT INTO entities(entity_id, entity_type, canonical_name, country, latitude, longitude, geom, entity_json)
                 VALUES(%s,%s,%s,%s,%s,%s,
@@ -153,6 +235,7 @@ class PostgresStore:
         rows = list(relationships)
         with self.db.cursor() as cur:
             for relationship in rows:
+                self._record_version(cur, "relationship", relationship.relationship_id, relationship.to_dict(), recorded_at=relationship.last_seen_at)
                 cur.execute("""
                 INSERT INTO relationships(
                   relationship_id, source_entity_id, target_entity_id, relationship_type, semantic_class,
@@ -192,6 +275,7 @@ class PostgresStore:
         rows = list(evidence)
         with self.db.cursor() as cur:
             for item in rows:
+                self._record_version(cur, "evidence", item.evidence_id, item.to_dict(), recorded_at=item.observed_at)
                 cur.execute("""
                 INSERT INTO evidence(evidence_id, event_id, source_id, verification_level, relation, observed_at, evidence_json)
                 VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb)
@@ -218,6 +302,7 @@ class PostgresStore:
         rows = list(episodes)
         with self.db.cursor() as cur:
             for episode in rows:
+                self._record_version(cur, "episode", episode.episode_id, episode.to_dict(), recorded_at=episode.last_updated_at)
                 strength = episode.evidence_strength.overall_index if episode.evidence_strength else None
                 primary_country = episode.countries[0] if episode.countries else None
                 cur.execute("""
@@ -236,6 +321,7 @@ class PostgresStore:
         rows = list(claims)
         with self.db.cursor() as cur:
             for claim in rows:
+                self._record_version(cur, "claim", claim.claim_id, claim.to_dict(), recorded_at=claim.last_seen_at)
                 cur.execute("""
                 INSERT INTO claims(claim_id, episode_id, claim_type, topic_key, status, first_seen_at, last_seen_at, claim_json)
                 VALUES(%s,%s,%s,%s,%s,%s,%s,%s::jsonb)
