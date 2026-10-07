@@ -40,9 +40,18 @@ class PostgresStore:
     def _record_version(self, cur, object_type: str, object_id: str, payload: dict, *, recorded_at: str | None = None) -> bool:
         raw, digest = canonical_payload(payload)
         cur.execute(
+            """SELECT payload_sha256 FROM object_versions
+               WHERE object_type=%s AND object_id=%s
+               ORDER BY recorded_at DESC, version_id DESC LIMIT 1""",
+            (object_type, object_id),
+        )
+        latest = cur.fetchone()
+        if latest and latest["payload_sha256"] == digest:
+            return False
+        cur.execute(
             """INSERT INTO object_versions(object_type, object_id, recorded_at, payload_sha256, payload_json)
                VALUES(%s,%s,COALESCE(%s::timestamptz,now()),%s,%s::jsonb)
-               ON CONFLICT(object_type, object_id, payload_sha256) DO NOTHING
+               ON CONFLICT DO NOTHING
                RETURNING version_id""",
             (object_type, object_id, recorded_at, digest, raw),
         )
