@@ -62,7 +62,11 @@ def source_dependency_groups(
             if wires[left] and wires[left] == wires[right]:
                 union(left, right)
                 continue
-            if _near_duplicate(titles[left], titles[right]):
+            if (
+                evidence[left].verification_level in {"osint_signal", "curated_report"}
+                and evidence[right].verification_level in {"osint_signal", "curated_report"}
+                and _near_duplicate(titles[left], titles[right])
+            ):
                 union(left, right)
 
     groups: dict[int, list[str]] = {}
