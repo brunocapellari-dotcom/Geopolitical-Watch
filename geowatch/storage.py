@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -195,7 +196,7 @@ class SQLiteStore:
           recorded_at TEXT NOT NULL,
           payload_sha256 TEXT NOT NULL,
           payload_json TEXT NOT NULL,
-          UNIQUE(object_type, object_id, payload_sha256)
+          UNIQUE(object_type, object_id, recorded_at, payload_sha256)
         );
         CREATE INDEX IF NOT EXISTS idx_object_versions_asof ON object_versions(object_type, recorded_at);
         CREATE INDEX IF NOT EXISTS idx_object_versions_object ON object_versions(object_type, object_id, recorded_at);
@@ -222,11 +223,20 @@ class SQLiteStore:
 
     def _record_version(self, object_type: str, object_id: str, payload: dict, *, recorded_at: str | None = None) -> bool:
         raw, digest = canonical_payload(payload)
+        latest = self.db.execute(
+            """SELECT payload_sha256 FROM object_versions
+               WHERE object_type=? AND object_id=?
+               ORDER BY recorded_at DESC, version_id DESC LIMIT 1""",
+            (object_type, object_id),
+        ).fetchone()
+        if latest and latest["payload_sha256"] == digest:
+            return False
+        when = recorded_at or datetime.now(timezone.utc).isoformat()
         before = self.db.total_changes
         self.db.execute(
             """INSERT OR IGNORE INTO object_versions(object_type, object_id, recorded_at, payload_sha256, payload_json)
-               VALUES(?,?,COALESCE(?,CURRENT_TIMESTAMP),?,?)""",
-            (object_type, object_id, recorded_at, digest, raw),
+               VALUES(?,?,?,?,?)""",
+            (object_type, object_id, when, digest, raw),
         )
         return self.db.total_changes > before
 
