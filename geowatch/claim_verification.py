@@ -26,11 +26,7 @@ def verify_claim(
     rows = [evidence[eid] for eid in claim.evidence_ids if eid in evidence]
     linked_events = [events[row.event_id] for row in rows if row.event_id in events]
 
-    providers = {
-        (row.provider or row.source_id).strip().casefold()
-        for row in rows
-        if (row.provider or row.source_id).strip()
-    }
+    independent_count = independent_source_count(rows, events)
     source_ids = {row.source_id for row in rows}
     official_source_count = sum(
         1
@@ -58,7 +54,7 @@ def verify_claim(
         timestamp_quality=timestamp_quality,
         geolocation_quality=geolocation_quality,
         source_count=len(rows),
-        independent_source_count=len(providers),
+        independent_source_count=independent_count,
         physical_evidence_count=len(physical_rows),
         official_source_count=official_source_count,
         support_count=support_count,
