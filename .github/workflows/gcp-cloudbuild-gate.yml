@@ -26,9 +26,9 @@ jobs:
       contents: read
       id-token: write
     env:
-      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-      WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
-      BUILD_SERVICE_ACCOUNT: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT || vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID || 'ai-holding-prod-bc' }}
+      WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WIF_PROVIDER }}
+      BUILD_SERVICE_ACCOUNT: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT || vars.GCP_DEPLOY_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT || secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
 
     steps:
       - name: Require Google Cloud federation variables
