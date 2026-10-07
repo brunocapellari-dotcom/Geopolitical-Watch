@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS object_versions (
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   payload_sha256 TEXT NOT NULL,
   payload_json JSONB NOT NULL,
-  UNIQUE(object_type, object_id, payload_sha256)
+  UNIQUE(object_type, object_id, recorded_at, payload_sha256)
 );
 CREATE INDEX IF NOT EXISTS idx_object_versions_asof ON object_versions(object_type, recorded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_object_versions_object ON object_versions(object_type, object_id, recorded_at DESC);
