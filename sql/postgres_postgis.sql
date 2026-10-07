@@ -170,6 +170,18 @@ CREATE TABLE IF NOT EXISTS episode_changes (
 CREATE INDEX IF NOT EXISTS idx_changes_episode ON episode_changes(episode_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_changes_at ON episode_changes(occurred_at DESC);
 
+CREATE TABLE IF NOT EXISTS object_versions (
+  version_id BIGSERIAL PRIMARY KEY,
+  object_type TEXT NOT NULL,
+  object_id TEXT NOT NULL,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  payload_sha256 TEXT NOT NULL,
+  payload_json JSONB NOT NULL,
+  UNIQUE(object_type, object_id, payload_sha256)
+);
+CREATE INDEX IF NOT EXISTS idx_object_versions_asof ON object_versions(object_type, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_object_versions_object ON object_versions(object_type, object_id, recorded_at DESC);
+
 CREATE TABLE IF NOT EXISTS alert_outbox (
   alert_id TEXT PRIMARY KEY,
   episode_id TEXT NOT NULL REFERENCES episodes(episode_id) ON DELETE CASCADE,
@@ -188,5 +200,6 @@ INSERT INTO schema_migrations(version, name) VALUES
   (1, 'v0.4 baseline'),
   (2, 'v0.5 episode convergence'),
   (3, 'v0.6 postgres postgis operational layer'),
-  (4, 'v0.16 temporal relationships')
+  (4, 'v0.16 temporal relationships'),
+  (5, 'go-live immutable object versions')
 ON CONFLICT(version) DO NOTHING;
