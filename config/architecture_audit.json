@@ -1,6 +1,6 @@
 {
   "schema_version": "geowatch-architecture-audit-v2",
-  "as_of": "2026-09-28",
+  "as_of": "2026-10-07",
   "statuses": ["ACTIVE","BLOCKED","PARTIAL","PLANNED","REFERENCE"],
   "domains": [
     {"domain":"news","status":"PARTIAL","implemented":["GDELT","publisher-aware clustering","raw provenance"],"missing":["broader registered news feeds","publisher-level health"]},
@@ -18,8 +18,8 @@
     {"domain":"sanctions","status":"ACTIVE","implemented":["UNSC","OFAC","UK","designation diff"]},
     {"domain":"OSINT","status":"PARTIAL","implemented":["hostile-content boundary","HTML sanitization","SSRF controls","tracking removal","quarantine contract","prompt-injection marking"],"missing":["isolated Telegram collector","isolated public-web collector","sandbox service"]},
     {"domain":"maps","status":"PARTIAL","implemented":["conflicts","critical infrastructure","aircraft","AIS"],"missing":["satellite","BGP","internet","humanitarian layers after real collectors exist"]},
-    {"domain":"alerts","status":"PARTIAL","implemented":["episode/change policies","outbox"],"missing":["verdict-aware alert gate","source-health suppression"]},
-    {"domain":"verification","status":"PARTIAL","implemented":["claims","evidence refs","reconciliation","evidence strength","canonical Verdict Engine"],"missing":["verdict persistence","API/UI integration","historical calibration"]},
+    {"domain":"alerts","status":"ACTIVE","implemented":["episode/change policies","outbox","verdict-aware alert gate","source-health suppression for material alerts"],"missing":[]},
+    {"domain":"verification","status":"PARTIAL","implemented":["claims","evidence refs","reconciliation","evidence strength","canonical Verdict Engine","episode verification API","dashboard verdict display"],"missing":["durable verdict persistence","historical calibration"]},
     {"domain":"research_gateway","status":"PARTIAL","selected":["Trafilatura","Crawl4AI","Scrapling fallback","Playwright renderer"],"rules":["bounded escalation ladder","rights/terms gate","no access-control bypass","hostile content remains data"],"missing":["Trafilatura adapter","Crawl4AI adapter","Scrapling selector-resilience adapter","research Playwright adapter","browser-agent adapter","external-engine integration tests"],"implemented":["governed escalation policy","deterministic route planner","rights gate","hostile browser isolation gate","central SSRF validation","direct HTTP and snapshot stages"]},
     {"domain":"evidence_snapshot","status":"PARTIAL","selected":["content hash","redirect/final URL metadata","raw bytes","Browsertrix Crawler for selected high-fidelity WARC captures"],"missing":["Browsertrix WARC adapter","WARC retention policy","optional rendered screenshot/PDF capture"],"implemented":["original/final URL capture","safe HTTP response metadata","content length","SHA-256 verification","immutable RAW persistence","MIME-aware storage"]},
     {"domain":"documents","status":"PLANNED","selected":["Docling"],"rules":["parse before OCR when possible","preserve original raw evidence","parser output is derived evidence"],"missing":["document parser adapter","fixtures","quality tests"]},
@@ -39,12 +39,14 @@
       "project branch imported",
       "development DATABASE_URL available",
       "PostGIS 3.5.3 verified in development",
-      "VM deployment mode configured",
-      "healthcheck path configured as /health"
+      "healthcheck path configured as /health",
+      "verdict-aware alert gate exists",
+      "episode verification is exposed to API/dashboard",
+      "material alert policies require operational source-health support"
     ],
     "remaining_blockers": [
       "GEOWATCH_API_TOKEN secret with at least 32 characters",
-      "full imported-project test suite must pass",
+      "full current go-live branch Cloud Build gate must pass",
       "strict runtime startup and readiness endpoints must pass",
       "production database must confirm PostGIS and expected schema",
       "one real scheduler tick and source-health check must pass before publication is called operational"
