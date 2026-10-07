@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - release/go-live-20260929
+      - "stabilization/**"
   workflow_dispatch:
 
 permissions:
