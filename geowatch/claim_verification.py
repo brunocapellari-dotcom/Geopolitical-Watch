@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping
 from .history import parse_utc
 from .models import Claim, Event, EvidenceRef
 from .quality import SourceProfile, load_profiles
+from .source_independence import independent_source_count
 from .verdict import VerdictInput, VerdictResult, assess_claim
 
 _LEVEL_RELIABILITY = {
