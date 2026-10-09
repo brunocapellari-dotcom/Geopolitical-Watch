@@ -37,7 +37,7 @@ def tick_seconds() -> int:
         value = int(os.environ.get("GEOWATCH_SOURCE_SCHEDULER_TICK", "30"))
     except ValueError:
         value = 30
-    return max(15, min(value, 300))
+    return max(15, min(value, 7200))
 
 
 def analysis_min_interval_seconds() -> int:
