@@ -17,6 +17,26 @@ _WIRE_MARKERS: tuple[tuple[str, tuple[str, ...]], ...] = (
 _WORDS = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 
+def independent_event_source_count(events: list[Event]) -> int:
+    event_map = {event.event_id: event for event in events}
+    evidence = [
+        EvidenceRef(
+            evidence_id=f"event-source:{event.event_id}",
+            event_id=event.event_id,
+            source_id=event.source_id,
+            verification_level=event.verification_level,
+            evidence_class=event.evidence_class,
+            relation="reports",
+            observed_at=event.reference_at,
+            provider=event.publisher,
+            url=event.source_url,
+            raw_ref=event.raw_ref,
+        )
+        for event in events
+    ]
+    return independent_source_count(evidence, event_map)
+
+
 def independent_source_count(
     evidence: list[EvidenceRef],
     events: dict[str, Event],
