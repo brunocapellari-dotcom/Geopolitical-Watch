@@ -10,6 +10,7 @@ from .core import title_similarity
 from .entities import EntityResolver, split_entities
 from .history import parse_utc
 from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef, EvidenceStrength
+from .source_independence import independent_event_source_count, independent_source_count
 
 _ESCALATION_CLAIMS = {"attack", "ceasefire_collapse", "mobilization", "territorial_change"}
 _DEESCALATION_CLAIMS = {"ceasefire", "infrastructure_restoration"}
@@ -178,9 +179,9 @@ def derive_episode_state(episode: ConflictEpisode, claims: Iterable[Claim], even
             return "escalating"
     if stale_days >= 7:
         return "stable"
-    providers = {event.publisher or event.source_id for event in event_rows}
-    conflict_event_count = len(event_rows)
-    if conflict_event_count >= 2 or len(providers) >= 2:
+    independent_sources = independent_event_source_count(event_rows)
+    distinct_claim_count = len({claim.claim_id for claim in claims})
+    if independent_sources >= 2 or distinct_claim_count >= 2:
         return "active"
     return "emerging"
 
@@ -205,8 +206,9 @@ def calculate_evidence_strength(
     evidence = [row for row in evidence if row.evidence_id in episode.evidence_ids]
     entity_ids = set(episode.actor_entity_ids) | set(episode.infrastructure_entity_ids) | set(episode.other_entity_ids)
     entities = [entity for entity in entities if entity.entity_id in entity_ids]
-    providers = {row.provider or row.source_id for row in evidence}
-    provider_independence = min(1.0, len(providers) / 4.0)
+    event_map = {event.event_id: event for event in events}
+    independent_sources = independent_source_count(evidence, event_map)
+    provider_independence = min(1.0, independent_sources / 4.0)
     research = 1.0 if any(row.verification_level == "research_coded" for row in evidence) else 0.0
     curated = 1.0 if any(row.verification_level == "curated_report" for row in evidence) else 0.0
     sensor = min(1.0, sum(1 for row in evidence if row.verification_level == "sensor_signal") / 2.0)
