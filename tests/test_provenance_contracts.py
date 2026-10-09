@@ -73,7 +73,7 @@ class ProvenanceContractsTests(unittest.TestCase):
         resolved = resolver.resolve_name("Kiev", entity_type="city", country="Ukraine")
         self.assertEqual("ent_kyiv", resolved.entity_id)
         self.assertIn("Kiev", resolved.raw_names)
-        self.assertEqual("kiev", resolved.normalized_name)
+        self.assertEqual("kyiv", resolved.normalized_name)
         self.assertEqual(0.95, resolved.resolution_confidence)
 
         unknown = resolver.resolve_name("Uncatalogued Place", entity_type="city", country="Example")
