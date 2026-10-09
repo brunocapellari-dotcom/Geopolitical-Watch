@@ -143,6 +143,30 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(200, {"schema_version": "geowatch-historical-corpus-api-v1", "summary": corpus.summary(), "cases": corpus.as_of(cutoff) if cutoff else list(corpus.cases.values())})
             if path == "/v2/geopolitics/graph":
                 return self._send_json(200, StrategicGraph.from_files().export_graph())
+            if path == "/v2/history/snapshot":
+                as_of = _one(query, "as_of")
+                if not as_of:
+                    return self._send_json(400, {"error": "as_of is required"})
+                return self._send_json(200, {
+                    "schema_version": "geowatch-point-in-time-snapshot-v1",
+                    "as_of": as_of,
+                    "objects": store.snapshot_as_of(
+                        as_of,
+                        object_type=_one(query, "object_type"),
+                        limit=_int(query, "limit", 5000) or 5000,
+                    ),
+                })
+            if path == "/v2/history/versions":
+                object_type = _one(query, "object_type")
+                object_id = _one(query, "object_id")
+                if not object_type or not object_id:
+                    return self._send_json(400, {"error": "object_type and object_id are required"})
+                return self._send_json(200, {
+                    "schema_version": "geowatch-object-version-history-v1",
+                    "object_type": object_type,
+                    "object_id": object_id,
+                    "versions": store.list_versions(object_type, object_id),
+                })
             if path == "/v2/map":
                 return self._send_json(200, {"schema_version": "geowatch-map-v1", "points": map_points(store, limit=_int(query, "limit", 500) or 500)})
             if path == "/v2/alerts/pending":
