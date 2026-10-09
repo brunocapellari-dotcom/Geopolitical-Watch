@@ -1,14 +1,6 @@
 name: gcp-cloudbuild-gate
 
 on:
-  pull_request:
-    branches:
-      - main
-      - release/go-live-20260929
-  push:
-    branches:
-      - release/go-live-20260929
-      - "stabilization/**"
   workflow_dispatch:
 
 permissions:
@@ -31,6 +23,16 @@ jobs:
       BUILD_SERVICE_ACCOUNT: ${{ vars.GCP_BUILD_SERVICE_ACCOUNT || vars.GCP_DEPLOY_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT || secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
 
     steps:
+      - name: Require explicit paid-cloud opt-in
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ vars.GEOWATCH_ALLOW_PAID_GCP }}" = "1" || {
+            echo "Paid GCP path is disabled by the ZERO COST policy."
+            echo "Set GEOWATCH_ALLOW_PAID_GCP=1 only after explicit owner approval."
+            exit 64
+          }
+
       - name: Require Google Cloud federation variables
         shell: bash
         run: |
