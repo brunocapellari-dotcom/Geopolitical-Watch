@@ -88,25 +88,39 @@ def verify_claims(
 
 
 def _timestamp_quality(evidence: list[EvidenceRef], events: list[Event]) -> float:
-    values = []
+    evidence_validity: list[float] = []
     for row in evidence:
         try:
             parse_utc(row.observed_at)
-            values.append(1.0)
+            evidence_validity.append(1.0)
         except (TypeError, ValueError):
-            values.append(0.0)
+            evidence_validity.append(0.0)
+
+    event_temporality: list[float] = []
     for event in events:
         try:
             reference = parse_utc(event.reference_at)
             if event.published_at:
                 published = parse_utc(event.published_at)
                 lag_hours = abs((published - reference).total_seconds()) / 3600
-                values.append(1.0 if lag_hours <= 12 else 0.8 if lag_hours <= 48 else 0.6)
+                event_temporality.append(
+                    1.0 if lag_hours <= 12
+                    else 0.8 if lag_hours <= 48
+                    else 0.6 if lag_hours <= 168
+                    else 0.35
+                )
             else:
-                values.append(0.75)
+                event_temporality.append(0.75)
         except (TypeError, ValueError):
-            values.append(0.0)
-    return round(sum(values) / len(values), 3) if values else 0.0
+            event_temporality.append(0.0)
+
+    evidence_score = sum(evidence_validity) / len(evidence_validity) if evidence_validity else 0.0
+    if not event_temporality:
+        return round(evidence_score, 3)
+    temporal_score = sum(event_temporality) / len(event_temporality)
+    # Publication/reference alignment is the primary anti-repost signal.
+    # A syntactically valid observed_at timestamp cannot wash out stale content.
+    return round(temporal_score * 0.85 + evidence_score * 0.15, 3)
 
 
 def _geolocation_quality(events: list[Event]) -> float:
