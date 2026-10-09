@@ -299,7 +299,7 @@ async function load(){
 document.getElementById('refresh').addEventListener('click',load);load();
 </script></body></html>'''
     return (
-        template.replaceAll("__PAGE_TITLE__", html.escape(page.title()))
+        template.replace("__PAGE_TITLE__", html.escape(page.title()))
         .replace("__PAGE__", html.escape(page, quote=True))
         .replace("__NAV__", nav)
         .replace("__ENDPOINTS__", endpoints)
