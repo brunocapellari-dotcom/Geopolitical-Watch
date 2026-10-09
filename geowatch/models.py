@@ -37,12 +37,8 @@ class Event:
     source_event_id: str | None = None
     country: str | None = None
     region: str | None = None
-    location: str | None = None
     latitude: float | None = None
     longitude: float | None = None
-    location_source: LocationSource = "unknown"
-    geolocation_method: str | None = None
-    geolocation_confidence: float | None = None
     fatalities_best: int | None = None
     actors: tuple[str, ...] = ()
     source_url: str | None = None
@@ -50,12 +46,14 @@ class Event:
     impact_areas: tuple[ImpactArea, ...] = ()
     impact_evidence_class: EvidenceClass = "inferred"
     raw_ref: str | None = None
+    location: str | None = None
+    location_source: LocationSource = "unknown"
+    geolocation_method: str | None = None
+    geolocation_confidence: float | None = None
 
     def __post_init__(self) -> None:
         if self.geolocation_confidence is not None and not 0.0 <= self.geolocation_confidence <= 1.0:
             raise ValueError("geolocation_confidence must be between 0 and 1")
-        if (self.latitude is None) != (self.longitude is None):
-            raise ValueError("latitude and longitude must be provided together")
 
     def to_dict(self) -> dict[str, object]:
         row = asdict(self)
@@ -77,14 +75,14 @@ class Entity:
     entity_type: EntityType
     canonical_name: str
     aliases: tuple[str, ...] = ()
-    raw_names: tuple[str, ...] = ()
-    normalized_name: str | None = None
-    resolution_confidence: float | None = None
     country: str | None = None
     region: str | None = None
     latitude: float | None = None
     longitude: float | None = None
     external_ids: tuple[str, ...] = ()
+    raw_names: tuple[str, ...] = ()
+    normalized_name: str | None = None
+    resolution_confidence: float | None = None
 
     def __post_init__(self) -> None:
         if self.resolution_confidence is not None and not 0.0 <= self.resolution_confidence <= 1.0:
