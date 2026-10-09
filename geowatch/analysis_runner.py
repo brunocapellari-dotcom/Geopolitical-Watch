@@ -98,6 +98,11 @@ def run_analysis(
         store.record_changes(changes)
 
         verdicts = verify_claims(claims, evidence=evidence, events=episode_events, source_profiles=profiles)
+        verdict_versions_recorded = store.record_versions(
+            "claim_verdict",
+            ((claim_id, verdict.to_dict()) for claim_id, verdict in verdicts.items()),
+            recorded_at=generated_at,
+        )
         claim_sources = _claim_supporting_sources(claims, evidence)
         source_states = _source_health_states(store)
         alert_cfg = config.get("alerts", {})
@@ -134,6 +139,7 @@ def run_analysis(
             "episode_changes": len(changes),
             "alerts_generated": len(alerts),
             "alerts_enqueued": alerts_enqueued,
+            "verdict_versions_recorded": verdict_versions_recorded,
             "source_health_states": source_states,
         }
     finally:
