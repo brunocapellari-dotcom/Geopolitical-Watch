@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: geopolitical-watch
+    runtime: docker
+    plan: free
+    autoDeploy: false
+    healthCheckPath: /health
+    envVars:
+      - key: GEOWATCH_STRICT_PRODUCTION
+        value: "1"
+      - key: GEOWATCH_EXTERNAL_SCHEDULER
+        value: "1"
+      - key: GEOWATCH_SOURCE_SCHEDULER
+        value: "0"
+      - key: GEOWATCH_EMBEDDED_COLLECTOR
+        value: "0"
+      - key: GEOWATCH_COOKIE_SECURE
+        value: "1"
+      - key: GEOWATCH_WPI_RUNTIME
+        value: "1"
+      - key: GEOWATCH_RAW_BACKEND
+        value: s3
+      - key: GEOWATCH_RAW_S3_BUCKET
+        value: geowatch-raw
+      - key: GEOWATCH_RAW_PREFIX
+        value: raw
+      - key: AWS_ENDPOINT_URL_S3
+        value: https://br-lucky-breeze-b8g7mj8v.storage.c-14.us-east-1.aws.neon.tech
+      - key: AWS_REGION
+        value: us-east-1
+      - key: GEOWATCH_DB_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: GEOWATCH_API_TOKEN
+        generateValue: true
