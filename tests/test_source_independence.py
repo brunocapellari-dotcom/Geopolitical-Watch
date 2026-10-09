@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from geowatch.models import Event, EvidenceRef
-from geowatch.source_independence import independent_source_count, source_dependency_groups
+from geowatch.source_independence import independent_event_source_count, independent_source_count, source_dependency_groups
 
 
 def event(event_id: str, title: str, publisher: str, url: str) -> Event:
@@ -69,6 +69,14 @@ class SourceIndependenceTests(unittest.TestCase):
             evidence("b", "Outlet B", "https://b.example/story"),
         ]
         self.assertEqual(1, independent_source_count(rows, events))
+
+    def test_syndicated_event_rows_count_as_one_independent_source(self) -> None:
+        title = "Government confirms border crossing closed after overnight clashes"
+        rows = [
+            event("a", title, "Outlet A", "https://a.example/story"),
+            event("b", title + " today", "Outlet B", "https://b.example/story"),
+        ]
+        self.assertEqual(1, independent_event_source_count(rows))
 
     def test_distinct_reporting_remains_independent(self) -> None:
         events = {
