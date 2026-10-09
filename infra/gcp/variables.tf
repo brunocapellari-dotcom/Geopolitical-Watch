@@ -83,3 +83,18 @@ variable "github_repository" {
   type        = string
   default     = "brunocapellari-dotcom/Geopolitical-Watch"
 }
+
+
+variable "github_allowed_refs" {
+  description = "Git refs allowed to exchange GitHub OIDC tokens for the Geopolitical-Watch deployer."
+  type        = list(string)
+  default = [
+    "refs/heads/main",
+    "refs/heads/release/go-live-20260929",
+    "refs/heads/stabilization/go-live-20261007",
+  ]
+  validation {
+    condition     = length(var.github_allowed_refs) > 0 && alltrue([for ref in var.github_allowed_refs : startswith(ref, "refs/heads/")])
+    error_message = "github_allowed_refs must contain explicit refs/heads/* values."
+  }
+}
