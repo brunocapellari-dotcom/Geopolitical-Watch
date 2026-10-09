@@ -12,6 +12,7 @@ from .consumers import build_consumer_feed, consumer_profile_path, load_profile
 from .critical_infrastructure import CriticalInfrastructureGraph
 from .dashboard import dashboard_html, map_points
 from .episode_reports import build_episode_feed
+from .event_graph import build_event_graph, related_event_ids
 from .escalation import EscalationLibrary
 from .forecasting import forecast_summary
 from .geopolitics import GeopoliticalKnowledge
@@ -167,6 +168,16 @@ class Handler(BaseHTTPRequestHandler):
                     "object_id": object_id,
                     "versions": store.list_versions(object_type, object_id),
                 })
+            if path == "/v2/event-graph":
+                requested_episode = _one(query, "episode_id")
+                if requested_episode:
+                    episode = store.get_episode(requested_episode)
+                    episodes = [episode] if episode is not None else []
+                else:
+                    episodes = store.load_episodes(limit=_int(query, "episode_limit", 500) or 500)
+                event_ids = sorted({event_id for episode in episodes for event_id in episode.event_ids})
+                events = store.load_events_by_ids(event_ids)
+                return self._send_json(200, build_event_graph(episodes, events, episode_id=requested_episode))
             if path == "/v2/map":
                 return self._send_json(200, {"schema_version": "geowatch-map-v1", "points": map_points(store, limit=_int(query, "limit", 500) or 500)})
             if path == "/v2/alerts/pending":
@@ -203,6 +214,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._episode_detail(store, path.split("/", 3)[3])
             if path == "/v2/events":
                 return self._send_json(200, {"schema_version": "geowatch-events-v2", "events": store.list_events(since=_one(query, "since"), country=_one(query, "country"), limit=_int(query, "limit", 200) or 200)})
+            if path.startswith("/v2/events/"):
+                return self._event_detail(store, path.split("/", 3)[3])
             if path == "/v2/relationships":
                 rows = store.load_relationships(
                     entity_id=_one(query, "entity_id"),
@@ -219,6 +232,31 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(404, {"error": "not found"})
         finally:
             store.close()
+
+    def _event_detail(self, store, event_id: str) -> None:
+        events = store.load_events_by_ids([event_id])
+        if not events:
+            return self._send_json(404, {"error": "event not found", "event_id": event_id})
+        event = events[0]
+        episodes = [
+            episode for episode in store.load_episodes(limit=5000)
+            if event_id in episode.event_ids
+        ]
+        graph_event_ids = sorted({eid for episode in episodes for eid in episode.event_ids})
+        graph_events = store.load_events_by_ids(graph_event_ids)
+        graph = build_event_graph(episodes, graph_events)
+        event_links = [
+            link for link in graph["links"]
+            if link.get("source_event_id") == event_id or link.get("target_event_id") == event_id
+        ]
+        return self._send_json(200, {
+            "schema_version": "geowatch-event-detail-v1",
+            "event": event.to_dict(),
+            "episode_ids": [episode.episode_id for episode in episodes],
+            "related_event_ids": related_event_ids(graph, event_id),
+            "relationships": event_links,
+            "causality_not_automatically_inferred": True,
+        })
 
     def _episode_detail(self, store, episode_id: str) -> None:
         episode = store.get_episode(episode_id)
