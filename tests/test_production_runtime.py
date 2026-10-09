@@ -38,6 +38,20 @@ class ProductionRuntimeTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 validate_production_runtime()
 
+    def test_strict_mode_accepts_s3_compatible_raw_storage(self) -> None:
+        env = {
+            "GEOWATCH_STRICT_PRODUCTION": "1",
+            "GEOWATCH_DB_URL": "postgresql://user:secret@example.invalid/geowatch",
+            "GEOWATCH_API_TOKEN": "a" * 40,
+            "GEOWATCH_RAW_BACKEND": "s3",
+            "GEOWATCH_RAW_S3_BUCKET": "geowatch-raw",
+            "GEOWATCH_EXTERNAL_SCHEDULER": "1",
+            "GEOWATCH_COOKIE_SECURE": "1",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            checks = validate_production_runtime()
+        self.assertTrue(all(checks.values()))
+
     def test_strict_mode_accepts_complete_generic_configuration(self) -> None:
         env = {
             "GEOWATCH_STRICT_PRODUCTION": "1",
