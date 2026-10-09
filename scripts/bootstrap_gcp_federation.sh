@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ "${GEOWATCH_ALLOW_PAID_GCP:-0}" != "1" ]; then
+  echo "Paid GCP bootstrap is disabled by the ZERO COST policy." >&2
+  echo "Set GEOWATCH_ALLOW_PAID_GCP=1 only after explicit owner approval for billable infrastructure." >&2
+  exit 64
+fi
+
 PROJECT_ID="${PROJECT_ID:-ai-holding-prod-bc}"
 REGION="${REGION:-southamerica-east1}"
 REPO="${REPO:-brunocapellari-dotcom/Geopolitical-Watch}"
