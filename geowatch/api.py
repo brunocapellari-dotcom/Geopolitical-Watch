@@ -27,6 +27,8 @@ from .reports import build_feed
 from .review import build_review_queue
 from .security_systems import SecuritySystems
 from .source_activation import SourceActivationRegistry
+from .source_health import build_source_health
+from .source_registry import load_registry
 from .strategic_graph import StrategicGraph
 from .strategic_state import list_forecasts, list_operations, list_review_decisions
 from .storage_factory import backend_name, open_store
@@ -93,6 +95,18 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_text(200, prometheus_text(operational_snapshot(store)), "text/plain; version=0.0.4; charset=utf-8")
             if path == "/v2/operational":
                 return self._send_json(200, operational_snapshot(store))
+            if path == "/v2/source-health":
+                return self._send_json(200, build_source_health(store))
+            if path == "/v2/sources":
+                registry = load_registry()
+                health = build_source_health(store, registry=registry)
+                return self._send_json(200, {
+                    "schema_version": "geowatch-sources-api-v1",
+                    "summary": registry.summary(),
+                    "sources": health["sources"],
+                    "health_counts": health["counts"],
+                    "generated_at": health["generated_at"],
+                })
             if path == "/v2/readiness":
                 return self._send_json(200, current_code_readiness_estimate())
             if path == "/v2/coverage":
@@ -124,6 +138,13 @@ class Handler(BaseHTTPRequestHandler):
                     profile = registry.profile(country)
                     return self._send_json(200, {"schema_version": "geowatch-country-profile-v1", "profile": profile}) if profile else self._send_json(404, {"error": "country profile not found"})
                 return self._send_json(200, {"schema_version": "geowatch-country-profile-list-v1", "coverage": registry.coverage(), "profiles": registry.list_profiles(status=_one(query, "status"))})
+            if path == "/v2/actors":
+                actors = ActorProfiles.from_json()
+                actor = _one(query, "actor_id")
+                if actor:
+                    profile = actors.profile(actor)
+                    return self._send_json(200, {"schema_version": "geowatch-actor-profile-v1", "profile": profile}) if profile else self._send_json(404, {"error": "actor profile not found"})
+                return self._send_json(200, {"schema_version": "geowatch-actor-profile-list-v1", "profiles": actors.list(_one(query, "actor_type"))})
             if path == "/v2/geopolitics/actors":
                 actors = ActorProfiles.from_json()
                 actor = _one(query, "actor_id")
@@ -180,6 +201,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(200, build_event_graph(episodes, events, episode_id=requested_episode))
             if path == "/v2/map":
                 return self._send_json(200, {"schema_version": "geowatch-map-v1", "points": map_points(store, limit=_int(query, "limit", 500) or 500)})
+            if path == "/v2/alerts":
+                rows = store.pending_alerts(limit=_int(query, "limit", 100) or 100)
+                return self._send_json(200, {"schema_version": "geowatch-alert-outbox-v1", "alerts": [row.get("payload") or row for row in rows]})
             if path == "/v2/alerts/pending":
                 rows = store.pending_alerts(limit=_int(query, "limit", 100) or 100)
                 return self._send_json(200, {"schema_version": "geowatch-alert-outbox-v1", "alerts": [row.get("payload") or row for row in rows]})
@@ -225,6 +249,50 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_json(200, {
                     "schema_version": "geowatch-relationships-v1",
                     "relationships": [row.to_dict() for row in rows[:max(1, min(limit, 5000))]],
+                })
+            if path == "/v2/timeline":
+                since = _one(query, "since") or "1970-01-01T00:00:00+00:00"
+                episode_id = _one(query, "episode_id")
+                rows = store.changes_since(since, limit=_int(query, "limit", 1000) or 1000)
+                if episode_id:
+                    rows = [row for row in rows if str(row.get("episode_id") or "") == episode_id]
+                return self._send_json(200, {
+                    "schema_version": "geowatch-timeline-v1",
+                    "episode_id": episode_id,
+                    "since": since,
+                    "changes": rows,
+                })
+            if path == "/v2/regions":
+                episodes = store.load_episodes(
+                    since=_one(query, "since"),
+                    limit=_int(query, "episode_limit", 5000) or 5000,
+                )
+                region_rows: dict[tuple[str, str], dict[str, object]] = {}
+                for episode in episodes:
+                    country_values = episode.countries or ("",)
+                    region_values = episode.regions or ("",)
+                    for country in country_values:
+                        for region in region_values:
+                            key = (country, region)
+                            row = region_rows.setdefault(key, {
+                                "country": country or None,
+                                "region": region or None,
+                                "episode_count": 0,
+                                "active_episode_count": 0,
+                                "last_updated_at": None,
+                            })
+                            row["episode_count"] = int(row["episode_count"]) + 1
+                            if episode.state not in {"closed", "ceasefire"}:
+                                row["active_episode_count"] = int(row["active_episode_count"]) + 1
+                            current = row["last_updated_at"]
+                            if current is None or episode.last_updated_at > str(current):
+                                row["last_updated_at"] = episode.last_updated_at
+                return self._send_json(200, {
+                    "schema_version": "geowatch-regions-v1",
+                    "regions": sorted(
+                        region_rows.values(),
+                        key=lambda row: (str(row["country"] or ""), str(row["region"] or "")),
+                    ),
                 })
             if path == "/v2/changes":
                 since = _one(query, "since") or "1970-01-01T00:00:00+00:00"
