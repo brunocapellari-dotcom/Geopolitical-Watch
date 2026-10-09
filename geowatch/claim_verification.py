@@ -115,17 +115,27 @@ def _geolocation_quality(events: list[Event]) -> float:
     best = 0.0
     for event in events:
         if event.latitude is not None and event.longitude is not None:
-            best = max(best, 0.95)
-        elif event.region:
+            if event.geolocation_confidence is not None:
+                quality = event.geolocation_confidence
+            elif event.location_source == "reported":
+                quality = 0.85
+            elif event.location_source == "inferred":
+                quality = 0.55
+            else:
+                quality = 0.70
+            best = max(best, quality)
+        elif event.location and event.location_source == "reported":
             best = max(best, 0.65)
+        elif event.region:
+            best = max(best, 0.60)
         elif event.country:
-            best = max(best, 0.45)
-    return best
+            best = max(best, 0.40)
+    return round(best, 3)
 
 
 def _physical_quality(evidence: EvidenceRef, event: Event | None) -> float:
     if evidence.verification_level != "sensor_signal":
         return 0.0
     if event and event.latitude is not None and event.longitude is not None:
-        return 0.85
+        return max(0.65, min(event.geolocation_confidence or 0.75, 0.95))
     return 0.65
