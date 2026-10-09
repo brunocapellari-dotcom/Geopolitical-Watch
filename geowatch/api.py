@@ -10,7 +10,7 @@ from .actor_profiles import ActorProfiles
 from .backfill_planner import BackfillPlanner
 from .consumers import build_consumer_feed, consumer_profile_path, load_profile
 from .critical_infrastructure import CriticalInfrastructureGraph
-from .dashboard import dashboard_html, map_points
+from .dashboard import dashboard_html, map_points, operational_page_html
 from .episode_reports import build_episode_feed
 from .event_graph import build_event_graph, related_event_ids
 from .escalation import EscalationLibrary
@@ -52,8 +52,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/health":
             return self._send_json(200, {"status": "ok", "service": "geopolitical-watch", "version": __version__, "storage_backend": backend_name()})
-        if path == "/dashboard":
+        if path in {"/dashboard", "/map"}:
             return self._send_text(200, dashboard_html(), "text/html; charset=utf-8")
+        if path in {"/overview", "/events", "/conflicts", "/actors", "/timeline", "/alerts", "/sources", "/system"}:
+            return self._send_text(200, operational_page_html(path.strip("/")), "text/html; charset=utf-8")
         if API_TOKEN and self.headers.get("Authorization") != f"Bearer {API_TOKEN}":
             return self._send_json(401, {"error": "unauthorized"})
 
