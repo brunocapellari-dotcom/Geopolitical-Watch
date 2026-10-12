@@ -3,7 +3,7 @@ name: public-beta-integration
 on:
   push:
     branches:
-      - "stabilization/**"
+      - main
   pull_request:
     paths:
       - "geowatch/pipeline.py"
