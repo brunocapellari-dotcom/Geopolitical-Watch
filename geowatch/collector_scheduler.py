@@ -6,7 +6,6 @@ import time
 from datetime import datetime, timezone
 
 from .analysis_runner import run_analysis
-from .sanctions_runtime import refresh_official_sanctions
 from .satellite_runtime import refresh_celestrak
 from .source_collection import collect_source_once, load_collection_spec
 from .source_registry import load_registry
@@ -96,6 +95,7 @@ def run_tick() -> dict[str, object]:
     sanctions_bundle: dict[str, object] | None = None
     for spec in due:
         if spec.source_id in _SANCTIONS_IDS:
+            from .sanctions_runtime import refresh_official_sanctions
             if sanctions_bundle is None:
                 sanctions_bundle = refresh_official_sanctions()
             bundle_results = sanctions_bundle.get("results") or {}
