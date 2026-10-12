@@ -12,7 +12,7 @@ class ToolingRegistryTests(unittest.TestCase):
         self.tools = self.payload["tools"]
 
     def test_every_tool_has_a_governed_decision(self) -> None:
-        self.assertEqual(self.payload["schema_version"], "geowatch-tooling-registry-v1")
+        self.assertEqual(self.payload["schema_version"], "geowatch-tooling-registry-v2")
         self.assertTrue(self.payload["governance"]["one_primary_per_capability"])
         self.assertTrue(self.payload["governance"]["unused_dependencies_forbidden"])
         for row in self.tools:

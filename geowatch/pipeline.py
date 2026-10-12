@@ -154,9 +154,25 @@ def backfill(source_id: str, start: str, end: str, *, config_path: str | Path = 
 def _collect_incremental(spec: dict, *, checkpoint: dict | None, now: datetime, default_lookback_hours: int, overlap_minutes: int, request_meta: dict[str, object]):
     kind = spec["kind"]
     if kind == "gdelt":
-        start = overlap_start(checkpoint.get("last_success_at") if checkpoint else None, default_lookback_hours=int(spec.get("lookback_hours", default_lookback_hours)), overlap_minutes=overlap_minutes, now=now)
-        params = TimeWindow(start, now).gdelt_params(); request_meta.update(params)
-        payload, url = gdelt.collect(query=spec.get("query", gdelt.DEFAULT_QUERY), maxrecords=int(spec.get("maxrecords", 250)), start_datetime=params["startdatetime"], end_datetime=params["enddatetime"])
+        lookback_hours = max(1, int(spec.get("lookback_hours", default_lookback_hours)))
+        checkpoint_start = overlap_start(
+            checkpoint.get("last_success_at") if checkpoint else None,
+            default_lookback_hours=lookback_hours,
+            overlap_minutes=overlap_minutes,
+            now=now,
+        )
+        bounded_floor = now - timedelta(hours=lookback_hours)
+        start = max(checkpoint_start, bounded_floor)
+        params = TimeWindow(start, now).gdelt_params()
+        request_meta.update(params)
+        request_meta["window_bounded"] = checkpoint_start < bounded_floor
+        request_meta["lookback_hours"] = lookback_hours
+        payload, url = gdelt.collect(
+            query=spec.get("query", gdelt.DEFAULT_QUERY),
+            maxrecords=int(spec.get("maxrecords", 100)),
+            start_datetime=params["startdatetime"],
+            end_datetime=params["enddatetime"],
+        )
         return [payload], [url], gdelt.parse
     if kind == "reliefweb":
         payload, url = reliefweb.collect(query=spec.get("query", "conflict war hostilities displacement"), limit=int(spec.get("limit", 100))); return [payload], [url], reliefweb.parse

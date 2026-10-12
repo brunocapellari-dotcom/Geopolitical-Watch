@@ -1,0 +1,24 @@
+name: zero-cost-scheduler
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geowatch-zero-cost-scheduler
+  cancel-in-progress: true
+
+jobs:
+  wake-free-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Wake Render and assert health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --retry 2 --retry-delay 10 --max-time 90             https://geopolitical-watch.onrender.com/health >/dev/null

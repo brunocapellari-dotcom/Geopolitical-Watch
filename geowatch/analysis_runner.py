@@ -12,7 +12,32 @@ from .entities import EntityResolver
 from .episode_reports import build_episode_report, render_episode_markdown
 from .quality import load_profiles
 from .reports import build_report, render_markdown
+from .source_health import build_source_health
 from .storage_factory import open_store
+
+
+def _claim_supporting_sources(claims, evidence) -> dict[str, tuple[str, ...]]:
+    evidence_by_id = {item.evidence_id: item for item in evidence}
+    result: dict[str, tuple[str, ...]] = {}
+    for claim in claims:
+        source_ids = {
+            item.source_id
+            for evidence_id in claim.evidence_ids
+            if (item := evidence_by_id.get(evidence_id)) is not None
+            and item.relation in {"supports", "reports", "updates"}
+        }
+        result[claim.claim_id] = tuple(sorted(source_ids))
+    return result
+
+
+def _source_health_states(store) -> dict[str, str]:
+    payload = build_source_health(store)
+    rows = payload.get("sources") or []
+    return {
+        str(row["source_id"]): str(row["status"])
+        for row in rows
+        if isinstance(row, dict) and row.get("source_id") and row.get("status")
+    }
 
 
 def run_analysis(
@@ -73,6 +98,13 @@ def run_analysis(
         store.record_changes(changes)
 
         verdicts = verify_claims(claims, evidence=evidence, events=episode_events, source_profiles=profiles)
+        verdict_versions_recorded = store.record_versions(
+            "claim_verdict",
+            ((claim_id, verdict.to_dict()) for claim_id, verdict in verdicts.items()),
+            recorded_at=generated_at,
+        )
+        claim_sources = _claim_supporting_sources(claims, evidence)
+        source_states = _source_health_states(store)
         alert_cfg = config.get("alerts", {})
         alerts = evaluate_alerts(
             episodes,
@@ -80,6 +112,8 @@ def run_analysis(
             load_policies(alert_cfg.get("policy_file", "config/alerts.json")),
             created_at=generated_at,
             claim_verdicts=verdicts,
+            claim_source_ids=claim_sources,
+            source_health=source_states,
         )
         alerts_enqueued = enqueue_alerts(store, alerts)
 
@@ -105,6 +139,8 @@ def run_analysis(
             "episode_changes": len(changes),
             "alerts_generated": len(alerts),
             "alerts_enqueued": alerts_enqueued,
+            "verdict_versions_recorded": verdict_versions_recorded,
+            "source_health_states": source_states,
         }
     finally:
         store.close()

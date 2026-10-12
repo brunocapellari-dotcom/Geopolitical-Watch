@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
 from .core import EventCluster, deterministic_cluster_id, score_cluster
 from .models import Claim, ConflictEpisode, Entity, Event, EvidenceRef, Relationship
+from .temporal import canonical_payload
 
 
 class SQLiteStore:
@@ -187,6 +189,18 @@ class SQLiteStore:
         CREATE INDEX IF NOT EXISTS idx_changes_at ON episode_changes(occurred_at);
         CREATE INDEX IF NOT EXISTS idx_changes_episode ON episode_changes(episode_id, occurred_at);
 
+        CREATE TABLE IF NOT EXISTS object_versions (
+          version_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          object_type TEXT NOT NULL,
+          object_id TEXT NOT NULL,
+          recorded_at TEXT NOT NULL,
+          payload_sha256 TEXT NOT NULL,
+          payload_json TEXT NOT NULL,
+          UNIQUE(object_type, object_id, recorded_at, payload_sha256)
+        );
+        CREATE INDEX IF NOT EXISTS idx_object_versions_asof ON object_versions(object_type, recorded_at);
+        CREATE INDEX IF NOT EXISTS idx_object_versions_object ON object_versions(object_type, object_id, recorded_at);
+
         CREATE TABLE IF NOT EXISTS alert_outbox (
           alert_id TEXT PRIMARY KEY,
           episode_id TEXT NOT NULL,
@@ -204,11 +218,98 @@ class SQLiteStore:
         self.db.execute("INSERT OR IGNORE INTO schema_migrations(version, name) VALUES(1, 'v0.4 baseline')")
         self.db.execute("INSERT OR IGNORE INTO schema_migrations(version, name) VALUES(2, 'v0.5 episode convergence')")
         self.db.execute("INSERT OR IGNORE INTO schema_migrations(version, name) VALUES(4, 'v0.16 temporal relationships')")
+        self.db.execute("INSERT OR IGNORE INTO schema_migrations(version, name) VALUES(5, 'go-live immutable object versions')")
         self.db.commit()
+
+    def _record_version(self, object_type: str, object_id: str, payload: dict, *, recorded_at: str | None = None) -> bool:
+        raw, digest = canonical_payload(payload)
+        latest = self.db.execute(
+            """SELECT payload_sha256 FROM object_versions
+               WHERE object_type=? AND object_id=?
+               ORDER BY recorded_at DESC, version_id DESC LIMIT 1""",
+            (object_type, object_id),
+        ).fetchone()
+        if latest and latest["payload_sha256"] == digest:
+            return False
+        when = recorded_at or datetime.now(timezone.utc).isoformat()
+        before = self.db.total_changes
+        self.db.execute(
+            """INSERT OR IGNORE INTO object_versions(object_type, object_id, recorded_at, payload_sha256, payload_json)
+               VALUES(?,?,?,?,?)""",
+            (object_type, object_id, when, digest, raw),
+        )
+        return self.db.total_changes > before
+
+    def record_versions(
+        self,
+        object_type: str,
+        rows: Iterable[tuple[str, dict]],
+        *,
+        recorded_at: str | None = None,
+    ) -> int:
+        inserted = 0
+        for object_id, payload in rows:
+            inserted += int(self._record_version(object_type, object_id, payload, recorded_at=recorded_at))
+        self.db.commit()
+        return inserted
+
+    def list_versions(self, object_type: str, object_id: str) -> list[dict]:
+        rows = self.db.execute(
+            """SELECT object_type, object_id, recorded_at, payload_sha256, payload_json
+               FROM object_versions
+               WHERE object_type=? AND object_id=?
+               ORDER BY recorded_at, version_id""",
+            (object_type, object_id),
+        ).fetchall()
+        return [
+            {
+                "object_type": row["object_type"],
+                "object_id": row["object_id"],
+                "recorded_at": row["recorded_at"],
+                "payload_sha256": row["payload_sha256"],
+                "payload": json.loads(row["payload_json"]),
+            }
+            for row in rows
+        ]
+
+    def snapshot_as_of(self, as_of: str, *, object_type: str | None = None, limit: int = 5000) -> list[dict]:
+        params: list[object] = [as_of]
+        type_filter = ""
+        if object_type:
+            type_filter = " AND object_type=?"
+            params.append(object_type)
+        params.append(max(1, min(limit, 10000)))
+        rows = self.db.execute(
+            f"""SELECT object_type, object_id, recorded_at, payload_sha256, payload_json
+                FROM (
+                  SELECT object_type, object_id, recorded_at, payload_sha256, payload_json, version_id,
+                         ROW_NUMBER() OVER (
+                           PARTITION BY object_type, object_id
+                           ORDER BY recorded_at DESC, version_id DESC
+                         ) AS rn
+                  FROM object_versions
+                  WHERE recorded_at<=?{type_filter}
+                )
+                WHERE rn=1
+                ORDER BY object_type, object_id
+                LIMIT ?""",
+            params,
+        ).fetchall()
+        return [
+            {
+                "object_type": row["object_type"],
+                "object_id": row["object_id"],
+                "recorded_at": row["recorded_at"],
+                "payload_sha256": row["payload_sha256"],
+                "payload": json.loads(row["payload_json"]),
+            }
+            for row in rows
+        ]
 
     # --- legacy/raw event layer -------------------------------------------------
     def upsert_events(self, events: list[Event]) -> int:
         for event in events:
+            self._record_version("event", event.event_id, event.to_dict(), recorded_at=event.collected_at)
             self.db.execute("""
             INSERT INTO events(event_id, reference_at, source_id, verification_level, country, event_json)
             VALUES(?,?,?,?,?,?)
@@ -279,6 +380,7 @@ class SQLiteStore:
     def upsert_entities(self, entities: Iterable[Entity]) -> int:
         rows = list(entities)
         for entity in rows:
+            self._record_version("entity", entity.entity_id, entity.to_dict())
             self.db.execute("""
             INSERT INTO entities(entity_id, entity_type, canonical_name, country, latitude, longitude, entity_json)
             VALUES(?,?,?,?,?,?,?)
@@ -299,6 +401,7 @@ class SQLiteStore:
     def upsert_relationships(self, relationships: Iterable[Relationship]) -> int:
         rows = list(relationships)
         for relationship in rows:
+            self._record_version("relationship", relationship.relationship_id, relationship.to_dict(), recorded_at=relationship.last_seen_at)
             self.db.execute("""
             INSERT INTO relationships(
               relationship_id, source_entity_id, target_entity_id, relationship_type, semantic_class,
@@ -334,6 +437,7 @@ class SQLiteStore:
     def upsert_evidence(self, evidence: Iterable[EvidenceRef]) -> int:
         rows = list(evidence)
         for item in rows:
+            self._record_version("evidence", item.evidence_id, item.to_dict(), recorded_at=item.observed_at)
             self.db.execute("""
             INSERT INTO evidence(evidence_id, event_id, source_id, verification_level, relation, observed_at, evidence_json)
             VALUES(?,?,?,?,?,?,?)
@@ -357,6 +461,7 @@ class SQLiteStore:
     def upsert_claims(self, claims: Iterable[Claim]) -> int:
         rows = list(claims)
         for claim in rows:
+            self._record_version("claim", claim.claim_id, claim.to_dict(), recorded_at=claim.last_seen_at)
             self.db.execute("""
             INSERT INTO claims(claim_id, episode_id, claim_type, topic_key, status, first_seen_at, last_seen_at, claim_json)
             VALUES(?,?,?,?,?,?,?,?)
@@ -382,6 +487,7 @@ class SQLiteStore:
     def upsert_episodes(self, episodes: Iterable[ConflictEpisode]) -> int:
         rows = list(episodes)
         for episode in rows:
+            self._record_version("episode", episode.episode_id, episode.to_dict(), recorded_at=episode.last_updated_at)
             strength = episode.evidence_strength.overall_index if episode.evidence_strength else None
             primary_country = episode.countries[0] if episode.countries else None
             self.db.execute("""

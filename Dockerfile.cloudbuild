@@ -10,12 +10,17 @@ COPY --from=terraform /bin/terraform /usr/local/bin/terraform
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl docker.io git \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 geowatch-ci \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /bin/bash geowatch-ci
 
 WORKDIR /workspace
-COPY . .
+COPY --chown=geowatch-ci:geowatch-ci . .
 RUN python -m pip install --upgrade pip \
     && pip install -e '.[production,test]' \
-    && python -m playwright install --with-deps chromium
+    && python -m playwright install --with-deps chromium \
+    && chown -R geowatch-ci:geowatch-ci /workspace /home/geowatch-ci
+
+USER 10001:10001
 
 CMD ["bash", "scripts/full_project_gate.sh"]
