@@ -10,7 +10,7 @@ from .architecture_status import build_architecture_status
 from .claim_verification import verify_claims
 from .collector_scheduler import ensure_started as ensure_source_scheduler_started, status as source_scheduler_status
 from .context_feed import build_context_feed
-from .dashboard import dashboard_html
+from .dashboard import dashboard_html, operational_page_html
 from .embedded_collector import ensure_started as ensure_collector_started, status as collector_status
 from .live_vessels import ensure_started as ensure_vessel_started, vessel_snapshot
 from .login_guard import clear_login_failures, login_allowed, record_login_failure
@@ -33,6 +33,15 @@ def _flag(name: str) -> bool:
 
 def _private_dashboard_html() -> str:
     body = dashboard_html()
+    body = body.replace(
+        '<input id="token" type="password" placeholder="API bearer token">',
+        '<input id="token" type="hidden" value=""><a href="/logout" style="color:#adb5bd;text-decoration:none;font-size:12px">Sair</a>',
+    )
+    return body
+
+
+def _private_operational_page_html(page: str) -> str:
+    body = operational_page_html(page)
     body = body.replace(
         '<input id="token" type="password" placeholder="API bearer token">',
         '<input id="token" type="hidden" value=""><a href="/logout" style="color:#adb5bd;text-decoration:none;font-size:12px">Sair</a>',
@@ -100,10 +109,19 @@ class PrivateHandler(BaseHandler):
 
         session_ok = verify_session(self.headers.get("Cookie"), API_TOKEN)
         bearer_ok = (not API_TOKEN) or self.headers.get("Authorization") == f"Bearer {API_TOKEN}"
-        if path == "/dashboard":
+
+        private_page_paths = {
+            "/dashboard", "/map", "/overview", "/events", "/conflicts",
+            "/actors", "/timeline", "/alerts", "/sources", "/system",
+        }
+        if path == "/":
+            return self._redirect("/dashboard" if session_ok or not API_TOKEN else "/login")
+        if path in private_page_paths:
             if API_TOKEN and not session_ok:
                 return self._send_text(200, login_html(), "text/html; charset=utf-8")
-            return self._send_text(200, _private_dashboard_html(), "text/html; charset=utf-8")
+            if path in {"/dashboard", "/map"}:
+                return self._send_text(200, _private_dashboard_html(), "text/html; charset=utf-8")
+            return self._send_text(200, _private_operational_page_html(path.strip("/")), "text/html; charset=utf-8")
 
         private_runtime_paths = {
             "/v2/runtime/collector",
