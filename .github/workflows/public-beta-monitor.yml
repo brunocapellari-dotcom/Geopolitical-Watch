@@ -3,7 +3,7 @@ name: public-beta-monitor
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "17 */2 * * *"
 
 permissions:
   contents: read
