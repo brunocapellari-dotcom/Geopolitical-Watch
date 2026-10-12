@@ -3,7 +3,7 @@ name: ucdp-bulk-refresh
 on:
   workflow_dispatch:
   schedule:
-    - cron: "37 2 * * *"
+    - cron: "37 2 * * 1"
 
 permissions:
   contents: read
