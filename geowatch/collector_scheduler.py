@@ -50,6 +50,14 @@ def source_timeout_seconds() -> int:
     return max(15, min(value, 300))
 
 
+def sanctions_timeout_seconds() -> int:
+    try:
+        value = int(os.environ.get("GEOWATCH_SANCTIONS_TIMEOUT_SECONDS", "240"))
+    except ValueError:
+        value = 240
+    return max(60, min(value, 600))
+
+
 def analysis_timeout_seconds() -> int:
     try:
         value = int(os.environ.get("GEOWATCH_ANALYSIS_TIMEOUT_SECONDS", "180"))
@@ -78,6 +86,7 @@ def status() -> dict[str, object]:
             "enabled": enabled(),
             "tick_seconds": tick_seconds(),
             "source_timeout_seconds": source_timeout_seconds(),
+            "sanctions_timeout_seconds": sanctions_timeout_seconds(),
             "analysis_timeout_seconds": analysis_timeout_seconds(),
             "analysis_min_interval_seconds": analysis_min_interval_seconds(),
             "analysis_config": analysis_config_path(),
@@ -116,9 +125,8 @@ def run_tick() -> dict[str, object]:
     sanctions_bundle: dict[str, object] | None = None
     for spec in due:
         if spec.source_id in _SANCTIONS_IDS:
-            from .sanctions_runtime import refresh_official_sanctions
             if sanctions_bundle is None:
-                sanctions_bundle = refresh_official_sanctions()
+                sanctions_bundle = _isolated_sanctions_result()
             bundle_results = sanctions_bundle.get("results") or {}
             results[spec.source_id] = bundle_results.get(spec.source_id, {"status": "error", "error": "sanctions bundle missing source result"}) if isinstance(bundle_results, dict) else {"status": "error"}
             continue
@@ -203,6 +211,58 @@ def _isolated_source_result(source_id: str) -> dict[str, object]:
         error = "isolated source process returned non-object JSON"
         _record_parent_failure(source_id, error)
         return {"source_id": source_id, "status": "error", "error": error, "isolated": True}
+    return {**payload, "isolated": True}
+
+
+def _isolated_sanctions_result() -> dict[str, object]:
+    command = [sys.executable, "-m", "geowatch", "sanctions-once"]
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=sanctions_timeout_seconds(),
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        error = f"sanctions timeout after {sanctions_timeout_seconds()} seconds"
+        for source_id in sorted(_SANCTIONS_IDS):
+            _record_parent_failure(source_id, error)
+        return {
+            "status": "error",
+            "results": {source_id: {"status": "error", "error": error} for source_id in _SANCTIONS_IDS},
+            "isolated": True,
+        }
+    if completed.returncode != 0:
+        detail = redact_runtime_secrets((completed.stderr or completed.stdout or "sanctions child failed").strip())[:500]
+        error = f"isolated sanctions process exited {completed.returncode}: {detail}"
+        for source_id in sorted(_SANCTIONS_IDS):
+            _record_parent_failure(source_id, error)
+        return {
+            "status": "error",
+            "results": {source_id: {"status": "error", "error": error} for source_id in _SANCTIONS_IDS},
+            "isolated": True,
+        }
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        error = "isolated sanctions process returned invalid JSON"
+        for source_id in sorted(_SANCTIONS_IDS):
+            _record_parent_failure(source_id, error)
+        return {
+            "status": "error",
+            "results": {source_id: {"status": "error", "error": error} for source_id in _SANCTIONS_IDS},
+            "isolated": True,
+        }
+    if not isinstance(payload, dict):
+        error = "isolated sanctions process returned non-object JSON"
+        for source_id in sorted(_SANCTIONS_IDS):
+            _record_parent_failure(source_id, error)
+        return {
+            "status": "error",
+            "results": {source_id: {"status": "error", "error": error} for source_id in _SANCTIONS_IDS},
+            "isolated": True,
+        }
     return {**payload, "isolated": True}
 
 
