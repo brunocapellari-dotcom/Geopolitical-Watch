@@ -99,13 +99,30 @@ def main() -> int:
     profile = sub.add_parser("country-profile")
     profile.add_argument("--country", required=True)
     sub.add_parser("scheduler-tick", help="Run one registry-scheduler collection/analysis tick and exit")
+    single = sub.add_parser("source-once", help="Run one source in an isolated process and exit")
+    single.add_argument("--source", required=True)
+    analysis_once = sub.add_parser("analysis-once", help="Run deterministic analysis once and exit")
+    analysis_once.add_argument("--config", default="config/sources.production.json")
     sub.add_parser("serve")
     args = parser.parse_args()
 
     if args.command == "serve":
         return api_main()
     if args.command == "scheduler-tick":
-        print(json.dumps(scheduler_tick(), ensure_ascii=False, indent=2))
+        print(json.dumps(scheduler_tick(), ensure_ascii=False))
+        return 0
+    if args.command == "source-once":
+        from .source_collection import collect_source_once
+        from .satellite_runtime import refresh_celestrak
+        if args.source == "celestrak":
+            result = refresh_celestrak(group="military")
+        else:
+            result = collect_source_once(args.source)
+        print(json.dumps(result, ensure_ascii=False))
+        return 0
+    if args.command == "analysis-once":
+        from .analysis_runner import run_analysis
+        print(json.dumps(run_analysis(config_path=args.config), ensure_ascii=False))
         return 0
     if args.command == "evaluate":
         print(json.dumps(replay_fixture(args.fixture), ensure_ascii=False, indent=2))
