@@ -103,6 +103,7 @@ def main() -> int:
     single.add_argument("--source", required=True)
     analysis_once = sub.add_parser("analysis-once", help="Run deterministic analysis once and exit")
     analysis_once.add_argument("--config", default="config/sources.production.json")
+    sub.add_parser("sanctions-once", help="Refresh official sanctions in an isolated process and exit")
     sub.add_parser("serve")
     args = parser.parse_args()
 
@@ -123,6 +124,10 @@ def main() -> int:
     if args.command == "analysis-once":
         from .analysis_runner import run_analysis
         print(json.dumps(run_analysis(config_path=args.config), ensure_ascii=False))
+        return 0
+    if args.command == "sanctions-once":
+        from .sanctions_runtime import refresh_official_sanctions
+        print(json.dumps(refresh_official_sanctions(), ensure_ascii=False))
         return 0
     if args.command == "evaluate":
         print(json.dumps(replay_fixture(args.fixture), ensure_ascii=False, indent=2))
