@@ -13,7 +13,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  wake-runtime:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Wake zero-cost runtime and assert health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --retry 3 --retry-delay 10 --max-time 120 https://geopolitical-watch.onrender.com/health >/dev/null
+
   public-beta:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
