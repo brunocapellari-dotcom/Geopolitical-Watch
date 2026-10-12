@@ -9,7 +9,6 @@ import time
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from .sanctions_runtime import refresh_official_sanctions
 from .security_redaction import redact_runtime_secrets
 from .source_collection import load_collection_spec
 from .source_registry import load_registry
@@ -117,6 +116,7 @@ def run_tick() -> dict[str, object]:
     sanctions_bundle: dict[str, object] | None = None
     for spec in due:
         if spec.source_id in _SANCTIONS_IDS:
+            from .sanctions_runtime import refresh_official_sanctions
             if sanctions_bundle is None:
                 sanctions_bundle = refresh_official_sanctions()
             bundle_results = sanctions_bundle.get("results") or {}
