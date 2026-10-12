@@ -1,24 +1,20 @@
 name: zero-cost-wake
 
+# Superseded by the schedule in public-beta-monitor.yml.
+# Kept manual-only as a recovery wake hook to avoid duplicate scheduled runs.
 on:
-  schedule:
-    - cron: "17 */2 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: geowatch-zero-cost-wake
-  cancel-in-progress: true
-
 jobs:
   wake-runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
       - name: Wake Render and assert health
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --show-error --silent --retry 2 --retry-delay 10 --max-time 90             https://geopolitical-watch.onrender.com/health >/dev/null
+          curl --fail --show-error --silent --retry 3 --retry-delay 10 --max-time 120 https://geopolitical-watch.onrender.com/health >/dev/null
