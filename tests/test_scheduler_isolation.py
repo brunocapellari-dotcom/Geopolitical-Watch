@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 
 from geowatch.collector_scheduler import (
     _isolated_analysis_result,
+    _isolated_sanctions_result,
     _isolated_source_result,
 )
 
@@ -45,6 +46,30 @@ class SchedulerIsolationTests(unittest.TestCase):
         self.assertEqual(result["status"], "error")
         self.assertIn("exited 2", result["error"])
         record.assert_called_once()
+
+    def test_sanctions_child_success_is_parsed(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=["python"], returncode=0,
+            stdout=json.dumps({"generated_at": "2026-10-12T00:00:00Z", "results": {
+                "unsc_sanctions": {"status": "ok", "records": 10},
+                "uk_sanctions": {"status": "ok", "records": 20},
+            }}),
+            stderr="",
+        )
+        with patch("geowatch.collector_scheduler.subprocess.run", return_value=completed):
+            result = _isolated_sanctions_result()
+        self.assertTrue(result["isolated"])
+        self.assertEqual(result["results"]["uk_sanctions"]["records"], 20)
+
+    def test_sanctions_child_failure_isolated_from_server(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=["python"], returncode=-9, stdout="", stderr="",
+        )
+        with patch("geowatch.collector_scheduler.subprocess.run", return_value=completed), \
+             patch("geowatch.collector_scheduler._record_parent_failure") as record:
+            result = _isolated_sanctions_result()
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(record.call_count, 2)
 
     def test_analysis_child_success_is_parsed(self) -> None:
         completed = subprocess.CompletedProcess(
