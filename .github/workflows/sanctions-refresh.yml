@@ -1,9 +1,9 @@
 name: sanctions-refresh
 
 on:
+  # Production sanctions refresh now runs inside the zero-cost Render/Neon runtime.
+  # Keep this workflow as an explicit manual fallback only.
   workflow_dispatch:
-  schedule:
-    - cron: "47 */6 * * *"
 
 permissions:
   contents: read
