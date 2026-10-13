@@ -87,6 +87,25 @@ CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(canonical_name);
 CREATE INDEX IF NOT EXISTS idx_entities_country ON entities(country);
 CREATE INDEX IF NOT EXISTS idx_entities_geom ON entities USING GIST(geom);
 
+CREATE TABLE IF NOT EXISTS relationships (
+  relationship_id TEXT PRIMARY KEY,
+  source_entity_id TEXT NOT NULL REFERENCES entities(entity_id) ON DELETE CASCADE,
+  target_entity_id TEXT NOT NULL REFERENCES entities(entity_id) ON DELETE CASCADE,
+  relationship_type TEXT NOT NULL,
+  semantic_class TEXT NOT NULL,
+  first_seen_at TIMESTAMPTZ NOT NULL,
+  last_seen_at TIMESTAMPTZ NOT NULL,
+  valid_from TIMESTAMPTZ,
+  valid_to TIMESTAMPTZ,
+  confidence DOUBLE PRECISION,
+  relationship_json JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_entity_id);
+CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_entity_id);
+CREATE INDEX IF NOT EXISTS idx_relationships_type ON relationships(relationship_type);
+CREATE INDEX IF NOT EXISTS idx_relationships_validity ON relationships(valid_from, valid_to);
+
 CREATE TABLE IF NOT EXISTS episodes (
   episode_id TEXT PRIMARY KEY,
   state TEXT NOT NULL,
@@ -168,5 +187,6 @@ CREATE INDEX IF NOT EXISTS idx_alert_outbox_status ON alert_outbox(status, creat
 INSERT INTO schema_migrations(version, name) VALUES
   (1, 'v0.4 baseline'),
   (2, 'v0.5 episode convergence'),
-  (3, 'v0.6 postgres postgis operational layer')
+  (3, 'v0.6 postgres postgis operational layer'),
+  (4, 'v0.16 temporal relationships')
 ON CONFLICT(version) DO NOTHING;

@@ -1,12 +1,15 @@
 {
-  "schema_version": "geowatch-tooling-registry-v1",
-  "as_of": "2026-09-15",
+  "schema_version": "geowatch-tooling-registry-v2",
+  "as_of": "2026-09-28",
   "governance": {
     "one_primary_per_capability": true,
     "unused_dependencies_forbidden": true,
     "reference_projects_are_not_code_dependencies": true,
     "license_review_required_before_code_incorporation": true,
-    "replace_primary_only_with_measured_improvement": true
+    "replace_primary_only_with_measured_improvement": true,
+    "external_agent_or_mcp_requires_isolation": true,
+    "derived_graph_is_never_canonical_evidence": true,
+    "browser_bypass_features_disabled_by_policy": true
   },
   "tools": [
     {
@@ -134,6 +137,159 @@
       "license": "NOASSERTION",
       "decision": "catalog_only_independent_source_registration",
       "rationale": "Broad source catalog is valuable for discovery, but every upstream source must pass independent endpoint, rights, cadence and evidence-role review."
+    },
+    {
+      "capability": "article_main_text_extraction",
+      "name": "Trafilatura",
+      "status": "primary",
+      "integration_mode": "research_gateway_library",
+      "license": "Apache-2.0",
+      "decision": "adopt_when_research_gateway_lands",
+      "rationale": "Focused main-text extraction remains the lowest-cost first step for ordinary articles before browser escalation."
+    },
+    {
+      "capability": "multi_page_web_crawling",
+      "name": "Crawl4AI",
+      "status": "primary_target",
+      "integration_mode": "research_gateway_service_or_library",
+      "license": "Apache-2.0",
+      "decision": "adopt_with_bounded_domain_policy",
+      "rationale": "Current actively maintained crawler supports async crawling, browser-backed extraction and structured Markdown; use only after source rights, robots/terms and network policies are satisfied."
+    },
+    {
+      "capability": "resilient_dom_extraction",
+      "name": "Scrapling",
+      "status": "conditional_reference",
+      "integration_mode": "research_gateway_fallback",
+      "license": "BSD-3-Clause",
+      "decision": "adopt_selector_resilience_only",
+      "rationale": "Useful adaptive selector/parser fallback when normal extraction breaks. Stealth, anti-bot bypass and access-control circumvention features are disabled by project policy."
+    },
+    {
+      "capability": "dynamic_page_rendering",
+      "name": "Playwright",
+      "status": "primary",
+      "integration_mode": "research_gateway_renderer_and_e2e",
+      "license": "Apache-2.0",
+      "decision": "keep_expand",
+      "rationale": "Already the browser E2E primary; reuse the same controlled browser stack for JS-rendered source acquisition rather than adding another browser runtime."
+    },
+    {
+      "capability": "high_fidelity_web_evidence_capture",
+      "name": "webrecorder/browsertrix-crawler",
+      "status": "conditional_target",
+      "integration_mode": "isolated_capture_job",
+      "license": "Apache-2.0",
+      "decision": "adopt_for_selected_evidence_snapshots",
+      "rationale": "Use for high-fidelity dynamic-page preservation into WARC when provenance value justifies the heavier browser capture. Not a general crawler replacement."
+    },
+    {
+      "capability": "complex_document_parsing",
+      "name": "Docling",
+      "status": "accepted_target",
+      "integration_mode": "isolated_document_parser",
+      "license": "MIT",
+      "decision": "adopt_when_document_ingestion_is_implemented",
+      "rationale": "Adds structured parsing for PDFs and office documents, including layout and tables, without forcing OCR-first processing."
+    },
+    {
+      "capability": "temporal_derived_graph",
+      "name": "getzep/graphiti",
+      "status": "accepted_target",
+      "integration_mode": "derived_projection_adapter",
+      "license": "Apache-2.0",
+      "decision": "adopt_behind_temporal_graph_adapter",
+      "rationale": "Strong fit for temporal facts, validity windows and provenance, but only as a reconstructible derived graph. PostgreSQL/RAW evidence and approved Second Brain knowledge remain authoritative."
+    },
+    {
+      "capability": "osint_investigation_workspace_reference",
+      "name": "reconurge/flowsint",
+      "status": "reference_only",
+      "integration_mode": "ux_and_enricher_reference",
+      "license": "review_required_before_code_use",
+      "decision": "adapt_concepts_not_full_platform",
+      "rationale": "Use its graph investigation and enricher interaction patterns as UX reference for the native Investigation Workspace; do not deploy a parallel OSINT application."
+    },
+    {
+      "capability": "case_management_reference",
+      "name": "flowintel/flowintel",
+      "status": "reference_only",
+      "integration_mode": "workflow_reference",
+      "license": "AGPL-3.0",
+      "decision": "concepts_only_no_code_import",
+      "rationale": "Useful reference for cases, tasks, audit trail and analyst workflow, but overlaps the planned Investigation Workspace and AGPL code should not enter the proprietary runtime."
+    },
+    {
+      "capability": "llm_agent_observability",
+      "name": "Arize Phoenix",
+      "status": "accepted_target",
+      "integration_mode": "opentelemetry_trace_sink",
+      "license": "Elastic-2.0 / upstream project terms review required",
+      "decision": "adopt_for_agent_tracing_and_evaluation",
+      "rationale": "Provides OpenTelemetry/OpenInference tracing, datasets and experiments for agent decisions without becoming an evidence source."
+    },
+    {
+      "capability": "llm_regression_and_red_team",
+      "name": "Promptfoo",
+      "status": "accepted_target",
+      "integration_mode": "ci_and_scheduled_security_eval",
+      "license": "MIT",
+      "decision": "adopt",
+      "rationale": "Complements Phoenix with deterministic regression suites and adversarial prompt-injection/tool-misuse testing; does not replace runtime policy enforcement."
+    },
+    {
+      "capability": "deterministic_policy_engine",
+      "name": "Open Policy Agent",
+      "status": "accepted_target",
+      "integration_mode": "policy_as_code_sidecar_or_library_boundary",
+      "license": "Apache-2.0",
+      "decision": "adopt_for_tool_source_network_action_policies",
+      "rationale": "Moves authorization and source/tool/network decisions out of LLM judgment into auditable deterministic policy."
+    },
+    {
+      "capability": "external_mcp_isolation",
+      "name": "Stacklok ToolHive",
+      "status": "accepted_target",
+      "integration_mode": "isolated_external_mcp_runtime",
+      "license": "Apache-2.0",
+      "decision": "adopt_for_external_untrusted_mcps_only",
+      "rationale": "Provides isolation and policy boundaries for external MCP servers. Internal deterministic functions should remain direct code paths rather than being converted to MCP."
+    },
+    {
+      "capability": "stix_interoperability",
+      "name": "OASIS cti-python-stix2",
+      "status": "conditional_target",
+      "integration_mode": "import_export_adapter",
+      "license": "BSD-3-Clause",
+      "decision": "adopt_for_stix_2_1_interop_only",
+      "rationale": "Use the OASIS library to serialize/deserialize STIX 2.1 at boundaries; the internal Entity/Event/Claim/Evidence/Relationship schema remains canonical."
+    },
+    {
+      "capability": "cti_schema_reference",
+      "name": "OpenCTI",
+      "status": "reference_only",
+      "integration_mode": "schema_and_ux_reference",
+      "license": "Apache-2.0 / upstream component terms",
+      "decision": "schema_reference_no_parallel_runtime",
+      "rationale": "Retain STIX-like entities, relationships, first/last seen and confidence concepts without deploying a second CTI platform."
+    },
+    {
+      "capability": "dynamic_postgis_vector_tiles",
+      "name": "MapLibre Martin",
+      "status": "conditional_target",
+      "integration_mode": "separate_tile_service",
+      "license": "Apache-2.0",
+      "decision": "adopt_only_when_geojson_api_becomes_bottleneck",
+      "rationale": "Can serve vector tiles directly from PostGIS/PMTiles efficiently, but adds another service and is unnecessary until measured map/API scale requires it."
+    },
+    {
+      "capability": "mcp_security_scanner_benchmark",
+      "name": "Snyk Agent Scan / MCPRadar class",
+      "status": "benchmark_only",
+      "integration_mode": "no_runtime_dependency",
+      "license": "tool_specific_review_required",
+      "decision": "benchmark_against_toolhive_promptfoo_opa_controls",
+      "rationale": "Useful for periodic external validation of MCP/tool poisoning coverage, but overlaps the chosen isolation, policy and red-team stack and some scanners may execute discovered MCP servers."
     }
   ]
 }

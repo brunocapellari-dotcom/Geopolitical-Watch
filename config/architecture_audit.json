@@ -1,7 +1,7 @@
 {
-  "schema_version": "geowatch-architecture-audit-v1",
-  "as_of": "2026-09-15",
-  "statuses": ["ACTIVE", "BLOCKED", "PARTIAL", "PLANNED", "REFERENCE"],
+  "schema_version": "geowatch-architecture-audit-v2",
+  "as_of": "2026-09-28",
+  "statuses": ["ACTIVE","BLOCKED","PARTIAL","PLANNED","REFERENCE"],
   "domains": [
     {"domain":"news","status":"PARTIAL","implemented":["GDELT","publisher-aware clustering","raw provenance"],"missing":["broader registered news feeds","publisher-level health"]},
     {"domain":"ACLED","status":"BLOCKED","implemented":["OAuth adapter","cursor collection","normalization","backfill"],"blockers":["credentials","terms review"]},
@@ -19,14 +19,35 @@
     {"domain":"OSINT","status":"PARTIAL","implemented":["hostile-content boundary","HTML sanitization","SSRF controls","tracking removal","quarantine contract","prompt-injection marking"],"missing":["isolated Telegram collector","isolated public-web collector","sandbox service"]},
     {"domain":"maps","status":"PARTIAL","implemented":["conflicts","critical infrastructure","aircraft","AIS"],"missing":["satellite","BGP","internet","humanitarian layers after real collectors exist"]},
     {"domain":"alerts","status":"PARTIAL","implemented":["episode/change policies","outbox"],"missing":["verdict-aware alert gate","source-health suppression"]},
-    {"domain":"verification","status":"PARTIAL","implemented":["claims","evidence refs","reconciliation","evidence strength","canonical Verdict Engine"],"missing":["verdict persistence","API/UI integration","historical calibration"]}
+    {"domain":"verification","status":"PARTIAL","implemented":["claims","evidence refs","reconciliation","evidence strength","canonical Verdict Engine"],"missing":["verdict persistence","API/UI integration","historical calibration"]},
+    {"domain":"research_gateway","status":"PARTIAL","selected":["Trafilatura","Crawl4AI","Scrapling fallback","Playwright renderer"],"rules":["bounded escalation ladder","rights/terms gate","no access-control bypass","hostile content remains data"],"missing":["Trafilatura adapter","Crawl4AI adapter","Scrapling selector-resilience adapter","research Playwright adapter","browser-agent adapter","external-engine integration tests"],"implemented":["governed escalation policy","deterministic route planner","rights gate","hostile browser isolation gate","central SSRF validation","direct HTTP and snapshot stages"]},
+    {"domain":"evidence_snapshot","status":"PARTIAL","selected":["content hash","redirect/final URL metadata","raw bytes","Browsertrix Crawler for selected high-fidelity WARC captures"],"missing":["Browsertrix WARC adapter","WARC retention policy","optional rendered screenshot/PDF capture"],"implemented":["original/final URL capture","safe HTTP response metadata","content length","SHA-256 verification","immutable RAW persistence","MIME-aware storage"]},
+    {"domain":"documents","status":"PLANNED","selected":["Docling"],"rules":["parse before OCR when possible","preserve original raw evidence","parser output is derived evidence"],"missing":["document parser adapter","fixtures","quality tests"]},
+    {"domain":"temporal_graph","status":"PARTIAL","selected":["Graphiti behind Temporal Graph Adapter"],"rules":["derived only","reconstructible","never canonical evidence","never overwrite Second Brain"],"missing":["Graphiti runtime adapter","derived projection reconciliation","Investigation Workspace graph/timeline"],"implemented":["canonical Relationship model","observation time vs validity time","SQLite persistence","PostgreSQL/PostGIS persistence","read-only API","derived-write Temporal Graph Adapter"]},
+    {"domain":"agent_observability","status":"PLANNED","selected":["Phoenix","Promptfoo"],"rules":["trace decisions not secrets","red-team hostile inputs","regression before promotion"],"missing":["OpenTelemetry trace IDs","eval datasets","CI/runtime integration"]},
+    {"domain":"policy_and_mcp_isolation","status":"PLANNED","selected":["OPA","ToolHive"],"rules":["deterministic policy before tool execution","external MCP isolation only","internal deterministic functions remain direct"],"missing":["policy bundle","ToolHive runtime","audit correlation"]},
+    {"domain":"interoperability","status":"PLANNED","selected":["OASIS cti-python-stix2"],"rules":["STIX 2.1 boundary adapter only","internal schema remains canonical"],"missing":["export adapter","import validation","roundtrip tests"]},
+    {"domain":"investigation_workspace","status":"PLANNED","references":["Flowsint","FlowIntel concepts"],"rules":["native Geowatch UI","no parallel investigation platform","license-safe adaptation"],"missing":["graph/timeline/evidence UI","analyst notes","audit trail"]},
+    {"domain":"map_scaling","status":"REFERENCE","selected":["MapLibre Martin conditional"],"rules":["adopt only after measured GeoJSON/API bottleneck","PMTiles preferred for static layers"],"missing":["load benchmark threshold"]}
   ],
   "release_gate": {
-    "replit_allowed": false,
-    "reasons": [
-      "GitHub Actions runner currently exits before executing steps",
-      "new architecture contracts have not yet completed full repository integration smoke",
-      "autonomous per-source scheduler must not run concurrently with legacy embedded collection"
+    "replit_allowed": true,
+    "replit_role": "temporary_private_runtime_bridge",
+    "canonical_production_target": "Google Cloud",
+    "verified_so_far": [
+      "private GitHub repository access authorized in Replit",
+      "project branch imported",
+      "development DATABASE_URL available",
+      "PostGIS 3.5.3 verified in development",
+      "VM deployment mode configured",
+      "healthcheck path configured as /health"
+    ],
+    "remaining_blockers": [
+      "GEOWATCH_API_TOKEN secret with at least 32 characters",
+      "full imported-project test suite must pass",
+      "strict runtime startup and readiness endpoints must pass",
+      "production database must confirm PostGIS and expected schema",
+      "one real scheduler tick and source-health check must pass before publication is called operational"
     ]
   }
 }

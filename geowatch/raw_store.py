@@ -329,4 +329,11 @@ def reset_raw_schema_cache_for_tests() -> None:
 
 def _content_type(extension: str) -> str:
     ext = extension.casefold().lstrip(".")
-    return {"json": "application/json", "csv": "text/csv", "xml": "application/xml", "txt": "text/plain"}.get(ext, "application/octet-stream")
+    return {
+        "json": "application/json",
+        "csv": "text/csv",
+        "xml": "application/xml",
+        "txt": "text/plain",
+        "html": "text/html",
+        "pdf": "application/pdf",
+    }.get(ext, "application/octet-stream")

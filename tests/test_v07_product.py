@@ -87,7 +87,7 @@ class V07ProductTests(unittest.TestCase):
             response.__exit__.return_value = False
             response.status = 204
             response.geturl.return_value = "https://example.invalid/hook"
-            with patch("geowatch.delivery.urlopen", return_value=response):
+            with patch("geowatch.delivery.open_url_request", return_value=response):
                 result = dispatch_pending(store, webhook_url="https://example.invalid/hook")
             self.assertEqual(1, result["delivered"]); self.assertEqual([], store.pending_alerts()); store.close()
 

@@ -4,7 +4,9 @@ Private public-source geopolitical conflict monitoring and strategic-intelligenc
 
 ## Current release
 
-Version **0.15.0** consolidates the operational-intelligence platform, private web runtime, production deployment architecture, bounded observed aircraft/vessel trails, corrected AIS position freshness and explicit tooling/source governance. The codebase is designed around evidence provenance, explicit uncertainty, strict separation between observed/reported/estimated/inferred information, resilient source collection, PostgreSQL/PostGIS production storage and a MapLibre global interface.
+Version **0.16.0** extends the operational-intelligence platform with a canonical temporal Relationship model, explicit separation between observation time and real-world validity, a governed Research Gateway, an in-house Evidence Snapshot Service, a derived-only Temporal Graph Adapter and a read-only relationship API. It also hardens central HTTP retrieval against local/private IP literals. External tools discovered in the September review remain governed targets or references until a real adapter and full-project validation justify adding the dependency.
+
+The codebase remains designed around evidence provenance, explicit uncertainty, strict separation between observed/reported/estimated/inferred information, resilient source collection, PostgreSQL/PostGIS production storage and a MapLibre global interface.
 
 The project remains independent from AgroLog MT. Other projects may consume published high-level signals, but they do not share the Monitor's codebase or operational state.
 
@@ -39,7 +41,7 @@ The sole production target is Google Cloud:
 - Workload Identity Federation for GitHub deployment without service-account JSON keys;
 - a separate always-on execution path for continuous AIS when enabled.
 
-Legacy alternative deployment descriptors are removed rather than maintained in parallel.
+Legacy alternative deployment descriptors are removed rather than maintained in parallel. A paid Replit VM may be used as a **temporary private runtime bridge** while GitHub-hosted runners/GCP bootstrap are unavailable; it must run the same repository, PostgreSQL/PostGIS schema, strict authentication and singleton scheduler contract. Google Cloud remains the canonical long-term production target.
 
 ## Private web interface
 
@@ -71,7 +73,7 @@ The production web process does not need to run the batch collector internally w
 
 `config/tooling_registry.json` is the decision registry for core tooling. The rule is one primary tool per capability unless two tools demonstrably cover different layers. Unused dependencies are forbidden and reference projects do not become code dependencies automatically.
 
-Current primary choices remain MapLibre GL JS, PostgreSQL/PostGIS, Playwright, Trivy, pip-audit and AISStream. `pyais` is approved as a conditional raw-NMEA decoder only when a raw AIS source exists. AIS-catcher is an edge-receiver reference for future owned sensors and remains isolated from the server architecture. PMTiles is the accepted target for a self-hosted static basemap. AGPL reference projects such as WorldMonitor are studied for architecture and product ideas without copying their code into this proprietary repository.
+Current primary choices remain MapLibre GL JS, PostgreSQL/PostGIS, Playwright, Trivy, pip-audit and AISStream. The September 2026 tooling review additionally selects Trafilatura and Crawl4AI for the future Research Gateway, Scrapling only as a bounded selector-resilience fallback, Browsertrix Crawler for selected high-fidelity evidence capture, Docling for complex document parsing, Graphiti only behind the derived Temporal Graph Adapter, Phoenix + Promptfoo for agent observability/regression, OPA + ToolHive for policy/isolation, OASIS STIX2 for boundary interoperability, and Martin only if measured map scale justifies a separate tile service. `pyais` is approved as a conditional raw-NMEA decoder only when a raw AIS source exists. AIS-catcher is an edge-receiver reference for future owned sensors and remains isolated from the server architecture. PMTiles is the accepted target for a self-hosted static basemap. AGPL reference projects such as WorldMonitor are studied for architecture and product ideas without copying their code into this proprietary repository.
 
 `config/source_candidates.json` records high-value data candidates discovered during research. A candidate is promoted into the operational source registry only after endpoint, terms/license, cadence, parser, provenance and evidence-role review.
 

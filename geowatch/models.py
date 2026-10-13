@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from typing import Literal
 
 VerificationLevel = Literal["research_coded", "curated_report", "osint_signal", "sensor_signal"]
@@ -16,6 +17,7 @@ EntityType = Literal[
 ]
 ClaimStatus = Literal["unverified", "supported", "disputed", "retracted", "superseded"]
 EvidenceRelation = Literal["supports", "refutes", "updates", "reports"]
+RelationshipSemanticClass = Literal["observed", "reported", "inferred", "estimated", "derived"]
 EpisodeState = Literal["emerging", "active", "escalating", "stable", "deescalating", "ceasefire", "closed"]
 
 
@@ -137,6 +139,51 @@ class Claim:
 
 
 @dataclass(frozen=True)
+class Relationship:
+    relationship_id: str
+    source_entity_id: str
+    target_entity_id: str
+    relationship_type: str
+    semantic_class: RelationshipSemanticClass
+    first_seen_at: str
+    last_seen_at: str
+    valid_from: str | None = None
+    valid_to: str | None = None
+    confidence: float | None = None
+    source_quality: float | None = None
+    derivation_method: str | None = None
+    derivation_version: str | None = None
+    evidence_ids: tuple[str, ...] = ()
+    source_ids: tuple[str, ...] = ()
+    contradicts: tuple[str, ...] = ()
+    supersedes: tuple[str, ...] = ()
+    derived_from: tuple[str, ...] = ()
+    provenance: dict[str, object] | None = None
+
+    def __post_init__(self) -> None:
+        if _parse_relationship_time(self.last_seen_at) < _parse_relationship_time(self.first_seen_at):
+            raise ValueError("last_seen_at must not precede first_seen_at")
+        if self.valid_from and self.valid_to and _parse_relationship_time(self.valid_to) < _parse_relationship_time(self.valid_from):
+            raise ValueError("valid_to must not precede valid_from")
+        for name, value in (("confidence", self.confidence), ("source_quality", self.source_quality)):
+            if value is not None and not 0.0 <= value <= 1.0:
+                raise ValueError(f"{name} must be between 0 and 1")
+
+    def to_dict(self) -> dict[str, object]:
+        row = asdict(self)
+        for field in ("evidence_ids", "source_ids", "contradicts", "supersedes", "derived_from"):
+            row[field] = list(getattr(self, field))
+        return row
+
+    @classmethod
+    def from_dict(cls, row: dict[str, object]) -> "Relationship":
+        data = dict(row)
+        for field in ("evidence_ids", "source_ids", "contradicts", "supersedes", "derived_from"):
+            data[field] = tuple(data.get(field) or ())
+        return cls(**data)  # type: ignore[arg-type]
+
+
+@dataclass(frozen=True)
 class EvidenceStrength:
     provider_independence: float
     research_coded: float
@@ -199,3 +246,10 @@ class ConflictEpisode:
         if isinstance(strength, dict):
             data["evidence_strength"] = EvidenceStrength.from_dict(strength)
         return cls(**data)  # type: ignore[arg-type]
+
+
+def _parse_relationship_time(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
