@@ -2,7 +2,9 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    HOST=0.0.0.0 \
+    PORT=8080
 
 WORKDIR /app
 
@@ -22,8 +24,9 @@ COPY sql /app/sql
 COPY scripts /app/scripts
 COPY knowledge /app/knowledge
 
-# Cloud Run does not require a privileged process. Numeric UID/GID avoids
-# introducing another account-management package into the image.
+# Cloud Run, Railway and other container runtimes require the HTTP server to
+# listen on all container interfaces. PORT remains runtime-overridable.
+# The application still enforces its own private session/Bearer authentication.
 USER 65532:65532
 
 EXPOSE 8080
