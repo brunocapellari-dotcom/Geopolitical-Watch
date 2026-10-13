@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69,<82"]
+requires = ["setuptools>=69,<85"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,7 +16,7 @@ gcp = ["google-cloud-storage>=2.18,<4"]
 production = [
   "psycopg[binary]>=3.2,<4",
   "google-cloud-storage>=2.18,<4",
-  "websockets>=15,<17",
+  "websockets>=15,<18",
 ]
 test = [
   "bandit>=1.7,<2",
