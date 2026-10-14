@@ -15,14 +15,14 @@ Nenhuma dessas fontes, isoladamente, confirma atribuição militar. As mesmas re
 
 ## Execução automática
 
-`.github/workflows/public-beta-monitor.yml` roda a cada hora e também pode ser disparado manualmente. Cada execução:
+`.github/workflows/public-beta-monitor.yml` tem duas trilhas: o agendamento (`17 */2 * * *`, a cada duas horas) apenas acorda o runtime gratuito e verifica `/health`; a coleta completa abaixo roda somente por disparo manual (`workflow_dispatch`). Cada execução manual:
 
 1. cria banco SQLite efêmero;
 2. coleta as fontes públicas do perfil `config/sources.public-beta.json`;
 3. normaliza eventos e cria episódios;
 4. gera report situacional e report de episódios;
 5. publica o report mais recente no GitHub Actions job summary;
-6. salva JSON/Markdown como artifact por 14 dias.
+6. salva JSON/Markdown como artifact por 1 dia.
 
 ## Execução local
 
