@@ -22,9 +22,10 @@ from geowatch.wpi import candidate_score, select_candidates, to_infrastructure_n
 
 
 class V012WeeklyBetaTests(unittest.TestCase):
-    def test_public_beta_workflow_is_hourly_and_uses_public_profile(self):
+    def test_public_beta_workflow_wakes_every_two_hours_and_uses_public_profile(self):
         text=Path('.github/workflows/public-beta-monitor.yml').read_text(encoding='utf-8')
-        self.assertIn('cron: "17 * * * *"',text)
+        self.assertIn('cron: "17 */2 * * *"',text)
+        self.assertNotIn('cron: "17 * * * *"',text)
         self.assertIn('config/sources.public-beta.json',text)
         config=json.loads(Path('config/sources.public-beta.json').read_text(encoding='utf-8'))
         enabled={row['kind'] for row in config['sources'] if row.get('enabled')}
