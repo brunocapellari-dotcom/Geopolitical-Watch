@@ -222,4 +222,89 @@ setInterval(()=>{if(visible('aircraft'))loadAircraft();if(visible('vessels'))loa
     )
 
 
-__all__ = ["dashboard_html", "map_points"]
+_OPERATIONAL_PAGES: dict[str, tuple[str, ...]] = {
+    "overview": ("/v2/episodes?limit=40", "/v2/source-health", "/v2/alerts?limit=25"),
+    "events": ("/v2/events?limit=150",),
+    "conflicts": ("/v2/episodes?limit=150",),
+    "actors": ("/v2/actors",),
+    "timeline": ("/v2/timeline?since=1970-01-01T00:00:00%2B00:00&limit=500",),
+    "alerts": ("/v2/alerts?limit=150",),
+    "sources": ("/v2/sources",),
+    "system": ("/v2/operational", "/v2/source-health"),
+}
+
+
+def operational_page_html(page: str) -> str:
+    page = page.strip("/").casefold()
+    if page not in _OPERATIONAL_PAGES:
+        raise ValueError(f"unknown operational page: {page}")
+    endpoints = json.dumps(_OPERATIONAL_PAGES[page], ensure_ascii=False)
+    nav = "".join(
+        f'<a class="{"active" if name == page else ""}" href="/{name}">{html.escape(name.title())}</a>'
+        for name in ("overview", "map", "events", "conflicts", "actors", "timeline", "alerts", "sources", "system")
+    )
+    template = r'''<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monitor de Conflitos — __PAGE_TITLE__</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#101214;color:#e9ecef;font-family:system-ui,sans-serif}
+header{position:sticky;top:0;z-index:10;background:#171a1d;border-bottom:1px solid #2b3137;padding:10px 14px}
+.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.brand{font-weight:800;margin-right:8px}
+nav{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}nav a{color:#adb5bd;text-decoration:none;padding:6px 9px;border-radius:6px;border:1px solid transparent}
+nav a:hover,nav a.active{color:#fff;background:#252a2f;border-color:#3a4046}
+input,button{padding:7px 9px;background:#24282c;color:#fff;border:1px solid #3a4046;border-radius:6px}button{cursor:pointer}
+main{max-width:1500px;margin:0 auto;padding:14px}.meta{font-size:12px;color:#adb5bd}.error{color:#ff8787}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px;margin-top:12px}
+.card{background:#181c20;border:1px solid #2b3137;border-radius:9px;padding:11px;min-width:0}.card h3{margin:0 0 8px;font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:6px;border-bottom:1px solid #2b3137;vertical-align:top}
+pre{white-space:pre-wrap;word-break:break-word;font-size:11px;margin:0;color:#ced4da}
+.badge{display:inline-block;padding:2px 6px;border:1px solid #495057;border-radius:10px;margin:2px;font-size:11px}
+@media(max-width:700px){main{padding:8px}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="__PAGE__">
+<header><div class="top"><span class="brand">Monitor de Conflitos</span><strong>__PAGE_TITLE__</strong>
+<input id="token" type="password" placeholder="API bearer token"><button id="refresh">Atualizar</button><span id="status" class="meta"></span></div>
+<nav>__NAV__</nav></header>
+<main><div id="content" class="grid"></div></main>
+<script>
+const ENDPOINTS=__ENDPOINTS__;
+const PAGE=__PAGE_JSON__;
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(path){const t=document.getElementById('token').value;const h=t?{'Authorization':'Bearer '+t}:{};const r=await fetch(path,{headers:h,credentials:'same-origin'});if(!r.ok)throw new Error(path+' HTTP '+r.status);return r.json()}
+function card(title,body){return '<section class="card"><h3>'+esc(title)+'</h3>'+body+'</section>'}
+function rowsTable(rows){
+ if(!Array.isArray(rows)||!rows.length)return '<div class="meta">Sem registros.</div>';
+ const preferred=['event_id','episode_id','title','state','country','region','event_type','status','confidence','severity','source_id','name','last_updated_at','reference_at','created_at'];
+ const keys=preferred.filter(k=>rows.some(r=>r&&Object.prototype.hasOwnProperty.call(r,k))).slice(0,7);
+ if(!keys.length)return '<pre>'+esc(JSON.stringify(rows,null,2))+'</pre>';
+ return '<div style="overflow:auto"><table><thead><tr>'+keys.map(k=>'<th>'+esc(k)+'</th>').join('')+'</tr></thead><tbody>'+
+ rows.slice(0,200).map(r=>'<tr>'+keys.map(k=>'<td>'+esc(Array.isArray(r?.[k])?r[k].join(', '):(typeof r?.[k]==='object'?JSON.stringify(r[k]):r?.[k]))+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+}
+function render(payload,path){
+ const listKeys=['events','episodes','profiles','changes','alerts','sources','regions','items'];
+ for(const k of listKeys)if(Array.isArray(payload?.[k]))return card(k+' · '+path,rowsTable(payload[k]));
+ if(payload?.counts)return card(path,'<div>'+Object.entries(payload.counts).map(([k,v])=>'<span class="badge">'+esc(k)+': '+esc(v)+'</span>').join('')+'</div>'+rowsTable(payload.sources||[]));
+ return card(path,'<pre>'+esc(JSON.stringify(payload,null,2))+'</pre>');
+}
+async function load(){
+ const box=document.getElementById('content'),status=document.getElementById('status');status.textContent='carregando';box.innerHTML='';
+ const results=await Promise.allSettled(ENDPOINTS.map(async p=>[p,await api(p)]));
+ let ok=0;
+ for(const result of results){if(result.status==='fulfilled'){ok++;box.insertAdjacentHTML('beforeend',render(result.value[1],result.value[0]))}else{box.insertAdjacentHTML('beforeend',card('erro','<span class="error">'+esc(result.reason?.message||result.reason)+'</span>'))}}
+ status.textContent=ok+'/'+ENDPOINTS.length+' fontes da página carregadas';
+}
+document.getElementById('refresh').addEventListener('click',load);load();
+</script></body></html>'''
+    return (
+        template.replace("__PAGE_TITLE__", html.escape(page.title()))
+        .replace("__PAGE__", html.escape(page, quote=True))
+        .replace("__NAV__", nav)
+        .replace("__ENDPOINTS__", endpoints)
+        .replace("__PAGE_JSON__", json.dumps(page))
+    )
+
+
+__all__ = ["dashboard_html", "map_points", "operational_page_html"]

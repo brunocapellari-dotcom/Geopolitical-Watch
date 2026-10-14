@@ -87,6 +87,25 @@ CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(canonical_name);
 CREATE INDEX IF NOT EXISTS idx_entities_country ON entities(country);
 CREATE INDEX IF NOT EXISTS idx_entities_geom ON entities USING GIST(geom);
 
+CREATE TABLE IF NOT EXISTS relationships (
+  relationship_id TEXT PRIMARY KEY,
+  source_entity_id TEXT NOT NULL REFERENCES entities(entity_id) ON DELETE CASCADE,
+  target_entity_id TEXT NOT NULL REFERENCES entities(entity_id) ON DELETE CASCADE,
+  relationship_type TEXT NOT NULL,
+  semantic_class TEXT NOT NULL,
+  first_seen_at TIMESTAMPTZ NOT NULL,
+  last_seen_at TIMESTAMPTZ NOT NULL,
+  valid_from TIMESTAMPTZ,
+  valid_to TIMESTAMPTZ,
+  confidence DOUBLE PRECISION,
+  relationship_json JSONB NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_entity_id);
+CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_entity_id);
+CREATE INDEX IF NOT EXISTS idx_relationships_type ON relationships(relationship_type);
+CREATE INDEX IF NOT EXISTS idx_relationships_validity ON relationships(valid_from, valid_to);
+
 CREATE TABLE IF NOT EXISTS episodes (
   episode_id TEXT PRIMARY KEY,
   state TEXT NOT NULL,
@@ -151,6 +170,18 @@ CREATE TABLE IF NOT EXISTS episode_changes (
 CREATE INDEX IF NOT EXISTS idx_changes_episode ON episode_changes(episode_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_changes_at ON episode_changes(occurred_at DESC);
 
+CREATE TABLE IF NOT EXISTS object_versions (
+  version_id BIGSERIAL PRIMARY KEY,
+  object_type TEXT NOT NULL,
+  object_id TEXT NOT NULL,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  payload_sha256 TEXT NOT NULL,
+  payload_json JSONB NOT NULL,
+  UNIQUE(object_type, object_id, recorded_at, payload_sha256)
+);
+CREATE INDEX IF NOT EXISTS idx_object_versions_asof ON object_versions(object_type, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_object_versions_object ON object_versions(object_type, object_id, recorded_at DESC);
+
 CREATE TABLE IF NOT EXISTS alert_outbox (
   alert_id TEXT PRIMARY KEY,
   episode_id TEXT NOT NULL REFERENCES episodes(episode_id) ON DELETE CASCADE,
@@ -168,5 +199,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_outbox_status ON alert_outbox(status, creat
 INSERT INTO schema_migrations(version, name) VALUES
   (1, 'v0.4 baseline'),
   (2, 'v0.5 episode convergence'),
-  (3, 'v0.6 postgres postgis operational layer')
+  (3, 'v0.6 postgres postgis operational layer'),
+  (4, 'v0.16 temporal relationships'),
+  (5, 'go-live immutable object versions')
 ON CONFLICT(version) DO NOTHING;

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
 import os
+import subprocess
+import sys
 import threading
 import time
 from datetime import datetime, timezone
+from uuid import uuid4
 
-from .analysis_runner import run_analysis
-from .satellite_runtime import refresh_celestrak
-from .source_collection import collect_source_once, load_collection_spec
+from .security_redaction import redact_runtime_secrets
+from .source_collection import load_collection_spec
 from .source_registry import load_registry
 from .storage_factory import open_store
 
@@ -36,7 +39,31 @@ def tick_seconds() -> int:
         value = int(os.environ.get("GEOWATCH_SOURCE_SCHEDULER_TICK", "30"))
     except ValueError:
         value = 30
+    return max(15, min(value, 7200))
+
+
+def source_timeout_seconds() -> int:
+    try:
+        value = int(os.environ.get("GEOWATCH_SOURCE_TIMEOUT_SECONDS", "75"))
+    except ValueError:
+        value = 75
     return max(15, min(value, 300))
+
+
+def sanctions_timeout_seconds() -> int:
+    try:
+        value = int(os.environ.get("GEOWATCH_SANCTIONS_TIMEOUT_SECONDS", "240"))
+    except ValueError:
+        value = 240
+    return max(60, min(value, 600))
+
+
+def analysis_timeout_seconds() -> int:
+    try:
+        value = int(os.environ.get("GEOWATCH_ANALYSIS_TIMEOUT_SECONDS", "180"))
+    except ValueError:
+        value = 180
+    return max(60, min(value, 600))
 
 
 def analysis_min_interval_seconds() -> int:
@@ -58,6 +85,9 @@ def status() -> dict[str, object]:
             **_STATE,
             "enabled": enabled(),
             "tick_seconds": tick_seconds(),
+            "source_timeout_seconds": source_timeout_seconds(),
+            "sanctions_timeout_seconds": sanctions_timeout_seconds(),
+            "analysis_timeout_seconds": analysis_timeout_seconds(),
             "analysis_min_interval_seconds": analysis_min_interval_seconds(),
             "analysis_config": analysis_config_path(),
         }
@@ -95,31 +125,24 @@ def run_tick() -> dict[str, object]:
     sanctions_bundle: dict[str, object] | None = None
     for spec in due:
         if spec.source_id in _SANCTIONS_IDS:
-            from .sanctions_runtime import refresh_official_sanctions
             if sanctions_bundle is None:
-                sanctions_bundle = refresh_official_sanctions()
+                sanctions_bundle = _isolated_sanctions_result()
             bundle_results = sanctions_bundle.get("results") or {}
             results[spec.source_id] = bundle_results.get(spec.source_id, {"status": "error", "error": "sanctions bundle missing source result"}) if isinstance(bundle_results, dict) else {"status": "error"}
             continue
-        if spec.source_id == "celestrak":
-            results[spec.source_id] = refresh_celestrak(group="military")
-            continue
-        if load_collection_spec(spec.source_id) is None:
+        if spec.source_id != "celestrak" and load_collection_spec(spec.source_id) is None:
             results[spec.source_id] = {
                 "status": "delegated",
                 "runtime_mode": spec.runtime_mode,
                 "implementation": spec.implementation,
             }
             continue
-        results[spec.source_id] = collect_source_once(spec.source_id)
+        results[spec.source_id] = _isolated_source_result(spec.source_id)
 
     should_analyze = _should_run_analysis(now, results)
     analysis_result: dict[str, object] | None = None
     if should_analyze:
-        try:
-            analysis_result = {"status": "ok", **run_analysis(config_path=analysis_config_path())}
-        except Exception as exc:
-            analysis_result = {"status": "error", "error_type": type(exc).__name__, "error": str(exc)[:500]}
+        analysis_result = _isolated_analysis_result()
         with _LOCK:
             _STATE["last_analysis_at"] = datetime.now(timezone.utc).isoformat()
             _STATE["last_analysis_result"] = analysis_result
@@ -137,6 +160,154 @@ def run_tick() -> dict[str, object]:
         "results": results,
         "analysis": analysis_result,
     }
+
+
+
+def _record_parent_failure(source_id: str, error: str) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    store = open_store()
+    try:
+        store.record_run(
+            run_id=uuid4().hex,
+            source_id=source_id,
+            started_at=now,
+            finished_at=now,
+            status="error",
+            records=0,
+            request={"kind": "isolated_scheduler", "timeout_seconds": source_timeout_seconds()},
+            error=redact_runtime_secrets(error)[:500],
+        )
+    finally:
+        store.close()
+
+
+def _isolated_source_result(source_id: str) -> dict[str, object]:
+    command = [sys.executable, "-m", "geowatch", "source-once", "--source", source_id]
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=source_timeout_seconds(),
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        error = f"source timeout after {source_timeout_seconds()} seconds"
+        _record_parent_failure(source_id, error)
+        return {"source_id": source_id, "status": "error", "error": error, "isolated": True}
+
+    if completed.returncode != 0:
+        detail = redact_runtime_secrets((completed.stderr or completed.stdout or "child process failed").strip())[:500]
+        error = f"isolated source process exited {completed.returncode}: {detail}"
+        _record_parent_failure(source_id, error)
+        return {"source_id": source_id, "status": "error", "error": error, "isolated": True}
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        error = "isolated source process returned invalid JSON"
+        _record_parent_failure(source_id, error)
+        return {"source_id": source_id, "status": "error", "error": error, "isolated": True}
+    if not isinstance(payload, dict):
+        error = "isolated source process returned non-object JSON"
+        _record_parent_failure(source_id, error)
+        return {"source_id": source_id, "status": "error", "error": error, "isolated": True}
+    return {**payload, "isolated": True}
+
+
+def _isolated_sanctions_result() -> dict[str, object]:
+    command = [sys.executable, "-m", "geowatch", "sanctions-once"]
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=sanctions_timeout_seconds(),
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        error = f"sanctions timeout after {sanctions_timeout_seconds()} seconds"
+        for source_id in sorted(_SANCTIONS_IDS):
+            _record_parent_failure(source_id, error)
+        return {
+            "status": "error",
+            "results": {source_id: {"status": "error", "error": error} for source_id in _SANCTIONS_IDS},
+            "isolated": True,
+        }
+    if completed.returncode != 0:
+        detail = redact_runtime_secrets((completed.stderr or completed.stdout or "sanctions child failed").strip())[:500]
+        error = f"isolated sanctions process exited {completed.returncode}: {detail}"
+        for source_id in sorted(_SANCTIONS_IDS):
+            _record_parent_failure(source_id, error)
+        return {
+            "status": "error",
+            "results": {source_id: {"status": "error", "error": error} for source_id in _SANCTIONS_IDS},
+            "isolated": True,
+        }
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        error = "isolated sanctions process returned invalid JSON"
+        for source_id in sorted(_SANCTIONS_IDS):
+            _record_parent_failure(source_id, error)
+        return {
+            "status": "error",
+            "results": {source_id: {"status": "error", "error": error} for source_id in _SANCTIONS_IDS},
+            "isolated": True,
+        }
+    if not isinstance(payload, dict):
+        error = "isolated sanctions process returned non-object JSON"
+        for source_id in sorted(_SANCTIONS_IDS):
+            _record_parent_failure(source_id, error)
+        return {
+            "status": "error",
+            "results": {source_id: {"status": "error", "error": error} for source_id in _SANCTIONS_IDS},
+            "isolated": True,
+        }
+    return {**payload, "isolated": True}
+
+
+def _isolated_analysis_result() -> dict[str, object]:
+    command = [sys.executable, "-m", "geowatch", "analysis-once", "--config", analysis_config_path()]
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=analysis_timeout_seconds(),
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "error",
+            "error_type": "TimeoutExpired",
+            "error": f"analysis timeout after {analysis_timeout_seconds()} seconds",
+            "isolated": True,
+        }
+    if completed.returncode != 0:
+        detail = redact_runtime_secrets((completed.stderr or completed.stdout or "analysis child failed").strip())[:500]
+        return {
+            "status": "error",
+            "error_type": "ChildProcessError",
+            "error": f"isolated analysis process exited {completed.returncode}: {detail}",
+            "isolated": True,
+        }
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        return {
+            "status": "error",
+            "error_type": "JSONDecodeError",
+            "error": "isolated analysis process returned invalid JSON",
+            "isolated": True,
+        }
+    if not isinstance(payload, dict):
+        return {
+            "status": "error",
+            "error_type": "TypeError",
+            "error": "isolated analysis process returned non-object JSON",
+            "isolated": True,
+        }
+    return {"status": "ok", **payload, "isolated": True}
 
 
 def _should_run_analysis(now: datetime, results: dict[str, object]) -> bool:

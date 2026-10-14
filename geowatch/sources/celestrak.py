@@ -28,11 +28,11 @@ class SatelliteRecord:
         return asdict(self)
 
 
-def collect(*, group: str = "military", timeout: int = 90) -> tuple[bytes, str]:
+def collect(*, group: str = "military", timeout: int = 25, retries: int = 1) -> tuple[bytes, str]:
     normalized = str(group).strip().casefold()
     if normalized not in _ALLOWED_GROUPS:
         raise ValueError("unsupported CelesTrak group")
-    response = get(_BASE, query={"GROUP": normalized.upper(), "FORMAT": "JSON"}, timeout=timeout, retries=2, backoff_seconds=2.0)
+    response = get(_BASE, query={"GROUP": normalized.upper(), "FORMAT": "JSON"}, timeout=timeout, retries=retries, backoff_seconds=2.0, max_backoff_seconds=10.0)
     return response.payload, response.url
 
 

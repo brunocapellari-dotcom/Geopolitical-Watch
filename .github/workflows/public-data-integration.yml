@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: geowatch-public-data-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   live-public-bootstrap:
     runs-on: ubuntu-latest

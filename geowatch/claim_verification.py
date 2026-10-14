@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping
 from .history import parse_utc
 from .models import Claim, Event, EvidenceRef
 from .quality import SourceProfile, load_profiles
+from .source_independence import independent_source_count
 from .verdict import VerdictInput, VerdictResult, assess_claim
 
 _LEVEL_RELIABILITY = {
@@ -26,11 +27,7 @@ def verify_claim(
     rows = [evidence[eid] for eid in claim.evidence_ids if eid in evidence]
     linked_events = [events[row.event_id] for row in rows if row.event_id in events]
 
-    providers = {
-        (row.provider or row.source_id).strip().casefold()
-        for row in rows
-        if (row.provider or row.source_id).strip()
-    }
+    independent_count = independent_source_count(rows, events)
     source_ids = {row.source_id for row in rows}
     official_source_count = sum(
         1
@@ -58,7 +55,7 @@ def verify_claim(
         timestamp_quality=timestamp_quality,
         geolocation_quality=geolocation_quality,
         source_count=len(rows),
-        independent_source_count=len(providers),
+        independent_source_count=independent_count,
         physical_evidence_count=len(physical_rows),
         official_source_count=official_source_count,
         support_count=support_count,
@@ -91,25 +88,39 @@ def verify_claims(
 
 
 def _timestamp_quality(evidence: list[EvidenceRef], events: list[Event]) -> float:
-    values = []
+    evidence_validity: list[float] = []
     for row in evidence:
         try:
             parse_utc(row.observed_at)
-            values.append(1.0)
+            evidence_validity.append(1.0)
         except (TypeError, ValueError):
-            values.append(0.0)
+            evidence_validity.append(0.0)
+
+    event_temporality: list[float] = []
     for event in events:
         try:
             reference = parse_utc(event.reference_at)
             if event.published_at:
                 published = parse_utc(event.published_at)
                 lag_hours = abs((published - reference).total_seconds()) / 3600
-                values.append(1.0 if lag_hours <= 12 else 0.8 if lag_hours <= 48 else 0.6)
+                event_temporality.append(
+                    1.0 if lag_hours <= 12
+                    else 0.8 if lag_hours <= 48
+                    else 0.6 if lag_hours <= 168
+                    else 0.35
+                )
             else:
-                values.append(0.75)
+                event_temporality.append(0.75)
         except (TypeError, ValueError):
-            values.append(0.0)
-    return round(sum(values) / len(values), 3) if values else 0.0
+            event_temporality.append(0.0)
+
+    evidence_score = sum(evidence_validity) / len(evidence_validity) if evidence_validity else 0.0
+    if not event_temporality:
+        return round(evidence_score, 3)
+    temporal_score = sum(event_temporality) / len(event_temporality)
+    # Publication/reference alignment is the primary anti-repost signal.
+    # A syntactically valid observed_at timestamp cannot wash out stale content.
+    return round(temporal_score * 0.85 + evidence_score * 0.15, 3)
 
 
 def _geolocation_quality(events: list[Event]) -> float:
@@ -118,17 +129,27 @@ def _geolocation_quality(events: list[Event]) -> float:
     best = 0.0
     for event in events:
         if event.latitude is not None and event.longitude is not None:
-            best = max(best, 0.95)
-        elif event.region:
+            if event.geolocation_confidence is not None:
+                quality = event.geolocation_confidence
+            elif event.location_source == "reported":
+                quality = 0.85
+            elif event.location_source == "inferred":
+                quality = 0.55
+            else:
+                quality = 0.70
+            best = max(best, quality)
+        elif event.location and event.location_source == "reported":
             best = max(best, 0.65)
+        elif event.region:
+            best = max(best, 0.60)
         elif event.country:
-            best = max(best, 0.45)
-    return best
+            best = max(best, 0.40)
+    return round(best, 3)
 
 
 def _physical_quality(evidence: EvidenceRef, event: Event | None) -> float:
     if evidence.verification_level != "sensor_signal":
         return 0.0
     if event and event.latitude is not None and event.longitude is not None:
-        return 0.85
+        return max(0.65, min(event.geolocation_confidence or 0.75, 0.95))
     return 0.65

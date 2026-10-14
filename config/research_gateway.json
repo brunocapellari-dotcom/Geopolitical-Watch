@@ -1,0 +1,68 @@
+{
+  "schema_version": "geowatch-research-gateway-v1",
+  "as_of": "2026-09-28",
+  "governance": {
+    "external_content_is_untrusted": true,
+    "access_control_bypass_forbidden": true,
+    "stealth_or_anti_bot_bypass_forbidden": true,
+    "rights_and_terms_gate_required": true,
+    "browser_agent_last_resort": true,
+    "immutable_snapshot_before_derived_processing": true
+  },
+  "stages": [
+    {
+      "id": "direct_http",
+      "engine": "geowatch.http",
+      "status": "active",
+      "purpose": "bounded reviewed HTTP retrieval"
+    },
+    {
+      "id": "snapshot",
+      "engine": "geowatch.evidence_snapshot",
+      "status": "active",
+      "purpose": "immutable content-addressed evidence capture"
+    },
+    {
+      "id": "article_extract",
+      "engine": "Trafilatura",
+      "status": "target",
+      "purpose": "main-text extraction for ordinary articles"
+    },
+    {
+      "id": "document_parse",
+      "engine": "Docling",
+      "status": "target",
+      "purpose": "structured PDF/office parsing"
+    },
+    {
+      "id": "crawl",
+      "engine": "Crawl4AI",
+      "status": "target",
+      "purpose": "bounded multipage or browser-backed crawl"
+    },
+    {
+      "id": "resilient_dom",
+      "engine": "Scrapling",
+      "status": "conditional",
+      "purpose": "selector resilience only; no stealth/bypass"
+    },
+    {
+      "id": "browser_render",
+      "engine": "Playwright",
+      "status": "active_for_tests_target_for_research",
+      "purpose": "controlled JS rendering"
+    },
+    {
+      "id": "browser_agent",
+      "engine": "isolated browser agent",
+      "status": "last_resort",
+      "purpose": "interactive navigation after deterministic methods fail"
+    },
+    {
+      "id": "high_fidelity_capture",
+      "engine": "Browsertrix Crawler",
+      "status": "conditional",
+      "purpose": "selected dynamic-page WARC preservation"
+    }
+  ]
+}

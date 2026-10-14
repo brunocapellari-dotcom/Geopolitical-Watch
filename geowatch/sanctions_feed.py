@@ -71,18 +71,20 @@ def parse_uk_csv(payload: bytes, *, collected_at: str, source_url: str | None = 
     Each CSV name row is retained with the UK Unique ID; consumers can group rows
     by that ID when they need designation-level rather than name-level counts.
     """
-    text = payload.decode("utf-8-sig", errors="replace")
-    lines = text.splitlines()
-    header_index = _uk_header_index(lines)
-    if header_index is None:
+    stream = io.TextIOWrapper(io.BytesIO(payload), encoding="utf-8-sig", errors="replace", newline="")
+    header_line = None
+    for _ in range(50):
+        line = stream.readline()
+        if not line:
+            break
+        folded = line.casefold()
+        if "unique id" in folded and ("regime name" in folded or "name 6" in folded or "name 1" in folded):
+            header_line = line
+            break
+    if header_line is None:
         return []
-    table = "\n".join(lines[header_index:])
-    sample = table[:20000]
-    try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
-    except csv.Error:
-        dialect = csv.excel
-    reader = csv.DictReader(io.StringIO(table), dialect=dialect)
+    delimiter = max((",", ";", "\t", "|"), key=header_line.count)
+    reader = csv.DictReader(_prepend_line(header_line, stream), delimiter=delimiter)
     rows=[]
     for item in reader:
         if not isinstance(item, dict):
@@ -115,6 +117,11 @@ def parse_uk_csv(payload: bytes, *, collected_at: str, source_url: str | None = 
         programs=tuple(value for value in [regime] if value)
         rows.append(SanctionsDesignation(did,"UK-FCDO","UK Sanctions List",ref,name,entity_type,programs,listed,source_url,collected_at))
     return rows
+
+
+def _prepend_line(first: str, rest):
+    yield first
+    yield from rest
 
 
 def uk_csv_diagnostics(payload: bytes) -> dict:

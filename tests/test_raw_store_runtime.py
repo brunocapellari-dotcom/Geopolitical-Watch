@@ -9,6 +9,7 @@ from unittest.mock import patch
 from geowatch.raw_store import (
     LocalRawStore,
     PostgresRawStore,
+    S3RawStore,
     open_raw_store,
     raw_backend_name,
     reset_raw_schema_cache_for_tests,
@@ -71,6 +72,23 @@ class RuntimeRawStoreTests(unittest.TestCase):
             store = open_raw_store()
             self.assertIsInstance(store, PostgresRawStore)
             self.assertEqual(raw_backend_name(), "postgresql-compressed")
+
+    def test_s3_backend_requires_bucket(self) -> None:
+        with patch.dict(os.environ, {"GEOWATCH_RAW_BACKEND": "s3"}, clear=True):
+            with self.assertRaises(RuntimeError):
+                open_raw_store()
+
+    def test_s3_backend_selection_is_lazy(self) -> None:
+        env = {
+            "GEOWATCH_RAW_BACKEND": "neon-object-storage",
+            "GEOWATCH_RAW_S3_BUCKET": "geowatch-raw",
+            "AWS_ENDPOINT_URL_S3": "https://example.invalid",
+            "AWS_REGION": "us-east-1",
+        }
+        with patch.dict(os.environ, env, clear=True), patch("geowatch.raw_store.S3RawStore", autospec=True) as mocked:
+            open_raw_store()
+            mocked.assert_called_once_with("geowatch-raw", "raw")
+            self.assertEqual(raw_backend_name(), "s3-compatible")
 
     def test_legacy_database_url_fallback_is_supported(self) -> None:
         env = {

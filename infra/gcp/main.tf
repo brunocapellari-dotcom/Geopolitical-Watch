@@ -543,7 +543,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.ref"        = "assertion.ref"
   }
 
-  attribute_condition = "assertion.repository == '${var.github_repository}' && assertion.ref == 'refs/heads/main'"
+  attribute_condition = "assertion.repository == '${var.github_repository}' && assertion.ref in [${join(", ", [for ref in var.github_allowed_refs : "'${ref}'"])}]"
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
@@ -559,6 +559,12 @@ resource "google_service_account_iam_member" "github_wif" {
 resource "google_project_iam_member" "github_artifact_writer" {
   project = var.project_id
   role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.github_deployer.email}"
+}
+
+resource "google_project_iam_member" "github_cloudbuild_editor" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.editor"
   member  = "serviceAccount:${google_service_account.github_deployer.email}"
 }
 

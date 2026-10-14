@@ -55,7 +55,7 @@ class V012BetaReliabilityTests(unittest.TestCase):
 
     def test_http_get_retries_retryable_status(self):
         error = HTTPError('https://example.test', 429, 'Too Many Requests', {'Retry-After': '0'}, None)
-        with patch('geowatch.http.urlopen', side_effect=[error, _DummyResponse()]) as mocked, patch('geowatch.http.time.sleep') as sleeper:
+        with patch('geowatch.http.open_url_request', side_effect=[error, _DummyResponse()]) as mocked, patch('geowatch.http.time.sleep') as sleeper:
             response = get('https://example.test', retries=1, backoff_seconds=0)
         self.assertEqual(b'{}', response.payload)
         self.assertEqual(2, mocked.call_count)

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import time
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
 @dataclass(frozen=True)
@@ -14,6 +15,7 @@ class HttpResponse:
     payload: bytes
     url: str
     content_type: str | None
+    headers: tuple[tuple[str, str], ...] = ()
 
 
 _RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
@@ -36,7 +38,38 @@ def validate_web_url(url: str, *, require_https: bool = False) -> str:
         raise ValueError("URL hostname is required")
     if parts.username is not None or parts.password is not None:
         raise ValueError("credentials in URL are not allowed")
+    hostname = parts.hostname.casefold().rstrip(".")
+    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith(".localhost"):
+        raise ValueError("local addresses are not allowed")
+    try:
+        ip = ipaddress.ip_address(hostname.strip("[]"))
+    except ValueError:
+        ip = None
+    if ip is not None and (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    ):
+        raise ValueError("non-public IP addresses are not allowed")
     return value
+
+
+class _SafeRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, *, require_https: bool = False) -> None:
+        super().__init__()
+        self.require_https = require_https
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        safe_url = validate_web_url(newurl, require_https=self.require_https)
+        return super().redirect_request(req, fp, code, msg, headers, safe_url)
+
+
+def open_url_request(request: Request, *, timeout: int, require_https: bool = False):
+    opener = build_opener(_SafeRedirectHandler(require_https=require_https))
+    return opener.open(request, timeout=timeout)  # nosec B310
 
 
 def get(
@@ -62,11 +95,14 @@ def get(
     attempts = max(0, int(retries)) + 1
     for attempt in range(attempts):
         try:
-            # B310 is mitigated by validate_web_url immediately above; only
-            # http/https with a hostname and no URL credentials are permitted.
-            with urlopen(request, timeout=timeout) as response:  # nosec B310
+            with open_url_request(request, timeout=timeout) as response:
                 final_url = validate_web_url(response.geturl())
-                return HttpResponse(response.read(), final_url, response.headers.get("Content-Type"))
+                return HttpResponse(
+                    response.read(),
+                    final_url,
+                    response.headers.get("Content-Type"),
+                    safe_response_headers(response.headers),
+                )
         except HTTPError as exc:
             if exc.code not in _RETRYABLE_HTTP_CODES or attempt >= attempts - 1:
                 raise
@@ -89,10 +125,14 @@ def post_form(url: str, data: dict[str, str], *, headers: dict[str, str] | None 
     }
     req_headers.update(headers or {})
     request = Request(url, data=payload, headers=req_headers, method="POST")
-    # B310 is mitigated by validate_web_url above and final redirect validation.
-    with urlopen(request, timeout=timeout) as response:  # nosec B310
+    with open_url_request(request, timeout=timeout) as response:
         final_url = validate_web_url(response.geturl())
-        return HttpResponse(response.read(), final_url, response.headers.get("Content-Type"))
+        return HttpResponse(
+            response.read(),
+            final_url,
+            response.headers.get("Content-Type"),
+            safe_response_headers(response.headers),
+        )
 
 
 def json_body(response: HttpResponse) -> dict:
@@ -110,3 +150,25 @@ def _retry_delay(attempt: int, retry_after: str | None, backoff_seconds: float, 
     jitter_fraction = int.from_bytes(digest[:2], "big") / 65535.0
     jitter = base * 0.35 * jitter_fraction
     return min(max_backoff_seconds, base + jitter)
+
+
+_SAFE_RESPONSE_HEADER_NAMES = {
+    "cache-control",
+    "content-language",
+    "content-length",
+    "content-type",
+    "date",
+    "etag",
+    "expires",
+    "last-modified",
+}
+
+
+def safe_response_headers(headers) -> tuple[tuple[str, str], ...]:  # type: ignore[no-untyped-def]
+    values: list[tuple[str, str]] = []
+    items = headers.items() if hasattr(headers, "items") else headers
+    for key, value in items:
+        name = str(key).strip().casefold()
+        if name in _SAFE_RESPONSE_HEADER_NAMES:
+            values.append((name, str(value).strip()[:2000]))
+    return tuple(sorted(values))

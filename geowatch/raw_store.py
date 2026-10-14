@@ -241,6 +241,87 @@ class PostgresRawStore:
         return zlib.decompress(data) if compression == "zlib" else data
 
 
+
+class S3RawStore:
+    """Content-addressed RAW storage for S3-compatible providers such as Neon Object Storage."""
+
+    def __init__(self, bucket_name: str, prefix: str = "raw") -> None:
+        try:
+            import boto3  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError("S3 RAW backend requires: pip install 'geopolitical-watch[s3]'") from exc
+        self.bucket_name = bucket_name
+        self.prefix = prefix.strip("/")
+        self.client = boto3.client(
+            "s3",
+            region_name=os.environ.get("AWS_REGION") or None,
+            endpoint_url=os.environ.get("AWS_ENDPOINT_URL_S3") or None,
+            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID") or None,
+            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY") or None,
+        )
+
+    def put(
+        self,
+        source_id: str,
+        collected_at: str,
+        payload: bytes,
+        extension: str,
+        *,
+        collector_id: str | None = None,
+        source_url: str | None = None,
+    ) -> tuple[str, str]:
+        digest = hashlib.sha256(payload).hexdigest()
+        filename = f"{digest}.{extension}.zlib"
+        key = "/".join(part for part in (self.prefix, "payloads", source_id, filename) if part)
+        compressed = zlib.compress(payload, level=6)
+        exists = False
+        try:
+            self.client.head_object(Bucket=self.bucket_name, Key=key)
+            exists = True
+        except Exception as exc:
+            response = getattr(exc, "response", {}) or {}
+            code = str((response.get("Error") or {}).get("Code") or "")
+            status = (response.get("ResponseMetadata") or {}).get("HTTPStatusCode")
+            if code not in {"404", "NoSuchKey", "NotFound"} and status != 404:
+                raise
+        if not exists:
+            self.client.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=compressed,
+                ContentType="application/octet-stream",
+                Metadata={
+                    "sha256": digest,
+                    "source-id": source_id,
+                    "original-extension": extension,
+                    "compression": "zlib",
+                    "original-bytes": str(len(payload)),
+                },
+            )
+        ref = f"s3://{self.bucket_name}/{key}"
+        obs_id = _observation_id(source_id, digest, collected_at, collector_id, source_url)
+        observation_key = "/".join(part for part in (
+            self.prefix, "_ledger", "observations", source_id, collected_at[:10], f"{obs_id}.json"
+        ) if part)
+        self.client.put_object(
+            Bucket=self.bucket_name,
+            Key=observation_key,
+            Body=json.dumps({
+                "observation_id": obs_id,
+                "source_id": source_id,
+                "sha256": digest,
+                "timestamp": collected_at,
+                "collector": collector_id,
+                "source_url": source_url,
+                "raw_ref": ref,
+                "bytes": len(payload),
+                "stored_bytes": len(compressed),
+            }, ensure_ascii=False, sort_keys=True).encode("utf-8"),
+            ContentType="application/json",
+        )
+        return ref, digest
+
+
 class GCSRawStore:
     def __init__(self, bucket_name: str, prefix: str = "raw") -> None:
         try:
@@ -299,6 +380,11 @@ def open_raw_store(location: str | Path | None = None):
     if bucket:
         return GCSRawStore(bucket, os.environ.get("GEOWATCH_RAW_PREFIX", "raw"))
     backend = os.environ.get("GEOWATCH_RAW_BACKEND", "").strip().casefold()
+    s3_bucket = os.environ.get("GEOWATCH_RAW_S3_BUCKET", "").strip()
+    if backend in {"s3", "neon", "neon-object-storage"} or s3_bucket:
+        if not s3_bucket:
+            raise RuntimeError("GEOWATCH_RAW_S3_BUCKET is required for S3-compatible RAW storage")
+        return S3RawStore(s3_bucket, os.environ.get("GEOWATCH_RAW_PREFIX", "raw"))
     db_url = _database_url()
     if backend in {"postgres", "postgresql"}:
         if not db_url:
@@ -314,9 +400,12 @@ def open_raw_store(location: str | Path | None = None):
 def raw_backend_name(location: str | Path | None = None) -> str:
     bucket = os.environ.get("GEOWATCH_RAW_BUCKET")
     backend = os.environ.get("GEOWATCH_RAW_BACKEND", "").strip().casefold()
+    s3_bucket = os.environ.get("GEOWATCH_RAW_S3_BUCKET", "").strip()
     value = str(location) if location is not None else os.environ.get("GEOWATCH_RAW") or "data/raw"
     if bucket or value.startswith("gs://"):
         return "gcs"
+    if backend in {"s3", "neon", "neon-object-storage"} or s3_bucket:
+        return "s3-compatible"
     if backend in {"postgres", "postgresql"}:
         return "postgresql-compressed"
     return "filesystem"
@@ -329,4 +418,11 @@ def reset_raw_schema_cache_for_tests() -> None:
 
 def _content_type(extension: str) -> str:
     ext = extension.casefold().lstrip(".")
-    return {"json": "application/json", "csv": "text/csv", "xml": "application/xml", "txt": "text/plain"}.get(ext, "application/octet-stream")
+    return {
+        "json": "application/json",
+        "csv": "text/csv",
+        "xml": "application/xml",
+        "txt": "text/plain",
+        "html": "text/html",
+        "pdf": "application/pdf",
+    }.get(ext, "application/octet-stream")

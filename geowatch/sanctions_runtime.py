@@ -30,16 +30,20 @@ def refresh_official_sanctions(*, db_path=None, raw_root="data/raw") -> dict[str
             try:
                 response = get(url, timeout=180, retries=2, backoff_seconds=2.0)
                 safe_url = redact_url(response.url)
+                payload = response.payload
+                payload_bytes = len(payload)
                 raw_ref, digest = raw_store.put(
-                    source_id, collected_at, response.payload, extension,
+                    source_id, collected_at, payload, extension,
                     collector_id="official_sanctions_runtime", source_url=safe_url,
                 )
                 store.add_artifact(
                     artifact_id=f"{source_id}:{digest}", source_id=source_id, sha256=digest,
                     collected_at=collected_at, observed_url=safe_url, path=raw_ref,
-                    bytes_count=len(response.payload),
+                    bytes_count=payload_bytes,
                 )
-                rows = _dedupe(parser(response.payload, collected_at=collected_at, source_url=safe_url))
+                rows = _dedupe(parser(payload, collected_at=collected_at, source_url=safe_url))
+                del payload
+                del response
                 report_type = f"sanctions_snapshot_{source_id}"
                 previous = store.latest_report(report_type)
                 previous_rows = _objects(previous.get("designations", [])) if previous else []

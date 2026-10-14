@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import Mock, patch
 
-from geowatch.private_api import _private_dashboard_html
+from geowatch.private_api import PrivateHandler, _private_dashboard_html, _private_operational_page_html
 from geowatch.web_auth import clear_cookie, issue_session, login_html, session_cookie, verify_login_body, verify_session
 
 
@@ -39,6 +40,23 @@ class PrivateAuthTests(unittest.TestCase):
         self.assertIn('id="token" type="hidden"', html)
         self.assertNotIn('type="password" placeholder="API bearer token"', html)
         self.assertIn('href="/logout"', html)
+
+    def test_authenticated_operational_page_hides_bearer_field(self) -> None:
+        html = _private_operational_page_html("overview")
+        self.assertIn('id="token" type="hidden"', html)
+        self.assertNotIn('type="password" placeholder="API bearer token"', html)
+        self.assertIn('href="/logout"', html)
+
+    def test_operational_page_without_session_returns_login(self) -> None:
+        fake = Mock()
+        fake.path = "/overview"
+        fake.headers = {}
+        with patch("geowatch.private_api.API_TOKEN", "s" * 40), \
+             patch("geowatch.private_api.verify_session", return_value=False):
+            PrivateHandler.do_GET(fake)
+        self.assertTrue(fake._send_text.called)
+        body = fake._send_text.call_args.args[1]
+        self.assertIn("Acesso privado", body)
 
 
 if __name__ == "__main__":

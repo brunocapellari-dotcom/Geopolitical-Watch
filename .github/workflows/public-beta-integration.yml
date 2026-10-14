@@ -1,6 +1,9 @@
 name: public-beta-integration
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     paths:
       - "geowatch/pipeline.py"
@@ -10,6 +13,16 @@ on:
       - "geowatch/prospective_forecasting.py"
       - "geowatch/sources/gdelt.py"
       - "geowatch/sources/gdacs.py"
+      - "geowatch/claim_verification.py"
+      - "geowatch/source_independence.py"
+      - "geowatch/alerts.py"
+      - "geowatch/analysis_runner.py"
+      - "geowatch/source_health.py"
+      - "geowatch/source_collection.py"
+      - "geowatch/storage.py"
+      - "geowatch/storage_postgres.py"
+      - "geowatch/api.py"
+      - "geowatch/dashboard.py"
       - "config/sources.public-beta.json"
       - "config/operations/source_slo.json"
       - "config/operations/source_failover.json"
@@ -34,6 +47,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+      - name: Install canonical project runtime
+        run: pip install .
       - name: Run real GDELT and GDACS beta path
         run: |
           set -o pipefail

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
 
-from geowatch.sources import ioda, ripestat, usgs
+from geowatch.http import HttpResponse
+from geowatch.sources import celestrak, gdelt, ioda, ripestat, usgs
 
 
 class ContextSourceTests(unittest.TestCase):

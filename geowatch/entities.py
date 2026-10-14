@@ -85,15 +85,29 @@ class EntityResolver:
         return cls(Entity.from_dict(row) for row in rows)
 
     def resolve_name(self, name: str, *, entity_type: str = "unknown", country: str | None = None) -> Entity:
-        key = text_key(name)
+        raw_name = " ".join(str(name).strip().split())
+        key = text_key(raw_name)
         if key in self._alias_index:
-            return self.entities[self._alias_index[key]]
+            entity_id = self._alias_index[key]
+            entity = self.entities[entity_id]
+            raw_names = tuple(sorted(set(entity.raw_names) | ({raw_name} if raw_name else set())))
+            updated = replace(
+                entity,
+                raw_names=raw_names,
+                normalized_name=entity.normalized_name or key,
+                resolution_confidence=max(entity.resolution_confidence or 0.0, 0.95),
+            )
+            self.entities[entity_id] = updated
+            return updated
         entity_id = "ent_" + hashlib.sha256(f"{entity_type}|{key}|{normalize_country(country) or ''}".encode()).hexdigest()[:20]
         entity = Entity(
             entity_id=entity_id,
             entity_type=entity_type,  # type: ignore[arg-type]
-            canonical_name=" ".join(str(name).strip().split()),
+            canonical_name=raw_name,
             aliases=(),
+            raw_names=(raw_name,) if raw_name else (),
+            normalized_name=key or None,
+            resolution_confidence=0.55,
             country=normalize_country(country),
         )
         self.entities[entity.entity_id] = entity

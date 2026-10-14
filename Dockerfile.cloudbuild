@@ -1,0 +1,26 @@
+FROM hashicorp/terraform:1.11.4 AS terraform
+
+FROM python:3.12-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+COPY --from=terraform /bin/terraform /usr/local/bin/terraform
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl docker.io git \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 geowatch-ci \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /bin/bash geowatch-ci
+
+WORKDIR /workspace
+COPY --chown=geowatch-ci:geowatch-ci . .
+RUN python -m pip install --upgrade pip \
+    && pip install -e '.[production,test]' \
+    && python -m playwright install --with-deps chromium \
+    && chown -R geowatch-ci:geowatch-ci /workspace /home/geowatch-ci
+
+USER 10001:10001
+
+CMD ["bash", "scripts/full_project_gate.sh"]

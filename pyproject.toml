@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "geopolitical-watch"
-version = "0.15.0"
+version = "0.16.0"
 description = "Standalone public-source geopolitical conflict monitoring and strategic intelligence platform"
 requires-python = ">=3.12"
 license = {text = "Proprietary project scaffold; review upstream source terms before redistribution"}
@@ -12,9 +12,11 @@ dependencies = ["defusedxml>=0.7.1,<1"]
 
 [project.optional-dependencies]
 postgres = ["psycopg[binary]>=3.2,<4"]
+s3 = ["boto3>=1.35,<2"]
 gcp = ["google-cloud-storage>=2.18,<4"]
 production = [
   "psycopg[binary]>=3.2,<4",
+  "boto3>=1.35,<2",
   "google-cloud-storage>=2.18,<4",
   "websockets>=15,<17",
 ]
