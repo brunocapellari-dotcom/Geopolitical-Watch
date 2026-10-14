@@ -32,8 +32,8 @@ class GdeltBoundedWindowTests(unittest.TestCase):
                 request_meta=request_meta,
             )
         kwargs = mocked.call_args.kwargs
-        self.assertEqual(kwargs["start_datetime"], "20261012T060000Z")
-        self.assertEqual(kwargs["end_datetime"], "20261012T180000Z")
+        self.assertEqual(kwargs["start_datetime"], "20261012060000")
+        self.assertEqual(kwargs["end_datetime"], "20261012180000")
         self.assertEqual(kwargs["maxrecords"], 100)
         self.assertTrue(request_meta["window_bounded"])
 
@@ -53,7 +53,7 @@ class GdeltBoundedWindowTests(unittest.TestCase):
                 overlap_minutes=120,
                 request_meta=request_meta,
             )
-        self.assertEqual(mocked.call_args.kwargs["start_datetime"], "20261012T150000Z")
+        self.assertEqual(mocked.call_args.kwargs["start_datetime"], "20261012150000")
         self.assertFalse(request_meta["window_bounded"])
 
 
